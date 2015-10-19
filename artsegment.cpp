@@ -54,11 +54,12 @@ int ArtNN :: updateNetStatus(const VectorSpace<int> & input, const double distan
                   < 0 proccess err
 ****/
 int ArtNN :: fireANewNeuron(const VectorSpace<int> & input)
-{
-    Neuron newNeuron(input);
+{   // for the new neuron, it is a = 1, T = 1, keep that.
     // determin which group to put this neuron in, bg or moving?
-        
-    
+    if (m_bgNeurons.size() >= m_movingNeurons.size())
+        m_bgNeurons.push_back(Neuron(input));
+    else
+        m_movingNeurons.push_back(Neuron(input));
 
     return 0;
 }

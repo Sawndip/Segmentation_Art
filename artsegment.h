@@ -48,32 +48,39 @@ public:
     class Neuron
     {
     public:
-        Neuron() : m_learningRate(1.0), m_vigilance(15.0) 
+        Neuron()
         {
             m_weightVector.resize(3);
+            initOtherMembers();
             return;
         }
         explicit Neuron (const VectorSpace<int> & vs)
             : m_weightVector(vs)
-            , m_learningRate(1.0) 
-            , m_vigilance(15.0) 
         {
 
         }
+         
         ~Neuron(){}
 
     public:
+        bool doVigilanceTest(const double distance) {return distance < m_vigilance;}        
         void setNewWeightVector(const VectorSpace<int> & vs) {m_weightVector = vs;}
         VectorSpace<int> & getNeuronWeightVector() {return m_weightVector;}
-        //
-        bool doVigilanceTest(const double distance) {return distance < m_vigilance;}        
 
-    private:
+    private: // methods
+        void initOtherMembers()
+        {
+            m_learningRate = 1.0;
+            m_vigilance = 15.0;
+        }
+
+    private: // class members
         VectorSpace<int> m_weightVector;
         double m_learningRate; // decrease through time with initial value 1.0        
         // winner neuron take the vigilance test to determine update its weightVector
         // or create a new neuron.
         dboule m_vigilance; // dynamic change through merging or ??
+        enum {MAX_MEMORY_FRAMES = (25 * 4)}; // 25fps * 4s
     };
 
 private:
@@ -95,14 +102,15 @@ private: // internal helper members
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
 struct SegmentFeatures
 {
-    int m_x;
-    int m_y;
-    int m_y;
-
-
+    int m_xCentroid;
+    int m_yCentroid;
+    int m_l;
+    int m_a;
+    int m_b;
+    int m_width;
+    int m_height;
 };
 
 class ArtSegment
@@ -114,21 +122,22 @@ public:
     {
 
     }
+
     ~ArtSegment()
     {
         
     }
     
     // API
-    vector<VectorSpace<double> > & processFrame(const unsigned char * pR, 
-                                                const unsigned char * pG, 
-                                                const unsigned char * pB);
+    vector<SegmentFeatures> & processFrame(const unsigned char * pR, 
+                                           const unsigned char * pG, 
+                                           const unsigned char * pB);
     
 private:
     const int m_imgWidth;
     const int m_imgHeight;
     vector<vector<ArtNN *> > m_pArts; // in width x height
-    vector<VectorSpace<double>> m_features;
+    vector<SegmentFeatures> m_features;
 }
 
 } // 
