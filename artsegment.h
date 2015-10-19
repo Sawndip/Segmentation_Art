@@ -15,9 +15,8 @@
 #include "vectorspace.h"
 
 // namespace
-
-using std :: string;
-using std :: vector;
+using :: std :: string;
+using :: std :: vector;
 using namespace Vector_Space;
 
 namespace Art_Segment
@@ -46,7 +45,7 @@ public:
     class Neuron
     {
     public:
-        explicit Neuron (const VectorSpace<int> & vs)
+        explicit Neuron (const VectorSpace<int> & vs = VectorSpace<int> (0,3))
             : m_weightVector(vs)
         {
 
@@ -56,12 +55,14 @@ public:
     private:
         VectorSpace<int> m_weightVector;
         double m_learningRate; // change through time
-        dboule m_vigilance;
         double m_theta; // determine the precent of background: 1 / T
-        double m_
     };
 
 private:
+    // winner neuron take the vigilance test to determine update its weightVector
+    // or create a new neuron.
+    dboule m_vigilance; // 15 - 25
+    double m_overlapRate; // for merging neurons
     vector<Neuron> m_bgNeurons;
     vector<Neuron> m_movingNeurons;
 };
