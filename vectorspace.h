@@ -64,7 +64,8 @@ private:
         double result = 0.0;
         for (int k = 0; k < (int) v1.size(); k++)
             result += pow((double)(v1[k] - v2[k]), 2.0);
-        return sqrt(result);
+        //return sqrt(result);
+        return result;
     }
 
     static vector<T> vectorDotProduct(const vector<T> & v1, const vector<T> & v2)
