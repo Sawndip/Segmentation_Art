@@ -254,7 +254,7 @@ int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
             vector<double> input;
             for(int n=0; n < in.channels(); n++)
                 input.push_back(in.at<uchar>(k, j * in.channels() + n));
-            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input));
+            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input)) ? 0 : 255;
         }
     }
     return 0;

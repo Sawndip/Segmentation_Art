@@ -23,7 +23,7 @@ namespace
 {
 
 #define SEQ_FILE_DIR ("./data")
-#define SEQ_FILE_MAX_NUM (484)
+#define SEQ_FILE_MAX_NUM (500)
     
 string intToString(const int n)
 {
@@ -40,11 +40,11 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
     {
         string strNum = intToString(k);
         if (k < 10)
-            imgNames.push_back(imgFileFolder + "/img0000" + strNum + ".png");
+            imgNames.push_back(imgFileFolder + "/img00" + strNum + ".jpg");
         else if (k < 100)
-            imgNames.push_back(imgFileFolder + "/img000" + strNum + ".png");
+            imgNames.push_back(imgFileFolder + "/img0" + strNum + ".jpg");
         else
-            imgNames.push_back(imgFileFolder + "/img00" + strNum + ".png");        
+            imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
     }
 
     printf("Test Images: %s - %s.\n", imgNames[0].c_str(),
@@ -62,12 +62,12 @@ int main(int argc, char * argv[])
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
 
-    ArtSegment asn(320, 240);
+    ArtSegment asn(640, 480);
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {
         Mat inFrame = imread(imgFilePathes[i]);
         printf ("read in frame: %d, path %s.\n", i, imgFilePathes[i].c_str());
-        Mat binaryFrame(240, 320, CV_8UC1);
+        Mat binaryFrame(480, 640, CV_8UC1);
         asn.processFrame(inFrame, binaryFrame);
         //// Draw the detected objects
         //for (int k  0; k < (int)rects.size(); k++)
