@@ -32,15 +32,26 @@ public:
         return vectorEuler(vs1.components(), vs2.components());
     }
 
-    static VectorSpace<T> operator*(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    static VectorSpace<T> innerProduct(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
     {
-        return VectorSpace<T>(vectorDotProduct(vs1, vs2));
+        return VectorSpace<T>(vectorDotProduct(vs1.components(), vs2.components()));
+    }
+
+    static VectorSpace<T> operator*(const VectorSpace<T> & vs, const double scaler) // double or T?
+    {
+        return VectorSpace<T>(vectorScale(vs.components(), scaler);
     }
 
     static VectorSpace<T> operator+(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
     {
         return VectorSpace<T>(vectorAdd(vs1.components(), vs2.components()));
     }
+
+    static VectorSpace<T> operator-(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    {
+        return vs1 + (vs2 * (-1.0))
+    }
+
 
     // assign operator
     VectorSpace<T> & operator=(const VectorSpace<T> & vs)
@@ -74,6 +85,14 @@ private:
         assert(v1.size() == v2.size());
         for (int k = 0; k < (int)v1.size(); k++)
             result += v1[k] * v2[k];
+        return result;
+    }
+
+    static vector<T> vectorScaler(const vector<T> & v1, const T scaler)
+    {
+        vector<T> result;
+        for (int k = 0; k < (int)v1.size(); k++)
+            result.push_back(v1[k] * scaler);
         return result;
     }
 
