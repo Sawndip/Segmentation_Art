@@ -120,7 +120,7 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
             {
                 canMerge = VectorSpace<double>::eulerDistance((*it1)->getWeightVector(),
                                                               (*it2)->getWeightVector())  /
-                          ((*it1)->getCurVigilance() + (*it2)->getCurVigilance()) < m_bgPercent;
+                          ((*it1)->getCurVigilance() + (*it2)->getCurVigilance()) < m_overlapRate;
                 if (canMerge == true)
                     break;
             }
@@ -138,17 +138,30 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
         const double v2 = (*it2)->getCurVigilance();
         VectorSpace<double> newWeight = ((*it1)->getWeightVector() * a1 + 
                                          (*it2)->getWeightVector() * a2) * (1.0 / (a1 + a2));
+        
         const double vigilanceDiff = std::min(VectorSpace<double>::eulerDistance((*it1)->getWeightVector(), newWeight),
                                               VectorSpace<double>::eulerDistance((*it2)->getWeightVector(), newWeight));
         const double newVigilance = (a1 * v1 + a2 * v2) / (a1 + a2) + vigilanceDiff;
-        Neuron mergeNeuron = *(*it2); // using it2 as the default
-        mergeNeuron.setWeightVector(newWeight);
-        mergeNeuron.setScores((*it2)->getScores());
-        mergeNeuron.setNewVigilance(newVigilance);
+        newWeight.dumpComponents();
 
-        neurons.push_back(&mergeNeuron);
-        neurons.erase(it1);
-        neurons.erase(it2);
+        Neuron * pMergeNeuron = new Neuron(newWeight); // using it2 as the default
+        pMergeNeuron->setScores((*it2)->getScores());
+        pMergeNeuron->setCurScore((*it2)->getCurScore());
+        pMergeNeuron->setAges((*it2)->getAges());
+        pMergeNeuron->setVigilance(newVigilance);
+
+        // learning rate no need to copy
+        Neuron *p1 = *it1;
+        Neuron *p2 = *it2;
+        p1->getWeightVector().dumpComponents();
+        p2->getWeightVector().dumpComponents();
+        printf ("MergeNeuron: a1 %d, a2 %d, v1 %.2f, v2 %.2f, diff %.2f, p1 %p, p2 %p.\n", 
+                a1, a2, v1, v2, vigilanceDiff, p1, p2);
+        delete p1;
+        delete p2;
+        neurons.erase(std::remove(neurons.begin(), neurons.end(), p1), neurons.end());
+        neurons.erase(std::remove(neurons.begin(), neurons.end(), p2), neurons.end());
+        neurons.push_back(pMergeNeuron);
     }
 
     return;

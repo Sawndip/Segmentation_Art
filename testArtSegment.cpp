@@ -74,11 +74,13 @@ int main(int argc, char * argv[])
         //    rectangle(frame, rects[k], Scalar(200,0,0), 2); 
 
         putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-        putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-
+        //putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
         imshow("ArtSegment", inFrame);
-        imshow("ArtSegment", binaryFrame);
+        imshow("bgfg", binaryFrame);
+        cv::moveWindow("ArtSegment", 10, 10);
+        cv::moveWindow("bgfg", 500, 500);
         waitKey(1);
+        //getchar();
     } 
 
     return 0;

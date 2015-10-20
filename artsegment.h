@@ -38,9 +38,15 @@ public:
         , m_scores(MAX_MEMORY_AGES, 0)
     {
     
-    }
-
+    }    
     ~Neuron(){}
+
+    //void copyTo(Neuron & newNeuron)
+    //{
+    //    newNeuron.setWeightVector(m_weightVector);
+    //    newNeuron.setNewVigilance(m_vigilance);
+    //    newNeuron.setNewAges(m_liveTimes);
+    //}
    
     // apis
     bool doVigilanceTest(const double distance) {return distance < m_vigilance;}        
@@ -65,11 +71,17 @@ public:
         m_weightVector = m_weightVector + ((input - m_weightVector) * m_learningRate);
     }
 
-    unsigned int getCurScore() {return m_curScore;}
-    unsigned int getAges() {return m_liveTimes;}
     unsigned int getMaxMemoryAges() {return MAX_MEMORY_AGES;}
+    // getter setter
+    unsigned int getCurScore() {return m_curScore;}
+    void setCurScore(const unsigned int newCurScore) {m_curScore = newCurScore;}
+
+    unsigned int getAges() {return m_liveTimes;}
+    void setAges(const int newAges) {m_liveTimes = newAges;}
+
     double getCurVigilance() {return m_vigilance;}
-    void setNewVigilance(const double newVigilance) {m_vigilance = newVigilance;}
+    void setVigilance(const double newVigilance) {m_vigilance = newVigilance;}
+
     vector<unsigned int> & getScores() {return m_scores;}
     void setScores(vector<unsigned int> & newScores) {m_scores = newScores;}
 
@@ -91,7 +103,7 @@ private:
 class ArtNN
 {
 public:
-    ArtNN() : m_bgPercent(0.8), m_overlapRate (0.9), m_inputFrames(0)
+    ArtNN() : m_bgPercent(0.8), m_overlapRate (0.1), m_inputFrames(0)
     { 
         return;
     }
@@ -101,7 +113,7 @@ public:
 private:
     // determine the percent of backgroud neuron's avtivate times in all.
     // for movingNeuron transform to bgNeuron.
-    double m_bgPercent; // 0.8
+    double m_bgPercent; // 0.9
     // if two neurons are close enough (overlap), they are merged.
     double m_overlapRate; // 0.9
     // neuron models for this pixel

@@ -2,6 +2,7 @@
 #define _VECTOR_SPACE_H_
 
 //sys
+#include <iostream>
 #include <math.h>
 #include <vector>
 
@@ -59,6 +60,13 @@ public:
     }
     const vector<T> & components() const {return m_components;}
     int dimention() {return (int)m_components.size();}
+    void dumpComponents()
+    {
+        for (int k = 0; k < (int)m_components.size(); k++) 
+            std::cout << m_components[k] << " ";
+        std::cout << std::endl;
+    }
+
 
 private:
     vector<T> m_components;
