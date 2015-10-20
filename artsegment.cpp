@@ -106,16 +106,47 @@ int ArtNN :: rearrangeNeurous()
     return 0;
 }
 
-
+// each time we at most merge one pair
 void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
 {
-    vector<Pair >
-    for (auto it = neurons.begin(); it != neurons.end(); it++)
+    bool canMerge = false;
+    auto it1 = neurons.begin();
+    auto it2 = neurons.begin();
+    for (it1; it1 != neurons.end(); it1++)
     {
-        for (auto it2 = neurons.begin(); it2 != neurons.end(); it2++)
+        for (its2; it2 != neurons.end(); it2++)
         {
-            
+            if (it1 != it2)
+            {
+                canMerge = eulerDistance((*it1)->getWeightVector(),
+                                         (*it2)->getWeightVector())  /
+                          ((*it1)->getCurVigilance() + (*it2)->getCurVigilance()) < m_bgPercent;
+                if (canMerge == true)
+                    break;
+            }
         }
+
+        if (it != neurons.end())
+            break;
+    }
+    
+    if (canMerge == true)
+    {
+        const int a1 = (*it1)->getCurScore();
+        const int a2 = (*it2)->getCurScore();
+        const double v1 = (*it1)->getCurVigilance();
+        const double v2 = (*it2)->getCurVigilance();
+        VectorSpace newWeight = ((*it1)->getWeightVector() * a1 + 
+                                 (*it2)->getWeightVector() * a2) * (1.0 / (a1 + a2));
+        const double vigilanceDiff = std::min(eulerDistance((*it1)->getWeightVector(), newWeight), 
+                                              eulerDistance((*it2)->getWeightVector(), newWeight));
+        const double newVigilance = (a1 * v1 + a2 * v2) / (a1 + a2) + vigilanceDiff;
+        Neuron mergeNeuron = *(*it2); // using it2 as the default
+        mergeNeuron.setWeightVector(newWeight);
+        mergeNeuron.setScores((*it2)->getScores());
+        neurons.push_back(&mergeNeuron);
+        neurons.erase(it1);
+        neurons.erase(it2);
     }
 
     return;
@@ -165,7 +196,7 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
     for (int k = 0; k < (int)m_bgNeurons.size(); k++)
     {   
         m_bgNeurons[k]->updateScoreAsLoser();
-        const double tmp = eulerDistance(m_bgNeurons[k]->getNeuronWeightVector(), input);
+        const double tmp = eulerDistance(m_bgNeurons[k]->getWeightVector(), input);
         if (tmp < distance)
         {
             distance = tmp;
@@ -177,7 +208,7 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
     for (int k = 0; k < (int)m_movingNeurons.size(); k++)
     {
         m_movingNeurons[k]->updateScoreAsLoser();
-        const double tmp = eulerDistance(m_movingNeurons[k]->getNeuronWeightVector(), input);
+        const double tmp = eulerDistance(m_movingNeurons[k]->getWeightVector(), input);
         if (tmp < distance)
         {
             distance = tmp;
@@ -197,5 +228,59 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 //////////////////////////////////////////////////////////////////////////////////////////
 //// ArtSegment class method
 
+// test api
+int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
+{
+
+    for (int k = 0; k < m_imgHeight++)
+    {
+        for (int j = 0; j < m_imgWidth; j++)
+        {
+            vector<double> input;
+            for（int n=0; n < in.channels(); n++）
+                input.push_back(in.at<uchar>(k, j * in.channels() * n));
+            out.at<uchar>(k, j) = m_pArts->processOneInput(input);
+        }
+    }
+    return 0;
+}
+
+ArtSegment :: ArtSegment(const int width, const int height)
+    : m_imgWidth(width)
+    , m_imgHeight(height)
+{
+    for (int k = 0; k < m_imgHeight++)
+    {
+        Vector<ArtNN *> pRow;
+        for (int j = 0; j < m_imgWidth; j++)
+        {
+            ArtNN * pArtNN = new ArtNN();
+            pRow.push_back(pArtNN);
+        }
+        m_pArts.push_back();
+    }
+
+    return;    
+}
+
+ArtSegment :: ~ArtSegment()
+{
+    for (int k = 0; k < m_imgHeight++)
+        for (int j = 0; j < m_imgWidth; j++)
+            delete m_pArts[k][j];
+    return;        
+}
+
 
 } // namespace
+
+/*
+for(int i=0;i<img2.rows;i++)
+    for(int j=0;j<img2.cols;j++)
+         img2.at<uchar>(i,j)=255；   //取得像素或者赋值
+ 
+for(int i=0;i<img2.rows;i++)
+    for(int j=0;j<img2.cols;j++)
+        for（int n=0;n<img2.channels();n++）
+              img2.at<uchar>(i,j*img2.channels()+n)=255；   //取得像素或者赋值
+*/

@@ -21,7 +21,7 @@ public:
     }
 
     // copy constructor
-    explicit VectorSpace<T> & operator=(const VectorSpace<T> & vs)
+    VectorSpace<T> & operator=(const VectorSpace<T> & vs)
     {
         m_components = vs.components();
         return *this;

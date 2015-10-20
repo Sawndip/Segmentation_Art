@@ -37,13 +37,15 @@ public:
         , m_curScore(0)
         , m_scores(MAX_MEMORY_AGES, 0);
     {
-
+    
     }
+
     ~Neuron(){}
+   
     // apis
     bool doVigilanceTest(const double distance) {return distance < m_vigilance;}        
     void setNewWeightVector(const VectorSpace<double> & vs) {m_weightVector = vs;}
-    VectorSpace<int> & getNeuronWeightVector() {return m_weightVector;}
+    VectorSpace<int> & getWeightVector() {return m_weightVector;}
     void updateScoreAsLoser()
     {
         const int thisRoundScoreIdx = m_liveTimes % MAX_MEMORY_AGES;
@@ -66,6 +68,10 @@ public:
     unsigned int getCurScore() {return m_curScore;}
     unsigned int getAges() {return m_liveTimes;}
     unsigned int getMaxMemoryAges() {return MAX_MEMORY_AGES;}
+    double getCurVigilance() {return m_vigilance;}
+    void setNewVigilance(const double newVigilance) {m_vigilance = newVigilance;}
+    vector<unsigned int> & getScores() {return m_scores;}
+    void setScores(vector<unsigned int> & newScores) {return m_scores = newScores;}
 
 private:
     VectorSpace<double> m_weightVector;
@@ -125,22 +131,14 @@ struct SegmentFeatures
 class ArtSegment
 {
 public:
-    ArtSegment(const int width, const int height)
-        : m_imgWidth(width)
-        , m_imgHeight(height)
-    {
-
-    }
-
-    ~ArtSegment()
-    {
-        
-    }
+    ArtSegment(const int width, const int height);
+    ~ArtSegment();
     
     // API
-    vector<SegmentFeatures> & processFrame(const unsigned char * pR, 
-                                           const unsigned char * pG, 
-                                           const unsigned char * pB);
+    //vector<SegmentFeatures> & processFrame(const unsigned char * pR, 
+    //                                       const unsigned char * pG, 
+    //                                       const unsigned char * pB);
+    int processFrame(const cv::Mat & in, cv::Mat & out);
     
 private:
     const int m_imgWidth;
