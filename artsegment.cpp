@@ -82,9 +82,9 @@ int ArtNN :: rearrangeNeurous()
         totalScoresWithoutMin += m_bgNeurons[k]->getCurScore();
     if (totalScoresWithoutMin * 1.0 / lastTFrames > m_bgPercent)
     {// ok, we can move this neuron to foreground group
-        audo it = m_bgNeurons.begin();
+        auto it = m_bgNeurons.begin();
+        m_movingNeurons.push_back(*it);
         m_bgNeurons.erase(it);
-        m_movingNeurons.push_back(*it);        
     }
     
     // 2) move movingGroup's to bgGroup in case of:
@@ -96,8 +96,8 @@ int ArtNN :: rearrangeNeurous()
     if (totalScores * 1.0 / lastTFrames > m_bgPercent)
     {
         auto pNeuron = m_movingNeurons.back();
-        m_movingNeurons.pop_back();
         m_bgNeurons.push_back(&(*pNeuron));
+        m_movingNeurons.pop_back();
     }
    
     // 3. do merging
@@ -112,21 +112,21 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
     bool canMerge = false;
     auto it1 = neurons.begin();
     auto it2 = neurons.begin();
-    for (it1; it1 != neurons.end(); it1++)
+    for (/**/; it1 != neurons.end(); it1++)
     {
-        for (its2; it2 != neurons.end(); it2++)
+        for (/**/; it2 != neurons.end(); it2++)
         {
             if (it1 != it2)
             {
-                canMerge = eulerDistance((*it1)->getWeightVector(),
-                                         (*it2)->getWeightVector())  /
+                canMerge = VectorSpace<double>::eulerDistance((*it1)->getWeightVector(),
+                                                              (*it2)->getWeightVector())  /
                           ((*it1)->getCurVigilance() + (*it2)->getCurVigilance()) < m_bgPercent;
                 if (canMerge == true)
                     break;
             }
         }
 
-        if (it != neurons.end())
+        if (it2 != neurons.end())
             break;
     }
     
@@ -136,14 +136,16 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
         const int a2 = (*it2)->getCurScore();
         const double v1 = (*it1)->getCurVigilance();
         const double v2 = (*it2)->getCurVigilance();
-        VectorSpace newWeight = ((*it1)->getWeightVector() * a1 + 
-                                 (*it2)->getWeightVector() * a2) * (1.0 / (a1 + a2));
-        const double vigilanceDiff = std::min(eulerDistance((*it1)->getWeightVector(), newWeight), 
-                                              eulerDistance((*it2)->getWeightVector(), newWeight));
+        VectorSpace<double> newWeight = ((*it1)->getWeightVector() * a1 + 
+                                         (*it2)->getWeightVector() * a2) * (1.0 / (a1 + a2));
+        const double vigilanceDiff = std::min(VectorSpace<double>::eulerDistance((*it1)->getWeightVector(), newWeight),
+                                              VectorSpace<double>::eulerDistance((*it2)->getWeightVector(), newWeight));
         const double newVigilance = (a1 * v1 + a2 * v2) / (a1 + a2) + vigilanceDiff;
         Neuron mergeNeuron = *(*it2); // using it2 as the default
         mergeNeuron.setWeightVector(newWeight);
         mergeNeuron.setScores((*it2)->getScores());
+        mergeNeuron.setNewVigilance(newVigilance);
+
         neurons.push_back(&mergeNeuron);
         neurons.erase(it1);
         neurons.erase(it2);
@@ -191,12 +193,12 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 
     // 2. calculate all neurons' eulerDistance with the input
     //    set all neurons' as the loser neuron first, then reset the winner neuron.
-    double distance = std::numeric_limits::max;
+    double distance = std::numeric_limits<double>::max();
     // background neurons
     for (int k = 0; k < (int)m_bgNeurons.size(); k++)
     {   
         m_bgNeurons[k]->updateScoreAsLoser();
-        const double tmp = eulerDistance(m_bgNeurons[k]->getWeightVector(), input);
+        const double tmp = VectorSpace<double>::eulerDistance(m_bgNeurons[k]->getWeightVector(), input);
         if (tmp < distance)
         {
             distance = tmp;
@@ -208,7 +210,7 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
     for (int k = 0; k < (int)m_movingNeurons.size(); k++)
     {
         m_movingNeurons[k]->updateScoreAsLoser();
-        const double tmp = eulerDistance(m_movingNeurons[k]->getWeightVector(), input);
+        const double tmp = VectorSpace<double>::eulerDistance(m_movingNeurons[k]->getWeightVector(), input);
         if (tmp < distance)
         {
             distance = tmp;
@@ -232,14 +234,14 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
 {
 
-    for (int k = 0; k < m_imgHeight++)
+    for (int k = 0; k < m_imgHeight; k++)
     {
         for (int j = 0; j < m_imgWidth; j++)
         {
             vector<double> input;
-            for（int n=0; n < in.channels(); n++）
-                input.push_back(in.at<uchar>(k, j * in.channels() * n));
-            out.at<uchar>(k, j) = m_pArts->processOneInput(input);
+            for(int n=0; n < in.channels(); n++)
+                input.push_back(in.at<uchar>(k, j * in.channels() + n));
+            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input));
         }
     }
     return 0;
@@ -249,15 +251,15 @@ ArtSegment :: ArtSegment(const int width, const int height)
     : m_imgWidth(width)
     , m_imgHeight(height)
 {
-    for (int k = 0; k < m_imgHeight++)
+    for (int k = 0; k < m_imgHeight; k++)
     {
-        Vector<ArtNN *> pRow;
+        vector<ArtNN *> row;
         for (int j = 0; j < m_imgWidth; j++)
         {
             ArtNN * pArtNN = new ArtNN();
-            pRow.push_back(pArtNN);
+            row.push_back(pArtNN);
         }
-        m_pArts.push_back();
+        m_pArts.push_back(row);
     }
 
     return;    
@@ -265,7 +267,7 @@ ArtSegment :: ArtSegment(const int width, const int height)
 
 ArtSegment :: ~ArtSegment()
 {
-    for (int k = 0; k < m_imgHeight++)
+    for (int k = 0; k < m_imgHeight; k++)
         for (int j = 0; j < m_imgWidth; j++)
             delete m_pArts[k][j];
     return;        

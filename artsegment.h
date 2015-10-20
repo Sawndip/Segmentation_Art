@@ -35,7 +35,7 @@ public:
         , m_vigilance(15.0)
         , m_liveTimes(0)
         , m_curScore(0)
-        , m_scores(MAX_MEMORY_AGES, 0);
+        , m_scores(MAX_MEMORY_AGES, 0)
     {
     
     }
@@ -44,8 +44,8 @@ public:
    
     // apis
     bool doVigilanceTest(const double distance) {return distance < m_vigilance;}        
-    void setNewWeightVector(const VectorSpace<double> & vs) {m_weightVector = vs;}
-    VectorSpace<int> & getWeightVector() {return m_weightVector;}
+    void setWeightVector(const VectorSpace<double> & vs) {m_weightVector = vs;}
+    VectorSpace<double> & getWeightVector() {return m_weightVector;}
     void updateScoreAsLoser()
     {
         const int thisRoundScoreIdx = m_liveTimes % MAX_MEMORY_AGES;
@@ -71,14 +71,14 @@ public:
     double getCurVigilance() {return m_vigilance;}
     void setNewVigilance(const double newVigilance) {m_vigilance = newVigilance;}
     vector<unsigned int> & getScores() {return m_scores;}
-    void setScores(vector<unsigned int> & newScores) {return m_scores = newScores;}
+    void setScores(vector<unsigned int> & newScores) {m_scores = newScores;}
 
 private:
     VectorSpace<double> m_weightVector;
     double       m_learningRate; // decrease through time with initial value 1.0        
     // winner neuron takes the vigilance test, then update its weightVector
     // or create a new neuron.
-    dboule       m_vigilance; // dynamic change through merging or ??
+    double       m_vigilance; // dynamic change through merging or ??
     // to memory previous socres
     unsigned int m_liveTimes;
     unsigned int m_curScore;
@@ -96,7 +96,7 @@ public:
         return;
     }
     // calculate artNN's output, update internal neurons' states.
-    int processOneInput(const VectorSpace<int> & input);
+    int processOneInput(const VectorSpace<double> & input);
 
 private:
     // determine the percent of backgroud neuron's avtivate times in all.
@@ -112,6 +112,10 @@ private:
 private: // internal helper members
     bool m_bBGWin;
     int m_winnerIdx;
+    int fireANewNeuron(const VectorSpace<double> & input);
+    double updateNeuronsWithNewInput(const VectorSpace<double> & input);
+    void mergeCloseNeurons(vector<Neuron *> & neurons);
+    int rearrangeNeurous();
 };
 
 
@@ -145,7 +149,7 @@ private:
     const int m_imgHeight;
     vector<vector<ArtNN *> > m_pArts; // in width x height
     vector<SegmentFeatures> m_features;
-}
+};
 
 } // 
 

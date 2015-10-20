@@ -40,15 +40,15 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
     {
         string strNum = intToString(k);
         if (k < 10)
-            imgNames.push_back(imgFilePath + "/img0000" + strNum + ".png");
+            imgNames.push_back(imgFileFolder + "/img0000" + strNum + ".png");
         else if (k < 100)
-            imgNames.push_back(imgFilePath + "/img000" + strNum + ".png");
+            imgNames.push_back(imgFileFolder + "/img000" + strNum + ".png");
         else
-            imgNames.push_back(imgFilePath + "/img00" + strNum + ".png");        
+            imgNames.push_back(imgFileFolder + "/img00" + strNum + ".png");        
     }
 
-    printf("Through %s - %s.\n", imgNames[0].c_str(),
-           imgNames[SEQ_FILE_MAX_NUM].c_str());
+    printf("Test Images: %s - %s.\n", imgNames[0].c_str(),
+           imgNames[SEQ_FILE_MAX_NUM - 1].c_str());
     return;
 }
 
@@ -62,20 +62,22 @@ int main(int argc, char * argv[])
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
 
-    ArtSegment asn;
-    int count = 0;
-    for(int i = 0; i < (int)imgNames.size(); i ++)
+    ArtSegment asn(320, 240);
+    for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {
-        Mat frame = imread(imgFilePathes[i]);
+        Mat inFrame = imread(imgFilePathes[i]);
+        printf ("read in frame: %d, path %s.\n", i, imgFilePathes[i].c_str());
+        Mat binaryFrame(240, 320, CV_8UC1);
+        asn.processFrame(inFrame, binaryFrame);
+        //// Draw the detected objects
+        //for (int k  0; k < (int)rects.size(); k++)
+        //    rectangle(frame, rects[k], Scalar(200,0,0), 2); 
 
-        vector<Rect> & rects = asn.processFrame(frame);
-        // Draw the detected objects
-        for (int k  0; k < (int)rects.size(); k++)
-            rectangle(frame, rects[k], Scalar(200,0,0), 2); 
+        putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
+        putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
 
-        putText(frame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-
-        imshow("ArtSegment", frame); 
+        imshow("ArtSegment", inFrame);
+        imshow("ArtSegment", binaryFrame);
         waitKey(1);
     } 
 

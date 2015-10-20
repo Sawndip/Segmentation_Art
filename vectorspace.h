@@ -19,49 +19,45 @@ public:
     {
         return;
     }
-
-    // copy constructor
-    VectorSpace<T> & operator=(const VectorSpace<T> & vs)
-    {
-        m_components = vs.components();
-        return *this;
-    }
+    //// copy constructor
+    //VectorSpace(const VectorSpace<T> & vs)
+    //{
+    //    m_components = vs.components();
+    //    return;
+    //}
+    //// assign operator
+    //VectorSpace<T> & operator=(const VectorSpace<T> & vs)
+    //{
+    //    m_components = vs.components();
+    //    return *this;
+    //}
     
+    VectorSpace<T> innerProduct(const VectorSpace<T> & vs2) const
+    {
+        return VectorSpace<T>(vectorDotProduct(vs2.components()));
+    }
+
+    VectorSpace<T> operator*(const T scaler) const
+    {
+        return VectorSpace<T>(vectorScale(scaler));
+    }
+
+    VectorSpace<T> operator+(const VectorSpace<T> & vs2) const
+    {
+        return VectorSpace<T>(vectorAdd(vs2.components()));
+    }
+
+    VectorSpace<T> operator-(const VectorSpace<T> & vs2) const 
+    {
+        return VectorSpace<T>(vectorMinus(vs2.components()));
+    }
+
+    // helpers
     static double eulerDistance(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
     {
         return vectorEuler(vs1.components(), vs2.components());
     }
-
-    static VectorSpace<T> innerProduct(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
-    {
-        return VectorSpace<T>(vectorDotProduct(vs1.components(), vs2.components()));
-    }
-
-    static VectorSpace<T> operator*(const VectorSpace<T> & vs, const double scaler) // double or T?
-    {
-        return VectorSpace<T>(vectorScale(vs.components(), scaler);
-    }
-
-    static VectorSpace<T> operator+(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
-    {
-        return VectorSpace<T>(vectorAdd(vs1.components(), vs2.components()));
-    }
-
-    static VectorSpace<T> operator-(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
-    {
-        return vs1 + (vs2 * (-1.0))
-    }
-
-
-    // assign operator
-    VectorSpace<T> & operator=(const VectorSpace<T> & vs)
-    {
-        m_components = vs.components();
-        return *this;
-    }
-
-    // helpers
-    Vector<T> & components() {return m_components;}
+    const vector<T> & components() const {return m_components;}
     int dimention() {return (int)m_components.size();}
 
 private:
@@ -79,29 +75,38 @@ private:
         return result;
     }
 
-    static vector<T> vectorDotProduct(const vector<T> & v1, const vector<T> & v2)
+    vector<T> vectorDotProduct(const vector<T> & v2) const
     {
         vector<T> result;
-        assert(v1.size() == v2.size());
-        for (int k = 0; k < (int)v1.size(); k++)
-            result += v1[k] * v2[k];
+        assert(m_components.size() == v2.size());
+        for (int k = 0; k < (int)m_components.size(); k++) 
+            result += m_components[k] * v2[k];
         return result;
     }
 
-    static vector<T> vectorScaler(const vector<T> & v1, const T scaler)
+    vector<T> vectorScale(const T scaler) const
     {
         vector<T> result;
-        for (int k = 0; k < (int)v1.size(); k++)
-            result.push_back(v1[k] * scaler);
+        for (int k = 0; k < (int)m_components.size(); k++) 
+            result.push_back(m_components[k] * scaler);
         return result;
     }
 
-    static vector<T> vectorAdd(const vector<T> & v1, const vector<T> & v2)
+    vector<T> vectorAdd(const vector<T> & v2) const
     {
         vector<T> result;
-        assert(v1.size() == v2.size());
-        for (int k = 0; k < (int)v1.size(); k++)
-            result.push_back(v1[k] + v2[k]);
+        assert(m_components.size() == v2.size());
+        for (int k = 0; k < (int)m_components.size(); k++)
+            result.push_back(m_components[k] + v2[k]);
+        return result;
+    }
+
+    vector<T> vectorMinus(const vector<T> & v2) const
+    {
+        vector<T> result;
+        assert(m_components.size() == v2.size());
+        for (int k = 0; k < (int)m_components.size(); k++)
+            result.push_back(m_components[k] - v2[k]);
         return result;
     }
 };
