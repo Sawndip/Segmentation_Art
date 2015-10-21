@@ -83,7 +83,8 @@ int main(int argc, char * argv[])
         imshow("bgfg", binaryFrame);
         cv::moveWindow("ArtSegment", 10, 10);
         cv::moveWindow("bgfg", 660, 10);
-        waitKey(0);
+        //waitKey(0);
+        waitKey(1);
         inFrame.release();
         binaryFrame.release();
         //getchar();

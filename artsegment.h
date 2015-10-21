@@ -32,7 +32,7 @@ public:
     explicit Neuron (const VectorSpace<double> & vs)
         : m_weightVector(vs)
         , m_learningRate(1.0)
-        , m_vigilance(40.0)
+        , m_vigilance(100.0)
         , m_liveTimes(0)
         , m_curScore(0)
         , m_scores(MAX_MEMORY_AGES, 0)
@@ -66,7 +66,7 @@ public:
         m_scores[lastUpdateRoundScoreIdx] = 1;
         m_curScore++;
         // 2. learning rate update
-        m_learningRate = 1.0 / (1.0 + m_curScore);
+        m_learningRate = 0.1; //TODO: 1.0 / (1.0 + m_curScore);
         // 3. weight vector update
         m_weightVector = m_weightVector + ((input - m_weightVector) * m_learningRate);
     }
@@ -129,6 +129,7 @@ private: // internal helper members
     double updateNeuronsWithNewInput(const VectorSpace<double> & input);
     void mergeCloseNeurons(vector<Neuron *> & neurons, const string & mergeType);
     int rearrangeNeurous();
+    bool tryRemoveBgNeurons(const int lastNFrames);
 };
 
 

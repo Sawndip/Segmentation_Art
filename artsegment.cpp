@@ -42,9 +42,9 @@ int ArtNN :: processOneInput(const VectorSpace<double> & input)
 
     // 2. move neuron's belongings, bg/moving, merge, delete, etc.
     rearrangeNeurous();
-    if (m_inputFrames % 100 == 0 && m_idx % 200 == 0)
-        LogI("%d : bg size %d, fg size %d.\n", m_idx, 
-             (int)m_bgNeurons.size(), (int)m_movingNeurons.size());
+    //if (m_inputFrames % 100 == 0 && m_idx % 200 == 0)
+    //    LogI("%d : bg size %d, fg size %d.\n", m_idx, 
+    //         (int)m_bgNeurons.size(), (int)m_movingNeurons.size());
     return pixelClassify;
 }
 
@@ -69,10 +69,11 @@ int ArtNN :: rearrangeNeurous()
     // 1. moving dead neurons first
     for (auto it = m_bgNeurons.begin(); it != m_bgNeurons.end(); /* No Increment */)
     {
-        if (((*it)->getAges() > ((*it)->getMaxMemoryAges() * 2)) && 
+        if (((*it)->getAges() > ((*it)->getMaxMemoryAges())) && 
             ((*it)->getCurScore() == 0))
         {
             //LogI("bg %d removing dead\n", m_idx);
+            delete *it;
             m_bgNeurons.erase(it);
         }
         else
@@ -81,10 +82,11 @@ int ArtNN :: rearrangeNeurous()
 
     for (auto it = m_movingNeurons.begin(); it != m_movingNeurons.end(); /* No Increment */)
     {
-        if (((*it)->getAges() > ((*it)->getMaxMemoryAges() * 2)) && 
+        if (((*it)->getAges() > ((*it)->getMaxMemoryAges() / 2)) && 
             ((*it)->getCurScore() == 0))
         {
             //LogI("moving %d removing dead\n", m_idx);
+            delete *it;
             m_movingNeurons.erase(it);
         }
         else
@@ -93,27 +95,13 @@ int ArtNN :: rearrangeNeurous()
 
     // 2. do regrouping TODO: seems here is the most important
     const int lastNFrames = m_inputFrames < MAX_MEMORY_AGES ? m_inputFrames : MAX_MEMORY_AGES;
-
     // 1) if possible mv bg's neuron to moving group, 'possible' here is to check the 'bgPercent'
-    std::sort(m_bgNeurons.begin(), m_bgNeurons.end(), neuronScoreComp);
-    //if (m_inputFrames == 50)
-    //    if (m_idx % 200 == 0)        
-    //        for (int k = 0; k < (int)m_bgNeurons.size(); k++)
-    //            LogI("%d - %d\n", k, m_bgNeurons[k]->getCurScore());
-    unsigned int totalScoresWithoutMin = 0;
-    for (int k = 1; k < (int)m_bgNeurons.size(); k++) // NOTE: from index 1
-        totalScoresWithoutMin += m_bgNeurons[k]->getCurScore();
-
-    if (totalScoresWithoutMin * 1.0 / lastNFrames > m_bgPercent && 
-        m_bgNeurons[0]->getAges() >= MAX_MEMORY_AGES &&
-        m_bgNeurons[0]->getCurScore() <= 1)
-    {// ok, we can move this neuron to foreground group
-        auto it = m_bgNeurons.begin();
-        //LogI("%d total score without min: %d, kick's score: %d.\n", 
-        //     m_idx, totalScoresWithoutMin, m_bgNeurons[0]->getCurScore());
-        m_movingNeurons.push_back(*it);
-        m_bgNeurons.erase(it);
-    }
+    bool canDeleteBgNeuron = false;
+    //do 
+    //{
+        canDeleteBgNeuron = tryRemoveBgNeurons(lastNFrames);
+    //}
+    //while (canDeleteBgNeuron == true);
     
     // 2) move movingGroup's to bgGroup in case of:
     //    a. movingGroup size >> bgGroup b. movingGourp bgPercent is hight.
@@ -121,18 +109,52 @@ int ArtNN :: rearrangeNeurous()
     unsigned int totalScores = 0;
     for (int k = 0; k < (int)m_movingNeurons.size(); k++) // NOTE: from index 1
         totalScores += m_movingNeurons[k]->getCurScore();
-
-    if (totalScores * 1.0 / lastNFrames > (m_bgPercent / 2)) //TODO: how to effective move to bg?
+    //TODO: how to effective move to bg?
+    if (totalScores * 1.0 / lastNFrames > (m_bgPercent / 2))
     {
         auto pNeuron = m_movingNeurons.back();
-        m_bgNeurons.push_back(pNeuron);
         m_movingNeurons.pop_back();
+        m_bgNeurons.push_back(pNeuron);
+    }
+
+    vector<Neuron *> scores;
+    for (int k = 0; k < (int)m_movingNeurons.size(); k++) // NOTE: from index 1
+        if (m_movingNeurons[k]->getCurScore() > 4)
+            scores.push_back(m_movingNeurons[k]);
+    for (int k = 0; k < (int)scores.size(); k++)
+    {
+        m_movingNeurons.erase(std::remove(m_movingNeurons.begin(), 
+                        m_movingNeurons.end(), scores[k]), m_movingNeurons.end());
+        m_bgNeurons.push_back(scores[k]);
     }
    
     // 3. do merging
     mergeCloseNeurons(m_bgNeurons, "bg");
     mergeCloseNeurons(m_movingNeurons, "moving");
     return 0;
+}
+
+bool ArtNN :: tryRemoveBgNeurons(const int lastNFrames)
+{
+    std::sort(m_bgNeurons.begin(), m_bgNeurons.end(), neuronScoreComp);
+    unsigned int totalScoresWithoutMin = 0;    
+    for (int k = 1; k < (int)m_bgNeurons.size(); k++) // NOTE: from index 1
+        totalScoresWithoutMin += m_bgNeurons[k]->getCurScore();
+
+    if (totalScoresWithoutMin * 1.0 / lastNFrames > m_bgPercent && 
+        m_bgNeurons[0]->getAges() >= MAX_MEMORY_AGES &&
+        m_bgNeurons[0]->getCurScore() < 2)
+    {   // ok, we can move this neuron to foreground group
+        auto it = m_bgNeurons.begin();
+        //LogI("%d total score without min: %d, kick's score: %d.\n", 
+        //     m_idx, totalScoresWithoutMin, m_bgNeurons[0]->getCurScore());
+        //m_movingNeurons.push_back(*it);
+        delete *it;
+        m_bgNeurons.erase(it);
+        return true;
+    }
+
+    return false;
 }
 
 // each time we at most merge one pair
@@ -219,7 +241,7 @@ int ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
         m_winnerIdx = m_bgNeurons.size() - 1;
         return 0;
     }
-    else if (m_bgNeurons.size() > 4 && 
+    else if (m_bgNeurons.size() > 8 && 
              m_bgNeurons.size() >= m_movingNeurons.size())
     {
         m_movingNeurons.push_back(pNew);
@@ -239,7 +261,7 @@ int ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
 
     m_movingNeurons.push_back(pNew);
     m_bBGWin = false;
-    m_winnerIdx = m_movingNeurons.size() - 1;
+    m_winnerIdx = m_movingNeurons.size() - 1;    
     return 255; // 1 means foreground pixel
 }
 
@@ -252,6 +274,7 @@ int ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
 ****/
 double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 {
+    const bool lastBgWin = m_bBGWin;
     // 1. if no neurons in the net, we return nagive 
     if (m_bgNeurons.size() == 0 && m_movingNeurons.size() == 0)
         return -1.0;
@@ -287,7 +310,8 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
     const bool bVigilanceTestPass = m_bBGWin ?
                    m_bgNeurons[m_winnerIdx]->doVigilanceTest(distance) :
                    m_movingNeurons[m_winnerIdx]->doVigilanceTest(distance);
-
+    if (bVigilanceTestPass == false)
+        m_bBGWin = lastBgWin;
     return bVigilanceTestPass ? distance : (-1.0);
 }
 
