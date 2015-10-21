@@ -43,7 +43,7 @@ int ArtNN :: processOneInput(const VectorSpace<double> & input)
     // 2. move neuron's belongings, bg/moving, merge, delete, etc.
     rearrangeNeurous();
     if (m_inputFrames % 100 == 0 && m_idx % 200 == 0)
-        LogI("%d : Size bg %d, moving %d.\n", m_idx, 
+        LogI("%d : bg size %d, fg size %d.\n", m_idx, 
              (int)m_bgNeurons.size(), (int)m_movingNeurons.size());
     return pixelClassify;
 }
@@ -61,9 +61,9 @@ int ArtNN :: rearrangeNeurous()
     if (m_bBGWin == false && m_movingNeurons[m_winnerIdx]->getCurScore() >= 4)
     {
         Neuron *pNeuron = m_movingNeurons[m_winnerIdx];
+        m_bgNeurons.push_back(pNeuron);
         m_movingNeurons.erase(std::remove(m_movingNeurons.begin(), 
                               m_movingNeurons.end(), pNeuron), m_movingNeurons.end());
-        m_bgNeurons.push_back(pNeuron);
     }
 
     // 1. moving dead neurons first
@@ -121,12 +121,12 @@ int ArtNN :: rearrangeNeurous()
     unsigned int totalScores = 0;
     for (int k = 0; k < (int)m_movingNeurons.size(); k++) // NOTE: from index 1
         totalScores += m_movingNeurons[k]->getCurScore();
+
     if (totalScores * 1.0 / lastNFrames > (m_bgPercent / 2)) //TODO: how to effective move to bg?
     {
         auto pNeuron = m_movingNeurons.back();
         m_bgNeurons.push_back(pNeuron);
-    delete pNeuron;
-        // m_movingNeurons.pop_back();
+        m_movingNeurons.pop_back();
     }
    
     // 3. do merging
@@ -138,6 +138,9 @@ int ArtNN :: rearrangeNeurous()
 // each time we at most merge one pair
 void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons, const string & mergeType)
 {
+    // TODO: debug
+    return;
+
     bool canMerge = false;
     auto it1 = neurons.begin();
     auto it2 = neurons.begin();
@@ -216,7 +219,7 @@ int ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
         m_winnerIdx = m_bgNeurons.size() - 1;
         return 0;
     }
-    else if (m_bgNeurons.size() > 6 && 
+    else if (m_bgNeurons.size() > 4 && 
              m_bgNeurons.size() >= m_movingNeurons.size())
     {
         m_movingNeurons.push_back(pNew);
@@ -278,7 +281,7 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
             distance = tmp;
             m_bBGWin = false;
             m_winnerIdx = k;
-        }                                                                                       
+        }                                                       
     }
  
     const bool bVigilanceTestPass = m_bBGWin ?
@@ -295,18 +298,30 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 // test api
 int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
 {
-    //assert(in.cols == m_imgWidth && in.rows == m_imgHeight);
-    //assert(out.cols == m_imgWidth && out.rows == m_imgHeight);
-    //assert(in.channels() == 3 && out.channels() ==1);
+    assert(in.cols == m_imgWidth && in.rows == m_imgHeight);
+    assert(out.cols == m_imgWidth && out.rows == m_imgHeight);
+    assert(in.channels() == 3 && out.channels() ==1);
     for (int k = 0; k < m_imgHeight; k++)
     {
+        unsigned char *data = in.data + k*m_imgWidth * in.channels();
         for (int j = 0; j < m_imgWidth; j++)
         {
-            vector<double> input;
+            vector<double> input1;
+            vector<int> input2;
             const cv::Vec3b & intensity = in.at<cv::Vec3b>(k, j);
             for(int n=0; n < in.channels(); n++)
-                input.push_back(intensity[n]);
-            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input));
+                input1.push_back(intensity[n]);
+            input2.push_back(*(data + j * in.channels()));
+            input2.push_back(*(data + j * in.channels() + 1));
+            input2.push_back(*(data + j * in.channels() + 2));
+            //assert(input1 == input2);
+            //for (int m = 0; m < (int)input1.size(); m++)
+            //    printf("%.2f, ", input1[m]);
+            //printf("\n");
+            //for (int m = 0; m < (int)input2.size(); m++)
+            //    printf("%d, ", input2[m]);
+            //printf("\n %d %d---\n", k, j);
+            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input1));
         }
     }
     return 0;

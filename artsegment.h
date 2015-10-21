@@ -32,7 +32,7 @@ public:
     explicit Neuron (const VectorSpace<double> & vs)
         : m_weightVector(vs)
         , m_learningRate(1.0)
-        , m_vigilance(25.0)
+        , m_vigilance(40.0)
         , m_liveTimes(0)
         , m_curScore(0)
         , m_scores(MAX_MEMORY_AGES, 0)

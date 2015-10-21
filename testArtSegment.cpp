@@ -8,6 +8,7 @@
 // tools
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 // project
 #include "artsegment.h"
 
@@ -65,8 +66,11 @@ int main(int argc, char * argv[])
     ArtSegment asn(640, 480);
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {
+        //Mat readFrame = imread(imgFilePathes[i]);
+        //Mat inFrame;         cvtColor(readFrame, inFrame, CV_BGR2Lab);
         Mat inFrame = imread(imgFilePathes[i]);
-        printf ("read in frame: %d, path %s.\n", i, imgFilePathes[i].c_str());
+        printf ("read in frame: %d, path %s, colorType %d.\n", 
+                i, imgFilePathes[i].c_str(), inFrame.type());
         Mat binaryFrame(480, 640, CV_8UC1);
         asn.processFrame(inFrame, binaryFrame);
         //// Draw the detected objects
@@ -79,7 +83,9 @@ int main(int argc, char * argv[])
         imshow("bgfg", binaryFrame);
         cv::moveWindow("ArtSegment", 10, 10);
         cv::moveWindow("bgfg", 660, 10);
-        waitKey(1);
+        waitKey(0);
+        inFrame.release();
+        binaryFrame.release();
         //getchar();
     } 
 
