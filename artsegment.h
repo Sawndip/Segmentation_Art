@@ -32,7 +32,7 @@ public:
     explicit Neuron (const VectorSpace<double> & vs)
         : m_weightVector(vs)
         , m_learningRate(1.0)
-        , m_vigilance(15.0)
+        , m_vigilance(25.0)
         , m_liveTimes(0)
         , m_curScore(0)
         , m_scores(MAX_MEMORY_AGES, 0)
@@ -103,7 +103,7 @@ private:
 class ArtNN
 {
 public:
-    ArtNN() : m_bgPercent(0.8), m_overlapRate (0.1), m_inputFrames(0)
+    ArtNN(const int idx) : m_idx(idx), m_bgPercent(0.9), m_overlapRate (0.1), m_inputFrames(0)
     { 
         return;
     }
@@ -111,6 +111,7 @@ public:
     int processOneInput(const VectorSpace<double> & input);
 
 private:
+    const int m_idx;
     // determine the percent of backgroud neuron's avtivate times in all.
     // for movingNeuron transform to bgNeuron.
     double m_bgPercent; // 0.9
@@ -126,7 +127,7 @@ private: // internal helper members
     int m_winnerIdx;
     int fireANewNeuron(const VectorSpace<double> & input);
     double updateNeuronsWithNewInput(const VectorSpace<double> & input);
-    void mergeCloseNeurons(vector<Neuron *> & neurons);
+    void mergeCloseNeurons(vector<Neuron *> & neurons, const string & mergeType);
     int rearrangeNeurous();
 };
 

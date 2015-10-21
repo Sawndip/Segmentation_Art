@@ -7,6 +7,7 @@ SET(CMAKE_VERBOSE_MAKEFILE off)
 
 # we make binary
 SET(artseg artseg.out)
+SET(testVector vector.out)
 
 # get compile time
 EXECUTE_PROCESS(
@@ -48,6 +49,8 @@ LINK_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR})
 SET(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS} "-g -O2 -Wall -std=c++0x")
 ADD_EXECUTABLE(${artseg} ${CMAKE_CURRENT_SOURCE_DIR}/artsegment.cpp
                          ${CMAKE_CURRENT_SOURCE_DIR}/testArtSegment.cpp)
+
+ADD_EXECUTABLE(${testVector} ${CMAKE_CURRENT_SOURCE_DIR}/testVector.cpp)
 
 TARGET_LINK_LIBRARIES(${artseg} opencv_calib3d opencv_contrib opencv_core opencv_features2d
                              opencv_flann opencv_highgui opencv_imgproc 

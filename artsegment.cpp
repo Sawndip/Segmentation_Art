@@ -9,10 +9,8 @@ bool neuronScoreComp(Neuron * p1, Neuron * p2)
     return p1->getCurScore() < p2->getCurScore();
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////
 //// ArtNN class method
-
 /**** processOneInput:
  1. classify the input pixel as background or foreground
  2. update its internal neurons' states.
@@ -25,7 +23,7 @@ int ArtNN :: processOneInput(const VectorSpace<double> & input)
     int pixelClassify = 0;
     // 1. update neurons internal scores by new coming input 
     //    in this step all neurons are treated as losers.
-    double distance = updateNeuronsWithNewInput(input);
+    const double distance = updateNeuronsWithNewInput(input);
     if (distance >= 0) // re-update the winner neurons
     {   // resetThisRoundScoreAsWinner must be called after 'updateScoreAsLoser()'
         if (m_bBGWin == true) 
@@ -36,7 +34,7 @@ int ArtNN :: processOneInput(const VectorSpace<double> & input)
         else
         {
             m_movingNeurons[m_winnerIdx]->reupdateThisRoundAsWinner(input, distance);
-            pixelClassify = 1; // it is a foreground pixel
+            pixelClassify = 255; // it is a foreground pixel
         }
     }
     else// 2) fire a new neuron and put it in the proper group.
@@ -44,10 +42,13 @@ int ArtNN :: processOneInput(const VectorSpace<double> & input)
 
     // 2. move neuron's belongings, bg/moving, merge, delete, etc.
     rearrangeNeurous();
+    if (m_inputFrames % 100 == 0 && m_idx % 200 == 0)
+        LogI("%d : Size bg %d, moving %d.\n", m_idx, 
+             (int)m_bgNeurons.size(), (int)m_movingNeurons.size());
     return pixelClassify;
 }
 
-/**** fireANewNeuron:
+/**** rearrangeNeurous:
  1. update the winner neuron
  2. recalculate the neuron group 
  3. remove death neurons
@@ -56,33 +57,60 @@ int ArtNN :: processOneInput(const VectorSpace<double> & input)
 ****/
 int ArtNN :: rearrangeNeurous()
 {
-    // 1. we do removing first
+    // moving to bg is important
+    if (m_bBGWin == false && m_movingNeurons[m_winnerIdx]->getCurScore() >= 4)
+    {
+        Neuron *pNeuron = m_movingNeurons[m_winnerIdx];
+        m_movingNeurons.erase(std::remove(m_movingNeurons.begin(), 
+                              m_movingNeurons.end(), pNeuron), m_movingNeurons.end());
+        m_bgNeurons.push_back(pNeuron);
+    }
+
+    // 1. moving dead neurons first
     for (auto it = m_bgNeurons.begin(); it != m_bgNeurons.end(); /* No Increment */)
     {
-        if ((*it)->getAges() > (*it)->getMaxMemoryAges() && (*it)->getCurScore() == 0)
+        if (((*it)->getAges() > ((*it)->getMaxMemoryAges() * 2)) && 
+            ((*it)->getCurScore() == 0))
+        {
+            //LogI("bg %d removing dead\n", m_idx);
             m_bgNeurons.erase(it);
+        }
         else
             it++;
     }
 
     for (auto it = m_movingNeurons.begin(); it != m_movingNeurons.end(); /* No Increment */)
     {
-        if ((*it)->getAges() > (*it)->getMaxMemoryAges() && (*it)->getCurScore() == 0)
+        if (((*it)->getAges() > ((*it)->getMaxMemoryAges() * 2)) && 
+            ((*it)->getCurScore() == 0))
+        {
+            //LogI("moving %d removing dead\n", m_idx);
             m_movingNeurons.erase(it);
+        }
         else
             it++;
     }
 
-    // 2. do regrouping, 
-    const int lastTFrames = m_inputFrames < MAX_MEMORY_AGES ? m_inputFrames : MAX_MEMORY_AGES;
+    // 2. do regrouping TODO: seems here is the most important
+    const int lastNFrames = m_inputFrames < MAX_MEMORY_AGES ? m_inputFrames : MAX_MEMORY_AGES;
+
     // 1) if possible mv bg's neuron to moving group, 'possible' here is to check the 'bgPercent'
     std::sort(m_bgNeurons.begin(), m_bgNeurons.end(), neuronScoreComp);
+    //if (m_inputFrames == 50)
+    //    if (m_idx % 200 == 0)        
+    //        for (int k = 0; k < (int)m_bgNeurons.size(); k++)
+    //            LogI("%d - %d\n", k, m_bgNeurons[k]->getCurScore());
     unsigned int totalScoresWithoutMin = 0;
     for (int k = 1; k < (int)m_bgNeurons.size(); k++) // NOTE: from index 1
         totalScoresWithoutMin += m_bgNeurons[k]->getCurScore();
-    if (totalScoresWithoutMin * 1.0 / lastTFrames > m_bgPercent)
+
+    if (totalScoresWithoutMin * 1.0 / lastNFrames > m_bgPercent && 
+        m_bgNeurons[0]->getAges() >= MAX_MEMORY_AGES &&
+        m_bgNeurons[0]->getCurScore() <= 1)
     {// ok, we can move this neuron to foreground group
         auto it = m_bgNeurons.begin();
+        //LogI("%d total score without min: %d, kick's score: %d.\n", 
+        //     m_idx, totalScoresWithoutMin, m_bgNeurons[0]->getCurScore());
         m_movingNeurons.push_back(*it);
         m_bgNeurons.erase(it);
     }
@@ -91,23 +119,24 @@ int ArtNN :: rearrangeNeurous()
     //    a. movingGroup size >> bgGroup b. movingGourp bgPercent is hight.
     std::sort(m_movingNeurons.begin(), m_movingNeurons.end(), neuronScoreComp);
     unsigned int totalScores = 0;
-    for (int k = 1; k < (int)m_movingNeurons.size(); k++) // NOTE: from index 1
+    for (int k = 0; k < (int)m_movingNeurons.size(); k++) // NOTE: from index 1
         totalScores += m_movingNeurons[k]->getCurScore();
-    if (totalScores * 1.0 / lastTFrames > m_bgPercent)
+    if (totalScores * 1.0 / lastNFrames > (m_bgPercent / 2)) //TODO: how to effective move to bg?
     {
         auto pNeuron = m_movingNeurons.back();
-        m_bgNeurons.push_back(&(*pNeuron));
-        m_movingNeurons.pop_back();
+        m_bgNeurons.push_back(pNeuron);
+    delete pNeuron;
+        // m_movingNeurons.pop_back();
     }
    
     // 3. do merging
-    mergeCloseNeurons(m_bgNeurons);
-    mergeCloseNeurons(m_movingNeurons);
+    mergeCloseNeurons(m_bgNeurons, "bg");
+    mergeCloseNeurons(m_movingNeurons, "moving");
     return 0;
 }
 
 // each time we at most merge one pair
-void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
+void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons, const string & mergeType)
 {
     bool canMerge = false;
     auto it1 = neurons.begin();
@@ -125,7 +154,6 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
                     break;
             }
         }
-
         if (it2 != neurons.end())
             break;
     }
@@ -155,8 +183,8 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons)
         Neuron *p2 = *it2;
         p1->getWeightVector().dumpComponents();
         p2->getWeightVector().dumpComponents();
-        printf ("MergeNeuron: a1 %d, a2 %d, v1 %.2f, v2 %.2f, diff %.2f, p1 %p, p2 %p.\n", 
-                a1, a2, v1, v2, vigilanceDiff, p1, p2);
+        LogI ("%s MergeNeuron: a1 %d, a2 %d, v1 %.2f, v2 %.2f, diff %.2f, p1 %p, p2 %p.\n", 
+              mergeType.c_str(), a1, a2, v1, v2, vigilanceDiff, p1, p2);
         delete p1;
         delete p2;
         neurons.erase(std::remove(neurons.begin(), neurons.end(), p1), neurons.end());
@@ -184,11 +212,32 @@ int ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
     if (m_bgNeurons.size() == 0)   
     {
         m_bgNeurons.push_back(pNew);
+        m_bBGWin = true;
+        m_winnerIdx = m_bgNeurons.size() - 1;
+        return 0;
+    }
+    else if (m_bgNeurons.size() > 6 && 
+             m_bgNeurons.size() >= m_movingNeurons.size())
+    {
+        m_movingNeurons.push_back(pNew);
+        m_bBGWin = false;
+        m_winnerIdx = m_movingNeurons.size() - 1;
+        return 255;
+    }
+
+    // we check the last win
+    if (m_bBGWin == true)
+    {
+        m_bgNeurons.push_back(pNew);
+        m_bBGWin = true;
+        m_winnerIdx = m_bgNeurons.size() - 1;
         return 0;
     }
 
     m_movingNeurons.push_back(pNew);
-    return 1; // 1 means foreground pixel
+    m_bBGWin = false;
+    m_winnerIdx = m_movingNeurons.size() - 1;
+    return 255; // 1 means foreground pixel
 }
 
 /**** calculateNeuronScoreWithNewInput:
@@ -246,15 +295,18 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 // test api
 int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
 {
-
+    //assert(in.cols == m_imgWidth && in.rows == m_imgHeight);
+    //assert(out.cols == m_imgWidth && out.rows == m_imgHeight);
+    //assert(in.channels() == 3 && out.channels() ==1);
     for (int k = 0; k < m_imgHeight; k++)
     {
         for (int j = 0; j < m_imgWidth; j++)
         {
             vector<double> input;
+            const cv::Vec3b & intensity = in.at<cv::Vec3b>(k, j);
             for(int n=0; n < in.channels(); n++)
-                input.push_back(in.at<uchar>(k, j * in.channels() + n));
-            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input)) ? 0 : 255;
+                input.push_back(intensity[n]);
+            out.at<uchar>(k, j) = m_pArts[k][j]->processOneInput(VectorSpace<double>(input));
         }
     }
     return 0;
@@ -269,7 +321,7 @@ ArtSegment :: ArtSegment(const int width, const int height)
         vector<ArtNN *> row;
         for (int j = 0; j < m_imgWidth; j++)
         {
-            ArtNN * pArtNN = new ArtNN();
+            ArtNN * pArtNN = new ArtNN(k * m_imgWidth + j);
             row.push_back(pArtNN);
         }
         m_pArts.push_back(row);
