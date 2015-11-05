@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "artsegment.h"
+#include "artsegment2.h"
 
 namespace Art_Segment
 {

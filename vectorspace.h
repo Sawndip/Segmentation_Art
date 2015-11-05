@@ -53,11 +53,42 @@ public:
         return VectorSpace<T>(vectorMinus(vs2.components()));
     }
 
-    // helpers
-    static double eulerDistance(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    // helpers    
+    static double generalEulerDistance(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
     {
         return vectorEuler(vs1.components(), vs2.components());
     }
+    // rgb distance
+    static double rgbEulerDistance(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    {
+        assert(vs1.components().size() == 3 && vs2.components().size() == 3);
+        return vectorEuler(vs1.components(), vs2.components());
+    }
+
+    static double rgbEulerDistance1(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    {
+        /* using the following formular
+        typedef struct {
+           unsigned char r, g, b;
+        } RGB;
+         
+        double ColourDistance(RGB e1, RGB e2)
+        {
+          long rmean = ( (long)e1.r + (long)e2.r ) / 2;
+          long r = (long)e1.r - (long)e2.r;
+          long g = (long)e1.g - (long)e2.g;
+          long b = (long)e1.b - (long)e2.b;
+          return sqrt((((512+rmean)*r*r)>>8) + 4*g*g + (((767-rmean)*b*b)>>8));
+        }
+        */
+        assert(vs1.components().size() == 3 && vs2.components().size() == 3);
+        int meanRed = vs1.components()[0] + vs2.components()[0] / 2;
+        int r =  vs1.components()[0] - vs2.components()[0];
+        int g =  vs1.components()[1] - vs2.components()[1];
+        int b =  vs1.components()[2] - vs2.components()[2];
+        return sqrt((((512 + meanRed)*r*r)>>8) + 4*g*g + (((767-meanRed)*b*b)>>8));
+    }
+
     const vector<T> & components() const {return m_components;}
     int dimention() {return (int)m_components.size();}
     void dumpComponents()
@@ -79,8 +110,7 @@ private:
         double result = 0.0;
         for (int k = 0; k < (int) v1.size(); k++)
             result += pow((double)(v1[k] - v2[k]), 2.0);
-        //return sqrt(result);
-        return result;
+        return sqrt(result);
     }
 
     vector<T> vectorDotProduct(const vector<T> & v2) const

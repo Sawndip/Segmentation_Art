@@ -3,7 +3,7 @@
 
 namespace Art_Segment
 {
-
+//// Log Macros
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogI(format, ...)  printf("[%-8s:%4d] [INFO] " format, \
@@ -12,7 +12,7 @@ namespace Art_Segment
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogE(format, ...)  printf("[%-8s:%4d] [ERROR] " format, \
                                    __FILE__, __LINE__,  ##__VA_ARGS__)
-
+//// 
 
 }
 

@@ -69,7 +69,7 @@ int main(int argc, char * argv[])
         //Mat readFrame = imread(imgFilePathes[i]);
         //Mat inFrame;         cvtColor(readFrame, inFrame, CV_BGR2Lab);
         Mat inFrame = imread(imgFilePathes[i]);
-        printf ("read in frame: %d, path %s, colorType %d.\n", 
+        printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
                 i, imgFilePathes[i].c_str(), inFrame.type());
         Mat binaryFrame(480, 640, CV_8UC1);
         asn.processFrame(inFrame, binaryFrame);
@@ -83,6 +83,7 @@ int main(int argc, char * argv[])
         imshow("bgfg", binaryFrame);
         cv::moveWindow("ArtSegment", 10, 10);
         cv::moveWindow("bgfg", 660, 10);
+
         //waitKey(0);
         waitKey(1);
         inFrame.release();

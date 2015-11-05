@@ -38,6 +38,6 @@ int main (int argc, char ** argv)
     printf("scale: \n");
     (vs1 * 2).dumpComponents();
 
-    printf("Euler: %.2f\n", VectorSpace<double>::eulerDistance(vs1, vs2));   
+    printf("Euler: %.2f\n", VectorSpace<double>::generalEulerDistance(vs1, vs2));   
     return 0;
 }
