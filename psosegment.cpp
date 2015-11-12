@@ -399,6 +399,8 @@ PsoSegment :: PsoSegment(const int width, const int height)
         m_pPsos.push_back(row);
     }
 
+    
+
     return;    
 }
 
@@ -409,6 +411,5 @@ PsoSegment :: ~PsoSegment()
             delete m_pPsos[k][j];
     return;        
 }
-
 
 } // namespace

@@ -31,11 +31,8 @@ class Neuron
 public:
     explicit Neuron (const VectorSpace<double> & vs)
         : m_weightVector(vs)
-        , m_learningRate(1.0)
-        , m_vigilance(20.0)
         , m_liveTimes(0)
-        , m_curScore(0)
-        , m_scores(MAX_MEMORY_AGES, 0)
+        , m_scores(0)
     {
     
     }    
@@ -49,7 +46,6 @@ public:
     //}
    
     // apis
-    bool doVigilanceTest(const double distance) {return distance < m_vigilance;}        
     void setWeightVector(const VectorSpace<double> & vs) {m_weightVector = vs;}
     VectorSpace<double> & getWeightVector() {return m_weightVector;}
     
@@ -60,6 +56,7 @@ public:
         m_curScore -= m_scores[(thisRoundScoreIdx + 1) % MAX_MEMORY_AGES];
         m_liveTimes++;
     }
+
     // this method must be called afeter 'updateScoreAsLoser()'
     void reupdateThisRoundAsWinner(const VectorSpace<double> & input) 
     {   // 1. score update
@@ -71,7 +68,6 @@ public:
         // 3. weight vector update
         m_weightVector = m_weightVector + ((input - m_weightVector) * m_learningRate);
     }
-
 
     unsigned int getAges() {return m_liveTimes;}
     void setAges(const int newAges) {m_liveTimes = newAges;}
@@ -88,7 +84,7 @@ private:
 class PsoNN
 {
 public:
-    PsoNN(const int idx) : m_idx(idx), m_bgPercent(0.9), m_overlapRate (0.1), m_inputFrames(0)
+    PsoNN(const int idx) : m_idx(idx), m_inputFrames(0)
     { 
         return;
     }
@@ -97,14 +93,8 @@ public:
 
 private:
     const int m_idx;
-    // determine the percent of backgroud neuron's avtivate times in all.
-    // for movingNeuron transform to bgNeuron.
-    double m_bgPercent; // 0.9
-    // if two neurons are close enough (overlap), they are merged.
-    double m_overlapRate; // 0.9
-    // neuron models for this pixel
-    vector<Neuron *> m_bgNeurons;
-    vector<Neuron *> m_movingNeurons;
+    Neuron m_bgNeuron;
+    Neuron m_movingNeuron;
     unsigned int m_inputFrames;
 
 private: // internal helper members
@@ -117,18 +107,17 @@ private: // internal helper members
     bool tryRemoveBgNeurons(const int lastNFrames);
 };
 
-
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 struct SegmentFeatures
 {
     int m_xCentroid;
     int m_yCentroid;
-    int m_l;
-    int m_a;
-    int m_b;
     int m_width;
     int m_height;
+    int m_r;
+    int m_g;
+    int m_b;
 };
 
 class PsoSegment
@@ -146,6 +135,7 @@ public:
 private:
     const int m_imgWidth;
     const int m_imgHeight;
+    vector<unsigned char *> m_pCacheFrames;
     vector<vector<PsoNN *> > m_pPsos; // in width x height
     vector<SegmentFeatures> m_features;
     int refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::Mat & out);
