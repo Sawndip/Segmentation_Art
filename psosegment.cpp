@@ -1,7 +1,7 @@
 #include <algorithm>
-#include "artsegment2.h"
+#include "psosegment.h"
 
-namespace Art_Segment
+namespace Pso_Segment
 {
 //// helpers
 bool neuronScoreComp(Neuron * p1, Neuron * p2)
@@ -22,7 +22,7 @@ double bgDistanceTobgProbability(const double bgDistance)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//// ArtNN class method
+//// PsoNN class method
 /**** processOneInput:
  1. classify the input pixel as background or foreground probability
  2. update its internal neurons' states.
@@ -30,7 +30,7 @@ double bgDistanceTobgProbability(const double bgDistance)
  4. return value: < 0: process error; >= 0 process ok
                   set selfProbability 
 ****/
-double ArtNN :: processOneInput(const VectorSpace<double> & input)
+double PsoNN :: processOneInput(const VectorSpace<double> & input)
 {
     m_inputFrames++;
     double bgProbability = 0.0;
@@ -57,7 +57,7 @@ double ArtNN :: processOneInput(const VectorSpace<double> & input)
  4. return value: >= 0 update ok
                   < 0 proccess err
 ****/
-int ArtNN :: rearrangeNeurous()
+int PsoNN :: rearrangeNeurous()
 {
     // moving to bg is important
     //if (m_bBGWin == false && m_movingNeurons[m_winnerIdx]->getCurScore() >= 4)
@@ -136,7 +136,7 @@ int ArtNN :: rearrangeNeurous()
     return 0;
 }
 
-bool ArtNN :: tryRemoveBgNeurons(const int lastNFrames)
+bool PsoNN :: tryRemoveBgNeurons(const int lastNFrames)
 {
     std::sort(m_bgNeurons.begin(), m_bgNeurons.end(), neuronScoreComp);
     unsigned int totalScoresWithoutMin = 0;    
@@ -160,7 +160,7 @@ bool ArtNN :: tryRemoveBgNeurons(const int lastNFrames)
 }
 
 // each time we at most merge one pair
-void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons, const string & mergeType)
+void PsoNN :: mergeCloseNeurons(vector<Neuron *> & neurons, const string & mergeType)
 {
     // TODO: debug
     return;
@@ -227,7 +227,7 @@ void ArtNN :: mergeCloseNeurons(vector<Neuron *> & neurons, const string & merge
  3. return value: >= 0 the probability of neuron being a bg neuron
                   < 0 proccess err
 ****/
-double ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
+double PsoNN :: fireANewNeuron(const VectorSpace<double> & input)
 {   // for the new neuron, it is a = 1, T = 1, keep that.
     // there are several condition, when we create a new neuron.
     // 1. the first several frames, with BG / Moving Group are not stable.
@@ -271,7 +271,7 @@ double ArtNN :: fireANewNeuron(const VectorSpace<double> & input)
  3. winner neuron do the vigilance test
  4. return value: nearest distance with the existing neurons.
 ****/
-double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
+double PsoNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 {
     double distance = std::numeric_limits<double>::max();
     // 1. if no neurons in the net, we return nagive 
@@ -331,9 +331,9 @@ double ArtNN :: updateNeuronsWithNewInput(const VectorSpace<double> & input)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-//// ArtSegment class method
+//// PsoSegment class method
 
-int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
+int PsoSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
 {
     assert(in.cols == m_imgWidth && in.rows == m_imgHeight);
     assert(out.cols == m_imgWidth && out.rows == m_imgHeight);
@@ -353,7 +353,7 @@ int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
             input2.push_back(*(data + j * in.channels()));
             input2.push_back(*(data + j * in.channels() + 1));
             input2.push_back(*(data + j * in.channels() + 2));
-            selfProbabilty[k*m_imgWidth+j] = m_pArts[k][j]->processOneInput(VectorSpace<double>(input1));
+            selfProbabilty[k*m_imgWidth+j] = m_pPsos[k][j]->processOneInput(VectorSpace<double>(input1));
             out.at<uchar>(k, j) = 0;
         }
     }
@@ -363,7 +363,7 @@ int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
 }
 
 // recalc every 
-int ArtSegment :: refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::Mat & out)
+int PsoSegment :: refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::Mat & out)
 {
     // for the borders, we won't draw line, namely take them as background for computation effective.
     for (int k = 1; k < m_imgHeight - 1; k++)
@@ -384,29 +384,29 @@ int ArtSegment :: refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::
     return 0;
 }
 
-ArtSegment :: ArtSegment(const int width, const int height)
+PsoSegment :: PsoSegment(const int width, const int height)
     : m_imgWidth(width)
     , m_imgHeight(height)
 {
     for (int k = 0; k < m_imgHeight; k++)
     {
-        vector<ArtNN *> row;
+        vector<PsoNN *> row;
         for (int j = 0; j < m_imgWidth; j++)
         {
-            ArtNN * pArtNN = new ArtNN(k * m_imgWidth + j);
-            row.push_back(pArtNN);
+            PsoNN * pPsoNN = new PsoNN(k * m_imgWidth + j);
+            row.push_back(pPsoNN);
         }
-        m_pArts.push_back(row);
+        m_pPsos.push_back(row);
     }
 
     return;    
 }
 
-ArtSegment :: ~ArtSegment()
+PsoSegment :: ~PsoSegment()
 {
     for (int k = 0; k < m_imgHeight; k++)
         for (int j = 0; j < m_imgWidth; j++)
-            delete m_pArts[k][j];
+            delete m_pPsos[k][j];
     return;        
 }
 

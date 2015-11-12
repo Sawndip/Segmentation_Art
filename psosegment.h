@@ -1,5 +1,5 @@
-#ifndef _ART_SEGMENT_H_
-#define _ART_SEGMENT_H_
+#ifndef _PSO_SEGMENT_H_
+#define _PSO_SEGMENT_H_
 
 // sys
 #include <iostream>
@@ -20,7 +20,7 @@ using :: std :: string;
 using :: std :: vector;
 using namespace Vector_Space;
 
-namespace Art_Segment
+namespace Pso_Segment
 {
 
 enum {MAX_MEMORY_AGES = (25 * 1)}; // 25fps * 1s
@@ -72,43 +72,27 @@ public:
         m_weightVector = m_weightVector + ((input - m_weightVector) * m_learningRate);
     }
 
-    unsigned int getMaxMemoryAges() {return MAX_MEMORY_AGES;}
-    // getter setter
-    unsigned int getCurScore() {return m_curScore;}
-    void setCurScore(const unsigned int newCurScore) {m_curScore = newCurScore;}
 
     unsigned int getAges() {return m_liveTimes;}
     void setAges(const int newAges) {m_liveTimes = newAges;}
 
-    double getCurVigilance() {return m_vigilance;}
-    void setVigilance(const double newVigilance) {m_vigilance = newVigilance;}
-
-    vector<unsigned int> & getScores() {return m_scores;}
-    void setScores(vector<unsigned int> & newScores) {m_scores = newScores;}
-
 private:
     VectorSpace<double> m_weightVector;
-    double       m_learningRate; // decrease through time with initial value 1.0        
-    // winner neuron takes the vigilance test, then update its weightVector
-    // or create a new neuron.
-    double       m_vigilance; // dynamic change through merging or ??
-    // to memory previous socres
     unsigned int m_liveTimes;
-    unsigned int m_curScore;
-    vector<unsigned int> m_scores;
+    unsigned int m_scores;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-// class ART Neural Network
-class ArtNN
+// class PSO Neural Network
+class PsoNN
 {
 public:
-    ArtNN(const int idx) : m_idx(idx), m_bgPercent(0.9), m_overlapRate (0.1), m_inputFrames(0)
+    PsoNN(const int idx) : m_idx(idx), m_bgPercent(0.9), m_overlapRate (0.1), m_inputFrames(0)
     { 
         return;
     }
-    // calculate artNN's output, update internal neurons' states.
+    // calculate PsoNN's output, update internal neurons' states.
     double processOneInput(const VectorSpace<double> & input);
 
 private:
@@ -147,11 +131,11 @@ struct SegmentFeatures
     int m_height;
 };
 
-class ArtSegment
+class PsoSegment
 {
 public:
-    ArtSegment(const int width, const int height);
-    ~ArtSegment();
+    PsoSegment(const int width, const int height);
+    ~PsoSegment();
     
     // API
     //vector<SegmentFeatures> & processFrame(const unsigned char * pR, 
@@ -162,11 +146,11 @@ public:
 private:
     const int m_imgWidth;
     const int m_imgHeight;
-    vector<vector<ArtNN *> > m_pArts; // in width x height
+    vector<vector<PsoNN *> > m_pPsos; // in width x height
     vector<SegmentFeatures> m_features;
     int refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::Mat & out);
 };
 
 } // 
 
-#endif // _ART_SEGMENT_H_
+#endif // _PSO_SEGMENT_H_

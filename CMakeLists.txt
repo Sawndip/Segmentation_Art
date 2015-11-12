@@ -48,7 +48,7 @@ LINK_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR})
 
 SET(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS} "-g -O2 -Wall -std=c++0x")
 ADD_EXECUTABLE(${artseg} ${CMAKE_CURRENT_SOURCE_DIR}/psosegment.cpp
-                         ${CMAKE_CURRENT_SOURCE_DIR}/testArtSegment.cpp)
+                         ${CMAKE_CURRENT_SOURCE_DIR}/testPsoSegment.cpp)
 
 ADD_EXECUTABLE(${testVector} ${CMAKE_CURRENT_SOURCE_DIR}/testVector.cpp)
 
