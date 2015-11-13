@@ -72,17 +72,18 @@ int main(int argc, char * argv[])
         printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
                 i, imgFilePathes[i].c_str(), inFrame.type());
         Mat binaryFrame(480, 640, CV_8UC1);
-        psoseg.processFrame(inFrame, binaryFrame);
-        //// Draw the detected objects
-        //for (int k  0; k < (int)rects.size(); k++)
-        //    rectangle(frame, rects[k], Scalar(200,0,0), 2); 
-
-        putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-        //putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-        imshow("PsoSegment", inFrame);
-        imshow("bgfg", binaryFrame);
-        cv::moveWindow("PsoSegment", 10, 10);
-        cv::moveWindow("bgfg", 660, 10);
+        if (psoseg.processFrame(inFrame, binaryFrame) > 0)
+        {
+            //// Draw the detected objects
+            //for (int k  0; k < (int)rects.size(); k++)
+            //    rectangle(frame, rects[k], Scalar(200,0,0), 2);
+            putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
+            //putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
+            imshow("PsoSegment", inFrame);
+            imshow("bgfg", binaryFrame);
+            cv::moveWindow("PsoSegment", 10, 10);
+            cv::moveWindow("bgfg", 660, 10);             
+        }
 
         //waitKey(0);
         waitKey(1);

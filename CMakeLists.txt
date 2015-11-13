@@ -1,12 +1,12 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-PROJECT(art_segmentation)
+PROJECT(pso_segmentation)
 SET(DEMO_VERSION_MAJOR 1)
 SET(DEMO_VERSION_MINOR 0)
 SET(CMAKE_VERBOSE_MAKEFILE off)
 
 # we make binary
-SET(artseg artseg.out)
+SET(psoseg psoseg.out)
 SET(testVector vector.out)
 
 # get compile time
@@ -47,18 +47,18 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
 LINK_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR})
 
 SET(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS} "-g -O2 -Wall -std=c++0x")
-ADD_EXECUTABLE(${artseg} ${CMAKE_CURRENT_SOURCE_DIR}/psosegment.cpp
+ADD_EXECUTABLE(${psoseg} ${CMAKE_CURRENT_SOURCE_DIR}/psosegment.cpp
                          ${CMAKE_CURRENT_SOURCE_DIR}/testPsoSegment.cpp)
 
 ADD_EXECUTABLE(${testVector} ${CMAKE_CURRENT_SOURCE_DIR}/testVector.cpp)
 
-TARGET_LINK_LIBRARIES(${artseg} opencv_calib3d opencv_contrib opencv_core opencv_features2d
+TARGET_LINK_LIBRARIES(${psoseg} opencv_calib3d opencv_contrib opencv_core opencv_features2d
                              opencv_flann opencv_highgui opencv_imgproc 
                              opencv_legacy opencv_ml opencv_objdetect 
                              opencv_photo opencv_stitching opencv_superres
                              opencv_video opencv_videostab)
-TARGET_LINK_LIBRARIES(${artseg} boost_system boost_thread)
-TARGET_LINK_LIBRARIES(${artseg} numa pthread m dl lzma bz2 rt)
+TARGET_LINK_LIBRARIES(${psoseg} boost_system boost_thread)
+TARGET_LINK_LIBRARIES(${psoseg} numa pthread m dl lzma bz2 rt)
 
 ## options we can use
 #CMAKE_EXE_LINKER_FLAGS
