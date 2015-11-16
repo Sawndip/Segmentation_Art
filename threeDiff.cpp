@@ -25,8 +25,10 @@ double PsoNN :: processOneInput(const VectorSpace<double> & input)
     if (m_inputFrames == 1)
         m_bgNeuron.setWeightVector(input);
     
-    const double bgDistance = VectorSpace<double>::rgbEulerDistance(m_bgNeuron.getWeightVector(), input);
-    const double movingDistance = VectorSpace<double>::rgbEulerDistance(m_movingNeuron.getWeightVector(), input);    
+    const double bgDistance = VectorSpace<double>::
+                              rgbEulerDistance(m_bgNeuron.getWeightVector(), input);
+    const double movingDistance = VectorSpace<double>::
+                                  rgbEulerDistance(m_movingNeuron.getWeightVector(), input);    
     const double bgProbability = distanceToProbability(bgDistance);
     const double movingProbability = distanceToProbability(movingDistance);
     return movingProbability > bgProbability ? (1 - movingProbability) : bgProbability;

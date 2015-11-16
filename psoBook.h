@@ -1,5 +1,5 @@
-#ifndef _PSO_SEGMENT_H_
-#define _PSO_SEGMENT_H_
+#ifndef _PSO_BOOKCODE_H_
+#define _PSO_BOOKCODE_H_
 
 // sys
 #include <iostream>
@@ -12,7 +12,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segmisc.h"
+#include "bookmisc.h"
 #include "vectorspace.h"
 
 // namespace
@@ -20,7 +20,7 @@ using :: std :: string;
 using :: std :: vector;
 using namespace Vector_Space;
 
-namespace Pso_Segment
+namespace Seg_Three
 {
 
 enum {MAX_MEMORY_AGES = (25 * 1)}; // 25fps * 1s
@@ -101,7 +101,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-struct SegmentFeatures
+struct BookcodeFeatures
 {
     int m_xCentroid;
     int m_yCentroid;
@@ -112,14 +112,14 @@ struct SegmentFeatures
     int m_b;
 };
 
-class PsoSegment
+class PsoBookcode
 {
 public:
-    PsoSegment(const int width, const int height);
-    ~PsoSegment();
+    PsoBookcode(const int width, const int height);
+    ~PsoBookcode();
     
     // API
-    //vector<SegmentFeatures> & processFrame(const unsigned char * pR, 
+    //vector<BookcodeFeatures> & processFrame(const unsigned char * pR, 
     //                                       const unsigned char * pG, 
     //                                       const unsigned char * pB);
     int processFrame(const cv::Mat & in, cv::Mat & out);
@@ -130,11 +130,11 @@ private:
     int m_inputFrames;
     cv::Mat m_cacheFrame;
     vector<vector<PsoNN *> > m_pPsos; // in width x height
-    vector<SegmentFeatures> m_features;
+    vector<BookcodeFeatures> m_features;
     int refineNetsByCollectiveWisdom(const vector<double> & p, cv::Mat & out);
     const double M_COLLECTIVE_WISDOM_THREATHOLD;
 };
 
-} // 
+} // namespace Seg_Three 
 
-#endif // _PSO_SEGMENT_H_
+#endif // _PSO_BOOKCODE_H_

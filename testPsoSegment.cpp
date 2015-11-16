@@ -17,7 +17,7 @@ using std :: string;
 using std :: cout;
 using std :: endl;
 using namespace cv;
-using namespace Pso_Segment;
+using namespace Seg_Three;
 
 ///////////////////// Code ///////////////////////////////////////////////////////////////
 namespace
