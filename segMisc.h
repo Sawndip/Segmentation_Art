@@ -1,7 +1,7 @@
-#ifndef _ART_SEGMENT_MISC_H_
-#define _ART_SEGMENT_MISC_H_
+#ifndef _THREE_SEGMENT_MISC_H_
+#define _THREE_SEGMENT_MISC_H_
 
-namespace Art_Segment
+namespace Seg_Three
 {
 //// Log Macros
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
