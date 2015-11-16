@@ -1,5 +1,5 @@
-#ifndef _PSO_BOOKCODE_H_
-#define _PSO_BOOKCODE_H_
+#ifndef _PSO_BOOK_H_
+#define _PSO_BOOK_H_
 
 // sys
 #include <iostream>
@@ -99,42 +99,24 @@ private:
     VectorSpace<double> m_lastInputVector;
 };
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-struct BookcodeFeatures
-{
-    int m_xCentroid;
-    int m_yCentroid;
-    int m_width;
-    int m_height;
-    int m_r;
-    int m_g;
-    int m_b;
-};
-
-class PsoBookcode
+class PsoBook
 {
 public:
-    PsoBookcode(const int width, const int height);
-    ~PsoBookcode();
-    
+    PsoBook(){};
+    ~PsoBook();    
     // API
-    //vector<BookcodeFeatures> & processFrame(const unsigned char * pR, 
-    //                                       const unsigned char * pG, 
-    //                                       const unsigned char * pB);
+    int init(const int width, const int height);
     int processFrame(const cv::Mat & in, cv::Mat & out);
 
 private:
-    const int m_imgWidth;
-    const int m_imgHeight;
+    int m_imgWidth;
+    int m_imgHeight;
     int m_inputFrames;
-    cv::Mat m_cacheFrame;
     vector<vector<PsoNN *> > m_pPsos; // in width x height
-    vector<BookcodeFeatures> m_features;
     int refineNetsByCollectiveWisdom(const vector<double> & p, cv::Mat & out);
-    const double M_COLLECTIVE_WISDOM_THREATHOLD;
+    const double M_COLLECTIVE_WISDOM_THREATHOLD = 0.6;
 };
 
 } // namespace Seg_Three 
 
-#endif // _PSO_BOOKCODE_H_
+#endif // _PSO_BOOK_H_
