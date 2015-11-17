@@ -160,31 +160,36 @@ int PsoBook :: refineNetsByCollectiveWisdom(const vector<double> & p, cv::Mat & 
 //// constructor / destructor / init
 PsoBook :: ~PsoBook()
 {
-    for (int k = 0; k < m_imgHeight; k++)
-        for (int j = 0; j < m_imgWidth; j++)
-            delete m_pPsos[k][j];
+    if (m_bInit == true)
+        for (int k = 0; k < m_imgHeight; k++)
+            for (int j = 0; j < m_imgWidth; j++)
+                if (m_pPsos[k][j] != NULL)
+                    delete m_pPsos[k][j];
     return;        
 }
 
 int PsoBook :: init(const int width, const int height)
 {
-    m_imgWidth = width;
-    m_imgHeight = height;
-    m_inputFrames = 0;
-
-    for (int k = 0; k < m_imgHeight; k++)
+    if (m_bInit == true)
     {
-        vector<PsoNN *> row;
-        for (int j = 0; j < m_imgWidth; j++)
+        m_imgWidth = width;
+        m_imgHeight = height;
+        m_inputFrames = 0;
+         
+        for (int k = 0; k < m_imgHeight; k++)
         {
-            PsoNN * pPsoNN = new PsoNN(k * m_imgWidth + j);
-            row.push_back(pPsoNN);
+            vector<PsoNN *> row;
+            for (int j = 0; j < m_imgWidth; j++)
+            {
+                PsoNN * pPsoNN = new PsoNN(k * m_imgWidth + j);
+                row.push_back(pPsoNN);
+            }
+            m_pPsos.push_back(row);
         }
-        m_pPsos.push_back(row);
+        m_bInit = true;    
     }
-    
+
     return 0;
 }
-
     
 } // namespace Seg_Three

@@ -63,7 +63,8 @@ int main(int argc, char * argv[])
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
 
-    PsoSegment psoseg(640, 480);
+    PsoBook psoBook;
+    psoBook.init(640, 480)
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {
         //Mat readFrame = imread(imgFilePathes[i]);
@@ -72,7 +73,8 @@ int main(int argc, char * argv[])
         printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
                 i, imgFilePathes[i].c_str(), inFrame.type());
         Mat binaryFrame(480, 640, CV_8UC1);
-        if (psoseg.processFrame(inFrame, binaryFrame) > 0)
+        // 
+        if (psoBook.processFrame(inFrame, binaryFrame) > 0)
         {
             //// Draw the detected objects
             //for (int k  0; k < (int)rects.size(); k++)

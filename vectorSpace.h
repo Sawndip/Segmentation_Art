@@ -59,13 +59,13 @@ public:
         return vectorEuler(vs1.components(), vs2.components());
     }
     // rgb distance
-    static double rgbEulerDistance(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    static double rgbEulerDistance1(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
     {
         assert(vs1.components().size() == 3 && vs2.components().size() == 3);
         return vectorEuler(vs1.components(), vs2.components());
     }
 
-    static double rgbEulerDistance1(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
+    static double rgbEulerDistance(const VectorSpace<T> & vs1, const VectorSpace<T> & vs2)
     {
         /* using the following formular
         typedef struct {
@@ -82,7 +82,7 @@ public:
         }
         */
         assert(vs1.components().size() == 3 && vs2.components().size() == 3);
-        int meanRed = vs1.components()[0] + vs2.components()[0] / 2;
+        int meanRed = (vs1.components()[0] + vs2.components()[0]) / 2;
         int r =  vs1.components()[0] - vs2.components()[0];
         int g =  vs1.components()[1] - vs2.components()[1];
         int b =  vs1.components()[2] - vs2.components()[2];

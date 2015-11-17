@@ -15,25 +15,45 @@ SegControl :: ~SegControl()
     return;        
 }
 
-int SegControl :: init()
+int SegControl :: init(const int width, const int height)
 {
-    // do all members initialization    
+    // 1. do all members' initialization
+    int ret = -1;
+    m_imgWidth = width;
+    m_imgHeight = height;
+    bookResult.create(width, height, CV_8UC1);
+    // 2. key members
+    ret = psoBook.init(width, height);
+    assert(ret >= 0);
+    ret = boundaryScan(width, height);
+    assert(ret >= 0);
+    // put all complexities inside ThreeDiff
+    ret = threeDiff.init(width, height);
+    assert(ret >= 0);
     return 0;    
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//// APIs    
+//// APIs
 int SegControl :: processFrame(const cv::Mat & in, cv::Mat & out)
-{
-    return 0;
+{   // we get psoBook's opinion
+    int ret = -1;
+    ret = psoBook.processFrame(in, bookResult);
+    assert(ret >= 0);
+    // four directions
+    vector<<tuple<TDPoint, TDPoint> > > possibleBoundaries = boundaryScan(psoResult);
+    // update boundary or add new contourTrack
+    vector<Rect> rects;
+    ret = threeDiff.processFrame(in, psoResult, possibleBoundaries, rects);
+    return ret;
 }
 
 int flushFrame(cv::Mat & out);
 {
-    return 0;
+    return threeDiff.flushFrame(out);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers    
-    
+ 
 } // namespace Seg_Three

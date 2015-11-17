@@ -102,13 +102,14 @@ private:
 class PsoBook
 {
 public:
-    PsoBook(){};
+    PsoBook() : m_bInit(false) {};
     ~PsoBook();    
     // API
     int init(const int width, const int height);
     int processFrame(const cv::Mat & in, cv::Mat & out);
 
 private:
+    bool m_bInit;
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
