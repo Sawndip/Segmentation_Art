@@ -31,8 +31,8 @@ struct TDRect
     int height;
 };
 
-enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT};
-enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT};
+enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT, DIRECTION_UNKNOWN};
+enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT, MOVING_UNKNOWN};
 
 extern bool isYContainedBy(const std:tuple<TDPoint, TDPoint> & small,
                            const std:tuple<TDPoint, TDPoint> & large);

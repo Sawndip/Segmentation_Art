@@ -147,7 +147,7 @@ int ThreeDiff :: doUpdateContourTracking(cv::Mat & out,
     if (m_tracks.size() == 0)
         return 0;
     // how can we do tracking together with boundary changing!
-    
+        
     return 0;
 }
     

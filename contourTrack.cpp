@@ -5,8 +5,30 @@ namespace Seg_Three
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 //// constructor / destructor / init
-ContourTrack :: ContourTrack()
+ContourTrack :: ContourTrack(const int width, const int height,
+                             const int directionIn,
+                             const int lux, const int luy,                         
+                             const int possibleWidth, const int possibleHeight)
+    : m_imgWidth(width)
+    , m_imgHeight(height)
+    , m_inputFrames(0)
+    , m_bAllIn(false)
+    , m_bAllOut(false)    
+    , m_lux(0)
+    , m_luy(0)
+    , m_xCenter(0)
+    , m_yCenter(0)
+    , m_curWidth(possibleWidth)
+    , m_curHeight(possibleHeight)
+    , m_largestWidth(possibleWidth)
+    , m_largestHeight(possibleHeight)
+    , m_inDirection((DERECTION)derectionIn)
+    , m_outDirection(DERECTION_UNKNOWN)      
 {
+    assert(m_curWidth > 0 && m_curHeight > 0);
+        
+        
+  
     return;
 }
 

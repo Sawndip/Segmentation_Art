@@ -19,11 +19,14 @@ namespace Seg_Three
 class ContourTrack
 {    
 public:
-    ContourTrack(const int width, const int height,
-                 const int possibleWidth, const int possibleHeight,
-                 const );
+    ContourTrack(const int width, const int height, // image width/height
+                 const int directionIn,        
+                 const int lux, const int luy, // first appear coordinate
+                 const int possibleWidth, const int possibleHeight)
+    
     // read frame in and deliver to proper members
     int processFrame();
+    
     // when no new frames, we flush out cached frames
     int flushFrame(cv::Mat & out);
 
@@ -40,10 +43,15 @@ public:
     };
 
 private:
+    int m_imgWidth;
+    int m_imgHeight;
+    int m_inputFrames;
     // 1. When create new: give the basic infos
     // 2. When do tracking, using Simplified Optical Flow & update inner status.
     bool m_bAllIn; // some objects may not always in.
-    bool m_bOutputWholePic; 
+    bool m_bAllOut;
+    int m_lux;
+    int m_luy;
     int m_xCenter;
     int m_yCenter;
     int m_curWidth;
@@ -53,10 +61,8 @@ private:
     
     DIRECTION m_inDirection;
     DIRECTION m_OutDirection;
-    int m_xmv;
-    int m_ymv
-    // 3. using KLT as tracker
-            
+    // 3. using ?? as tracker
+                
 };
 
 }//namespace
