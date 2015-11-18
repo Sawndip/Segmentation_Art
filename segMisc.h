@@ -1,6 +1,8 @@
 #ifndef _THREE_SEGMENT_MISC_H_
 #define _THREE_SEGMENT_MISC_H_
 
+#include <tuple>
+
 namespace Seg_Three
 {
 //// Log Macros
@@ -13,6 +15,29 @@ namespace Seg_Three
 #define LogE(format, ...)  printf("[%-8s:%4d] [ERROR] " format, \
                                    __FILE__, __LINE__,  ##__VA_ARGS__)
 //// 
+//// 
+struct TDPoint
+{
+    TDPoint(const int a, const int b) : x = a, y = b {}
+    int x;
+    int y;
+};
+
+struct TDRect
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
+enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT};
+enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT};
+
+extern bool isYContainedBy(const std:tuple<TDPoint, TDPoint> & small,
+                           const std:tuple<TDPoint, TDPoint> & large);
+extern bool isXContainedBy(const std:tuple<TDPoint, TDPoint> & small,
+                           const std:tuple<TDPoint, TDPoint> & large);
 
 }
 

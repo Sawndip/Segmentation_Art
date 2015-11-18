@@ -38,13 +38,13 @@ int SegControl :: init(const int width, const int height)
 int SegControl :: processFrame(const cv::Mat & in, cv::Mat & out)
 {   // we get psoBook's opinion
     int ret = -1;
-    ret = psoBook.processFrame(in, bookResult);
+    ret = psoBook.processFrame(in, out);
     assert(ret >= 0);
     // four directions
-    vector<<tuple<TDPoint, TDPoint> > > possibleBoundaries = boundaryScan(psoResult);
+    vector<<tuple<TDPoint, TDPoint> > > possibleBoundaries = boundaryScan(out);
     // update boundary or add new contourTrack
     vector<Rect> rects;
-    ret = threeDiff.processFrame(in, psoResult, possibleBoundaries, rects);
+    ret = threeDiff.processFrame(in, out, possibleBoundaries, rects);
     return ret;
 }
 

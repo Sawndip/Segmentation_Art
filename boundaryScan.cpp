@@ -144,10 +144,8 @@ int BoundaryScan :: scanBorders(vector<vector<std:tuple<TDPoint, TDPoint> > > & 
     // we get borders with erode/dilate, then we get the foreground lines.
     for (int n = 0; n < 4; n++)
     {
-        TDPoint start;
-        TDPoint end;
-        bool bStart = false;
-        bool bEnd = false;
+        TDPoint start, end;
+        bool bStart = false, bEnd = false;
         vector<std::tuple<TDPoint, TDPoint> > oneDirection;
         for (int k = 0; k < m_borders.columns; k++)
         {
