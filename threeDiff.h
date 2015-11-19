@@ -46,9 +46,9 @@ private:
     // 2. cache related
     const int M_THREE_DIFF_CACHE_FRAMES = 2;
     int m_curFrontIdx;
-    Mat m_cacheFrames[M_THREE_DIFF_CACHE_FRAMES];
-    Mat m_bookResults[M_THREE_DIFF_CACHE_FRAMES];
-    Mat m_diffResults[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_cacheFrames[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_bookResults[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_diffResults[M_THREE_DIFF_CACHE_FRAMES];
     vector<std:tuple<TDPoint, TDPoint> > m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
     // 3. contourTrack part (simple optical flow & feature extraction)
     int m_objIdx;

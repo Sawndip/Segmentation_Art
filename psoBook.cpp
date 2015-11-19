@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "psobook.h"
+#include "psoBook.h"
 
 namespace Seg_Three
 {
@@ -85,6 +85,7 @@ int PsoBook :: processFrame(const cv::Mat & in, cv::Mat & out)
     return refineNetsByCollectiveWisdom(selfProbabilty, out);
 }
 
+// it seems this can be done by Erode/Dilate    
 int PsoBook :: refineNetsByCollectiveWisdom(const vector<double> & p, cv::Mat & out)
 {
     vector<double> finalP(m_imgWidth * m_imgHeight, 0.0);
@@ -136,23 +137,8 @@ int PsoBook :: refineNetsByCollectiveWisdom(const vector<double> & p, cv::Mat & 
             m_pPsos[k][j]->updateNeuron(bBg);
         }
     }
-
-    if (m_inputFrames % 2 == 0)
-    {
-        for (int k = 0; k < height; k++)
-        {
-            for (int j = 0; j < width; j++)   
-            {
-                out.at<uchar>(k, j) = out.at<uchar>(k, j) & m_cacheFrame.at<uchar>(k, j);
-            }
-        }
-        return 1; // > 0 show this frame
-    }
-    else
-    {
-        out.copyTo(m_cacheFrame);
-        return -1;
-    }
+    
+    return 1;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

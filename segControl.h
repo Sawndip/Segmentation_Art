@@ -7,15 +7,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
-// tools - just using Mat
+// tools
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
 #include "threeDiff.h"
 #include "contourTrack.h"
 #include "psoBook.h"
-#include "segmisc.h"
-#include "vectorspace.h"
+#include "segMisc.h"
+#include "vectorSpace.h"
 
 // namespace
 using :: std :: string;

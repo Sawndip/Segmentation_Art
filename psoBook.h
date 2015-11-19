@@ -12,8 +12,8 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "bookmisc.h"
-#include "vectorspace.h"
+#include "segMisc.h"
+#include "vectorSpace.h"
 
 // namespace
 using :: std :: string;

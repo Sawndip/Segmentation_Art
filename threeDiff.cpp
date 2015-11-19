@@ -1,6 +1,8 @@
 #include <algorithm> // std::sort
 #include "ThreeDiff.h"
 
+using namespace cv;
+
 namespace Seg_Three
 {
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -225,9 +227,36 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
                 if (h == (int)lines1.size()) // not part of lines1
                     continue;
                     
-                const int length = std::get<1>(newEnters[m]).y - std::get<0>(newEnters[m]).y;
-                ContourTrack *pTrack = new ContourTrack(m_imgWidth,
-                                                        m_imgHeight, (DIRECTION)k, length, 6);
+                const int length = std::get<1>(newEnters[m]).y - ;
+                // we calculate the lux/luy, possible width/height
+                int lux = 0, luy = 0, possibleWidth = 0;
+                const int possibleHeight = 6; // fixed value, 6 pixels when first craeted
+                switch(k)
+                {
+                case 0: // top
+                    lux = std::get<0>(newEnters[m]).y; // start point
+                    luy = 0;
+                    possibleWidth = std::get<1>(newEnters[m]).y - lux;
+                    break;                    
+                case 1: // bottom
+                    lux = std::get<0>(newEnters[m]).y;
+                    luy = m_imgHeight - possibleHeight;
+                    possibleWidth = std::get<1>(newEnters[m]).y - lux;
+                    break;                    
+                case 2: // left
+                    lux = 0;
+                    luy = std::get<0>(newEnters[m]).y;
+                    possibleWidth = std::get<1>(newEnters[m]).y - luy;
+                    break;                    
+                case 3: // right
+                    lux = m_imgWidth - possibleWidth;
+                    luy = std::get<0>(newEnters[m]).y;;
+                    possibleWidth = std::get<1>(newEnters[m]).y - luy;                    
+                    break;
+                }
+                ContourTrack *pTrack = new ContourTrack(m_imgWidth, m_imgHeight,
+                                                        k, lux, luy,
+                                                        possibleWidth, possibleHeight);
                 m_tracks.push_back();
                 out.push_back();
             }

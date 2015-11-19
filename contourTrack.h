@@ -22,11 +22,9 @@ public:
     ContourTrack(const int width, const int height, // image width/height
                  const int directionIn,        
                  const int lux, const int luy, // first appear coordinate
-                 const int possibleWidth, const int possibleHeight)
-    
+                 const int possibleWidth, const int possibleHeight)    
     // read frame in and deliver to proper members
-    int processFrame();
-    
+    int processFrame();    
     // when no new frames, we flush out cached frames
     int flushFrame(cv::Mat & out);
 

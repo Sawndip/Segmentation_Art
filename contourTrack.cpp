@@ -14,44 +14,36 @@ ContourTrack :: ContourTrack(const int width, const int height,
     , m_inputFrames(0)
     , m_bAllIn(false)
     , m_bAllOut(false)    
-    , m_lux(0)
-    , m_luy(0)
+    , m_lux(lux)
+    , m_luy(luy)
     , m_xCenter(0)
     , m_yCenter(0)
     , m_curWidth(possibleWidth)
     , m_curHeight(possibleHeight)
     , m_largestWidth(possibleWidth)
     , m_largestHeight(possibleHeight)
-    , m_inDirection((DERECTION)derectionIn)
+    , m_inDirection((DERECTION)directionIn)
     , m_outDirection(DERECTION_UNKNOWN)      
 {
     assert(m_curWidth > 0 && m_curHeight > 0);
-        
-        
-  
+    m_xCenter = m_lux + m_curWidth / 2;
+    m_yCenter = m_luy + m_curHeight / 2;    
+    LogI("Create New ContourTrack: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
+         "possibleHeight:%d, centerX:%d, centerY:%d\n",
+         directionIn, lux, luy, possibleWidth, possibleHeight, m_xCenter, m_yCenter);  
     return;
 }
 
 ContourTrack :: ~ContourTrack()
 {
+    
     return;        
-}
-
-int ContourTrack :: init(const int idx, const int width, const int height)
-{
-    // do all members initialization
-    m_idx = idx;
-    m_imgWidth = width;
-    m_imgHeight = height;
-    m_inputFrames = 0;
-        
-    return 0;    
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs    
 int ContourTrack :: processFrame()
-{
+{    
     return 0;
 }
 

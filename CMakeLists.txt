@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(SegmentByThreeDiff)
 SET(DEMO_VERSION_MAJOR 1)
 SET(DEMO_VERSION_MINOR 0)
-SET(CMAKE_VERBOSE_MAKEFILE off)
+SET(CMAKE_VERBOSE_MAKEFILE on)
 
 # we make binary
 SET(segthree segthree.out)
@@ -48,25 +48,28 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
 LINK_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR})
 
 SET(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS} "-g -O2 -Wall -std=c++0x")
-ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/threeDiff.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp
+ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/segControl.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/threeDiff.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/boundaryScan.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/segControl.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp 
                            ${CMAKE_CURRENT_SOURCE_DIR}/testThree.cpp)
-
-ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/testPso.cpp)
+                         
+ADD_EXECUTABLE(${testPso} ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
+                          ${CMAKE_CURRENT_SOURCE_DIR}/testPso.cpp)
 
 ADD_EXECUTABLE(${testVector} ${CMAKE_CURRENT_SOURCE_DIR}/testVector.cpp)
 
-TARGET_LINK_LIBRARIES(${segthree} opencv_calib3d opencv_contrib opencv_core opencv_features2d
-                             opencv_flann opencv_highgui opencv_imgproc 
-                             opencv_legacy opencv_ml opencv_objdetect 
-                             opencv_photo opencv_stitching opencv_superres
-                             opencv_video opencv_videostab)
-TARGET_LINK_LIBRARIES(${segthree} boost_system boost_thread)
-TARGET_LINK_LIBRARIES(${segthree} numa pthread m dl lzma bz2 rt)
+SET(bins ${testVector} ${testPso} ${segthree})
+foreach(bin ${bins})
+  TARGET_LINK_LIBRARIES(${bin} opencv_calib3d opencv_contrib opencv_core opencv_features2d
+                               opencv_flann opencv_highgui opencv_imgproc 
+                               opencv_legacy opencv_ml opencv_objdetect 
+                               opencv_photo opencv_stitching opencv_superres
+                               opencv_video opencv_videostab)
+  TARGET_LINK_LIBRARIES(${bin} boost_system boost_thread)
+  TARGET_LINK_LIBRARIES(${bin} numa pthread m dl lzma bz2 rt)    
+endforeach()
 
 ## options we can use
 #CMAKE_EXE_LINKER_FLAGS
