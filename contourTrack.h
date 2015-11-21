@@ -4,6 +4,9 @@
 // sys
 #include <string>
 #include <vector>
+// tools
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 // project
 #include "segMisc.h"
 #include "vectorSpace.h"
@@ -22,7 +25,8 @@ public:
     ContourTrack(const int width, const int height, // image width/height
                  const int directionIn,        
                  const int lux, const int luy, // first appear coordinate
-                 const int possibleWidth, const int possibleHeight)    
+                 const int possibleWidth, const int possibleHeight);
+    ~ContourTrack();
     // read frame in and deliver to proper members
     int processFrame();    
     // when no new frames, we flush out cached frames
@@ -58,9 +62,11 @@ private:
     int m_largestHeight;
     
     DIRECTION m_inDirection;
-    DIRECTION m_OutDirection;
+    DIRECTION m_outDirection;
     // 3. using ?? as tracker
-                
+
+private: // inner helpers
+    
 };
 
 }//namespace

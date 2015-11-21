@@ -1,4 +1,4 @@
-#include "ContourTrack.h"
+#include "contourTrack.h"
 
 namespace Seg_Three
 {
@@ -22,8 +22,8 @@ ContourTrack :: ContourTrack(const int width, const int height,
     , m_curHeight(possibleHeight)
     , m_largestWidth(possibleWidth)
     , m_largestHeight(possibleHeight)
-    , m_inDirection((DERECTION)directionIn)
-    , m_outDirection(DERECTION_UNKNOWN)      
+    , m_inDirection((DIRECTION)directionIn)
+    , m_outDirection(DIRECTION_UNKNOWN)      
 {
     assert(m_curWidth > 0 && m_curHeight > 0);
     m_xCenter = m_lux + m_curWidth / 2;
@@ -35,8 +35,7 @@ ContourTrack :: ContourTrack(const int width, const int height,
 }
 
 ContourTrack :: ~ContourTrack()
-{
-    
+{    
     return;        
 }
 
@@ -47,7 +46,7 @@ int ContourTrack :: processFrame()
     return 0;
 }
 
-int flushFrame(cv::Mat & out);
+int ContourTrack :: flushFrame(cv::Mat & out)
 {
     return 0;
 }

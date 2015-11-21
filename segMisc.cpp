@@ -15,4 +15,4 @@ namespace Seg_Three
                std::get<1>(small).x <= std::get<1>(large).x &&
     }
 
-}
+} // namespace

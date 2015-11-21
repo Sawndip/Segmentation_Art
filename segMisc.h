@@ -5,6 +5,7 @@
 
 namespace Seg_Three
 {
+
 //// Log Macros
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
                                    __FILE__, __LINE__, ##__VA_ARGS__)
@@ -14,10 +15,11 @@ namespace Seg_Three
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogE(format, ...)  printf("[%-8s:%4d] [ERROR] " format, \
                                    __FILE__, __LINE__,  ##__VA_ARGS__)
-//// 
-//// 
+
+//// Misc Basic Structures
 struct TDPoint
 {
+    TDPoint() = default;
     TDPoint(const int a, const int b) : x(a), y(b) {}
     int x;
     int y;
@@ -31,7 +33,7 @@ struct TDRect
     int height;
 };
 
-enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT, DIRECTION_UNKNOWN};
+enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT, DIRECTION_NUM = 4, DIRECTION_UNKNOWN = 4};
 enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT, MOVING_UNKNOWN};
 
 extern bool isYContainedBy(const std::tuple<TDPoint, TDPoint> & small,

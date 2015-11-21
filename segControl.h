@@ -11,12 +11,12 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "threeDiff.h"
-#include "contourTrack.h"
-#include "psoBook.h"
 #include "segMisc.h"
 #include "vectorSpace.h"
-
+#include "threeDiff.h"
+#include "psoBook.h"
+#include "boundaryScan.h"
+#include "contourTrack.h"
 // namespace
 using :: std :: string;
 using :: std :: vector;
@@ -25,7 +25,6 @@ using namespace Vector_Space;
 
 namespace Seg_Three
 {
-
 class SegControl
 {    
 // GET All instance we need:
@@ -36,6 +35,7 @@ class SegControl
 // 5.psoseg do background and foreground preprocess;
 public:
     SegControl();
+    ~SegControl();
     int init(const int width, const int height);
     // read frame in and deliver to proper members
     int processFrame(const cv::Mat & in, cv::Mat & out);
@@ -46,11 +46,11 @@ private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
-    cv::Mat bookResult;    
+    cv::Mat m_bookResult;    
     // key members    
-    ThreeDiff threeDiff;
-    BoundaryScan boundaryScan;    
-    PsoBook psoBook;
+    ThreeDiff m_threeDiff;
+    BoundaryScan m_boundaryScan;    
+    PsoBook m_psoBook;
 };
 
 }//namespace

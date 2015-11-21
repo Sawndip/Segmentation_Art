@@ -2,60 +2,80 @@
 #define _BOUNDARY_SCAN_H_
 
 // sys
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <stdio.h>
-#include <string.h>
+#include <vector>
+#include <tuple>
 #include <string>
-
-namespace Seg_Three
-{
-    
-class BoundaryScan
-{
-// GET All instance we need:
-// 1.read frames and dispatch frames to proper member;
-// 2.simple optical flow should hold one class with direction/boundary part;
-// 3.boundary scan do locate;
-// 4.border do object size detect;
-// 5.psoseg do background and foreground preprocess;
-public:
-    BoundaryScan();
-        
-};
-
+// tools 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segmisc.h"
-#include "vectorspace.h"
+#include "segMisc.h"
+#include "vectorSpace.h"
 
 // namespace
 using :: std :: string;
 using :: std :: vector;
+using :: std :: tuple;
 using namespace Vector_Space;
 
-namespace Seg_Boundary
+namespace Seg_Three
 {
 //////////////////////////////////////////////////////////////////////////////////////////
 class BoundaryScan // San Fen
 {
 public:
     BoundaryScan();
+    ~BoundaryScan();
+    int init(const int width, const int height);
+    int processFrame(const cv::Mat & in,
+                     vector<vector<tuple<TDPoint, TDPoint> > > & lines);
 
-private:
-    // We try to know the whole lifespan of the moving object, even it is stopped for a
-    // while, or it is disguised by something;
-    //
-    // psosegment is just for codebook & collectiveWiddom
-    // boundary scan will do a lot more:
-    // 1. accurately locate the object
-    // 2. boundary detect;
-    // 3. simple optical flow; direction detect;
-    // 4. boundary frames do scan, do '&';
+private: // inner classes
+    class Borders
+    {
+    public:
+        Borders() : top(NULL), bottom(NULL), left(NULL),right(NULL) {};
+        ~Borders()
+        {
+            if (top) delete [] top;
+            if (bottom) delete [] bottom;
+            if (left) delete [] left;
+            if (right) delete [] right;            
+        }
+        void init(const int r, const int w)
+        {
+            rows = w;
+            columns = rows;
+            top = new unsigned char[columns * rows];
+            bottom = new unsigned char[columns * rows];
+            left = new unsigned char[columns * rows];
+            right = new unsigned char[columns * rows];
+        }
+        
+    public:
+        int columns;
+        int rows;
+        unsigned char * top;
+        unsigned char * bottom;
+        unsigned char * left;        
+        unsigned char * right;
+    };
+
+private: // inner members
+    int m_imgWidth;
+    int m_imgHeight;
+    int m_inputFrames;
+    unsigned char *m_directions[DIRECTION_NUM];
+    Borders m_borders;
+    static const int M_BORDER_ROWS = 2;
+    static const int M_ELEMENT_WIDTH = 2;    
+    static const int M_ELEMENT_HEIGHT = 2;
+private: // inner helpers
+    int doErode();
+    int doDilate();
+    int scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & lines);
 };
 
-} // namespace Seg_Boundary
+} // namespace Seg_Three
 
 #endif // _BOUNDARY_SCAN_H_

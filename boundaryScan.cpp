@@ -7,12 +7,12 @@ namespace Seg_Three
 //// constructor / destructor / init
 BoundaryScan :: BoundaryScan()
 {
-    return 0;
+    return;
 }
 
 BoundaryScan :: ~BoundaryScan()
 {
-    return 0;        
+    return;        
 }
 
 int BoundaryScan :: init(const int width, const int height)
@@ -20,14 +20,14 @@ int BoundaryScan :: init(const int width, const int height)
     m_imgWidth = width;
     m_imgHeight = height;
     m_inputFrames = 0;
-    borders.init(BORDER_ROWS, m_imgWidth);
+    m_borders.init(M_BORDER_ROWS, m_imgWidth);
     // actualy not used, for we use a simplified erode/dilate
-    for (int k = 0; k < ELEMENT_HEIGHT; k++)
+    for (int k = 0; k < M_ELEMENT_HEIGHT; k++)
     {
-        for (int j = 0; j < ELEMENT_HEIGHT; j++)
+        for (int j = 0; j < M_ELEMENT_HEIGHT; j++)
         {
-            erodeMatrix[k][j] = 255;
-            dilateMatrix[k][j] = 255;
+            //erodeMatrix[k][j] = 255;
+            //dilateMatrix[k][j] = 255;
         }
     }
     // 
@@ -51,12 +51,12 @@ args:
 return:   
 ****************************************************************************/
 int BoundaryScan :: processFrame(const cv::Mat & in,
-                                 vector<std:tuple<TDPoint, TDPoint> > & lines)
+                                 vector<vector<tuple<TDPoint, TDPoint> > > & lines)
 {
     m_inputFrames++;
     // 1. first extract border data (two lines), `in` data is in Gray(CV_8UC1);
     assert(in.channels() == 1);
-    assert(in.step[0] == m_imgWidth && in.step[1] == sizeof(unsigned char));
+    assert((int)in.step[0] == m_imgWidth && (int)in.step[1] == (int)sizeof(unsigned char));
     memcpy(m_borders.top, in.data, M_BORDER_ROWS * m_imgWidth);
     memcpy(m_borders.bottom, in.data + in.step[0]*(m_imgHeight-M_BORDER_ROWS),
            M_BORDER_ROWS*m_imgWidth);
@@ -93,7 +93,7 @@ int BoundaryScan :: doErode()
     // TODO: following code just deal with 2x2 window! Be aware of it.
     for (int n = 0; n < 4; n++)
     {   // note k = k + M_ELEMENT_HEIGHT
-        for (int k = 0; k < m_borders.rows; k+=M_ELEMENT_HEIGHT)   
+        for (int k = 0; k < m_borders.rows; k+=M_ELEMENT_HEIGHT)
         {
             for (int j = 0; j < m_borders.columns - 1; j++)
             {
@@ -139,14 +139,14 @@ int BoundaryScan :: doDilate()
     return 0;
 }
 
-int BoundaryScan :: scanBorders(vector<vector<std:tuple<TDPoint, TDPoint> > > & lines)
+int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & lines)
 {
     // we get borders with erode/dilate, then we get the foreground lines.
     for (int n = 0; n < 4; n++)
     {
         TDPoint start, end;
         bool bStart = false, bEnd = false;
-        vector<std::tuple<TDPoint, TDPoint> > oneDirection;
+        vector<tuple<TDPoint, TDPoint> > oneDirection;
         for (int k = 0; k < m_borders.columns; k++)
         {
             if (bStart == false && m_directions[n][k] == 0xFF)
@@ -165,7 +165,7 @@ int BoundaryScan :: scanBorders(vector<vector<std:tuple<TDPoint, TDPoint> > > & 
             }            
             if (bStart == true && bEnd == true)
             {
-                oneDirection.push_back(make_tuple(start, end));
+                oneDirection.push_back(std::make_tuple(start, end));
                 bStart = false;
                 bEnd =  false;
             }

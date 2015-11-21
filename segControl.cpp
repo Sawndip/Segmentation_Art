@@ -21,16 +21,16 @@ int SegControl :: init(const int width, const int height)
     int ret = -1;
     m_imgWidth = width;
     m_imgHeight = height;
-    bookResult.create(width, height, CV_8UC1);
+    m_bookResult.create(width, height, CV_8UC1);
     // 2. key members
-    ret = psoBook.init(width, height);
+    ret = m_psoBook.init(width, height);
     assert(ret >= 0);
-    ret = boundaryScan(width, height);
+    ret = m_boundaryScan.init(width, height);
     assert(ret >= 0);
     // put all complexities inside ThreeDiff
-    ret = threeDiff.init(width, height);
+    ret = m_threeDiff.init(width, height);
     assert(ret >= 0);
-    return 0;    
+    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -38,19 +38,20 @@ int SegControl :: init(const int width, const int height)
 int SegControl :: processFrame(const cv::Mat & in, cv::Mat & out)
 {   // we get psoBook's opinion
     int ret = -1;
-    ret = psoBook.processFrame(in, out);
+    ret = m_psoBook.processFrame(in, out);
     assert(ret >= 0);
     // four directions
-    vector<<tuple<TDPoint, TDPoint> > > possibleBoundaries = boundaryScan(out);
+    vector<vector<tuple<TDPoint, TDPoint> > > possibleBoundaries;
+    m_boundaryScan.processFrame(out, possibleBoundaries);
     // update boundary or add new contourTrack
     vector<Rect> rects;
-    ret = threeDiff.processFrame(in, out, possibleBoundaries, rects);
+    ret = m_threeDiff.processFrame(in, out, possibleBoundaries, rects);
     return ret;
 }
 
-int flushFrame(cv::Mat & out);
+int SegControl :: flushFrame(cv::Mat & out)
 {
-    return threeDiff.flushFrame(out);
+    return m_threeDiff.flushFrame(out);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

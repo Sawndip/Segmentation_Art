@@ -1,5 +1,5 @@
 #include <algorithm> // std::sort
-#include "ThreeDiff.h"
+#include "threeDiff.h"
 
 using namespace cv;
 
@@ -61,14 +61,14 @@ int ThreeDiff :: init(const int width, const int height)
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
                               cv::Mat & bookResult, // also, it is the out binary frame.
-                              const vector<std:tuple<TDPoint, TDPoint> > & curLines,
+                              vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
                               vector<cv::Rect> & rects)
 {
     m_inputFrames++;
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
         in.copyTo(m_cacheFrames[m_inputFrames-1]);
-        bookResults.copyTo(m_bookResults[m_inputFrames-1]);
+        bookResult.copyTo(m_bookResults[m_inputFrames-1]);
         m_crossLines[m_inputFrames-1] = curLines;
         if (m_inputFrames > 1)
         {   
@@ -87,7 +87,7 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     doUpdateContourTracking(bookResult, curLines, rects);
     
     // 3. do boundary check for creating new Contour.
-    doCreateNewContourTrack(rects);
+    doCreateNewContourTrack(bookResult, curLines, rects);
 
     // 4. do update internal cache/status
     doUpdateThreeDiffAfterOneFrameProcess(in, bookResult, curLines);
@@ -96,8 +96,7 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
 
 int ThreeDiff :: flushFrame(cv::Mat & out)
 {
-    // for the cache frames.
-    
+    // for the cache frames.    
     return 0;
 }
     
@@ -133,7 +132,7 @@ together with ContourTrack's status.
 ****************************/
 
 // |><| ************************************************************************
-// doCreateNewContourTrack:
+// doUpdateContourTracking:
 //     1. Using m_crossLines to check new coming in objects
 //     2. line1's(oldest line) TDPoints can be removed in this call
 // args:
@@ -144,7 +143,8 @@ together with ContourTrack's status.
 //     < 0, process error;
 // *****************************************************************************        
 int ThreeDiff :: doUpdateContourTracking(cv::Mat & out,
-                                         vector<std:tuple<TDPoint, TDPoint> > & curLines)
+                                         vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
+                                         vector<cv::Rect> & rects)
 {
     if (m_tracks.size() == 0)
         return 0;
@@ -165,11 +165,12 @@ int ThreeDiff :: doUpdateContourTracking(cv::Mat & out,
 //     < 0, process error;
 // *****************************************************************************    
 int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
-                                         const vector<std:tuple<TDPoint, TDPoint> > & lines3)
+                                         vector<vector<tuple<TDPoint, TDPoint> > > & lines3,
+                                         vector<cv::Rect> & rects)
 {
     // check the three lines, do 'AND' operation
-    vector<vector<std:tuple<TDPoint, TDPoint> > > & lines1 = m_crossLines[0];
-    vector<vector<std:tuple<TDPoint, TDPoint> > > & lines2 = m_crossLines[1];
+    vector<vector<tuple<TDPoint, TDPoint> > > & lines1 = m_crossLines[0];
+    vector<vector<tuple<TDPoint, TDPoint> > > & lines2 = m_crossLines[1];
     assert(lines1.size() == lines2.size() && lines1.size() == lines3.size());
     for (int k=0; k < (int)lines1.size(); k++)
     {
@@ -181,24 +182,24 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
         vector<int> ends;        
         for (;it1 != lines1[k].end(); it1++)
         {
-            starts.push_back(std::get<0>(*t1).y);
-            starts.push_back(std::get<1>(*t1).y);            
+            starts.push_back(std::get<0>(*it1).y);
+            starts.push_back(std::get<1>(*it1).y);            
         }           
         for (;it2 != lines2[k].end(); it2++)
         {
-            starts.push_back(std::get<0>(*t2).y);
-            starts.push_back(std::get<1>(*t2).y);            
+            starts.push_back(std::get<0>(*it2).y);
+            starts.push_back(std::get<1>(*it2).y);            
         }           
         for (;it3 != lines3[k].end(); it3++)
         {
-            starts.push_back(std::get<0>(*t3).y);
-            starts.push_back(std::get<1>(*t3).y);            
-        }           
+            starts.push_back(std::get<0>(*it3).y);
+            starts.push_back(std::get<1>(*it3).y);            
+        }
         std::sort(starts.begin(), starts.end());
         std::sort(ends.begin(), ends.end());
 
-        vector<std:tuple<TDPoint, TDPoint> > newEnters;
-        int startBegint = 1;
+        vector<tuple<TDPoint, TDPoint> > newEnters;
+        int startBegin = 1;
         for (int i = 0; i < (int)ends.size(); i++)
         {
             TDPoint start, end;
@@ -211,7 +212,7 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
                     start.y = starts[j-1];
                     end.x = 0;
                     end.y = ends[i];
-                    newEnters.push_back(make_tuple(start, end));
+                    newEnters.push_back(std::make_tuple(start, end));
                     break;
                 }
             }
@@ -219,15 +220,14 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
             for (int m = 0; m < (int)newEnters.size(); m++)
             {
                 int h = 0;
-                for (h = 0; h < (int)lines1.size(); h++)
+                for (h = 0; h < (int)lines1[k].size(); h++)
                 {   // newEnters[m] is part of lines1[h]
-                    if (isYContainedBy(newEnters[m], lines1[h] == true))
+                    if (isYContainedBy(newEnters[m], lines1[k][h]) == true)
                         break;
                 }
-                if (h == (int)lines1.size()) // not part of lines1
+                if (h == (int)lines1[k].size()) // not part of lines1
                     continue;
                     
-                const int length = std::get<1>(newEnters[m]).y - ;
                 // we calculate the lux/luy, possible width/height
                 int lux = 0, luy = 0, possibleWidth = 0;
                 const int possibleHeight = 6; // fixed value, 6 pixels when first craeted
@@ -257,8 +257,8 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
                 ContourTrack *pTrack = new ContourTrack(m_imgWidth, m_imgHeight,
                                                         k, lux, luy,
                                                         possibleWidth, possibleHeight);
-                m_tracks.push_back();
-                out.push_back();
+                m_tracks.push_back(pTrack);
+                //out.push_back();
             }
         }
     }
@@ -286,7 +286,6 @@ int ThreeDiff :: doRgbDiff(const cv::Mat & first, const cv::Mat & second)
 
 bool ThreeDiff :: rgbEulerDiff(const cv::Vec3b & first, const cv::Vec3b & second)
 {
-    assert(vs1.components().size() == 3 && vs2.components().size() == 3);
     int meanRed = (first[0] + second[0]) / 2;
     int r =  first[0] - second[0];
     int g =  first[1] - second[1];
@@ -297,10 +296,10 @@ bool ThreeDiff :: rgbEulerDiff(const cv::Vec3b & first, const cv::Vec3b & second
     
 int ThreeDiff :: doUpdateThreeDiffAfterOneFrameProcess(
                          const cv::Mat in, const cv::Mat & bookResult,
-                         const vector<std:tuple<TDPoint, TDPoint> > & lines3)
+                         const vector<vector<tuple<TDPoint, TDPoint> > > & lines3)
 {
 
-
+    return 0;
 }
     
 } // namespace Seg_Three
