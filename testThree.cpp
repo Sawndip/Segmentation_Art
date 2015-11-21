@@ -10,7 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 // project
-#include "psosegment.h"
+#include "psoBook.h"
 
 // namespaces
 using std :: string;
@@ -63,7 +63,8 @@ int main(int argc, char * argv[])
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
 
-    PsoBook psoBook(640, 480);
+    PsoBook psoBook;
+    psoBook.init(640, 480);
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {
         //Mat readFrame = imread(imgFilePathes[i]);

@@ -170,7 +170,8 @@ int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & line
                 bEnd =  false;
             }
         }
-        lines.push_back(oneDirection);
+        if (end.y - start.y > 4)
+            lines.push_back(oneDirection);
     }
     return 0;
 }

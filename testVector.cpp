@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <vector>
-#include "vectorspace.h"
+#include "vectorSpace.h"
 
 using std :: vector;
 using namespace Vector_Space;

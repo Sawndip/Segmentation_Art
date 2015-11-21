@@ -156,7 +156,7 @@ PsoBook :: ~PsoBook()
 
 int PsoBook :: init(const int width, const int height)
 {
-    if (m_bInit == true)
+    if (m_bInit == false)
     {
         m_imgWidth = width;
         m_imgHeight = height;
