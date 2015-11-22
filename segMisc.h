@@ -2,6 +2,13 @@
 #define _THREE_SEGMENT_MISC_H_
 
 #include <tuple>
+#include <vector>
+// tools - just using Mat
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+using :: std :: vector;
+using :: std :: tuple;
 
 namespace Seg_Three
 {
@@ -15,8 +22,15 @@ namespace Seg_Three
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogE(format, ...)  printf("[%-8s:%4d] [ERROR] " format, \
                                    __FILE__, __LINE__,  ##__VA_ARGS__)
+    
+//// Misc Basic Structures    
+struct SegResults
+{
+    int m_objIdx;
+    bool m_bOutForRecognize;
+    cv::Rect m_curBox;
+};
 
-//// Misc Basic Structures
 struct TDPoint
 {
     TDPoint() = default;
@@ -32,6 +46,8 @@ struct TDRect
     int width;
     int height;
 };
+
+typedef vector<vector<tuple<TDPoint, TDPoint> > > FourBorders;
 
 enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT, DIRECTION_NUM = 4, DIRECTION_UNKNOWN = 4};
 enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT, MOVING_UNKNOWN};

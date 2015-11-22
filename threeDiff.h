@@ -39,10 +39,11 @@ public:
     ~ThreeDiff();    
     int init(const int width, const int height);
     int processFrame(const cv::Mat & in,
-                     cv::Mat & bookResult, // also, it is the out binary frame.
+                     cv::Mat & bgResult, // also, it is the out binary frame.
                      vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
-                     vector<cv::Rect> & rects);
-    int flushFrame(cv::Mat & out);
+                     vector<SegResults> & segResults);
+    
+    int flushFrame(vector<SegResults> & segResults, cv::Mat & bgResult);
     
 private:
     // 1. general 
@@ -59,19 +60,22 @@ private:
     cv::Mat m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
     vector<vector<tuple<TDPoint, TDPoint> > > m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
 
-    // 3. contourTrack part (simple optical flow & feature extraction)
+    // 3. contourTrack part (using compressiveTracker, then do postprocess with diffResults)
     int m_objIdx;
-    vector<ContourTrack *> m_tracks;
+    vector<ContourTrack *> m_trackers;
 
 private: // inner helpers
-    int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bookResult,
-                                   const vector<vector<tuple<TDPoint, TDPoint> > > & lines3);
-    int doUpdateContourTracking(cv::Mat & out,
+    // 1. important ones
+    int doUpdateContourTracking(const cv::Mat in, cv::Mat & out,
                                 vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
-                                vector<cv::Rect> & rects);
-    int doCreateNewContourTrack(cv::Mat & out,
+                                vector<SegResults> & segResults);
+    int doCreateNewContourTrack(const cv::Mat & in, cv::Mat & out,
                                 vector<vector<tuple<TDPoint, TDPoint> > > & lines3,
-                                vector<cv::Rect> & rects);
+                                vector<SegResults> & segResults);
+    int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
+                                   const vector<vector<tuple<TDPoint, TDPoint> > > & lines3);
+
+    // 2. trival ones
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);
 };
 

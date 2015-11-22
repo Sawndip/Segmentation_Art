@@ -25,6 +25,7 @@ using namespace Vector_Space;
 
 namespace Seg_Three
 {
+
 class SegControl
 {    
 // GET All instance we need:
@@ -38,9 +39,9 @@ public:
     ~SegControl();
     int init(const int width, const int height);
     // read frame in and deliver to proper members
-    int processFrame(const cv::Mat & in, cv::Mat & out);
+    int processFrame(const cv::Mat & in, vector<SegResults> & segResults, cv::Mat & out);
     // when no new frames, we flush out cached frames
-    int flushFrame(cv::Mat & out);
+    int flushFrame(vector<SegResults> & segResults, cv::Mat & out);
 
 private:
     int m_imgWidth;

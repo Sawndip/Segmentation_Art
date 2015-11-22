@@ -35,7 +35,8 @@ int SegControl :: init(const int width, const int height)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs
-int SegControl :: processFrame(const cv::Mat & in, cv::Mat & out)
+int SegControl :: processFrame(const cv::Mat & in,
+                               vector<SegResults> & segResults, cv::Mat & out)
 {   // we get psoBook's opinion
     int ret = -1;
     ret = m_psoBook.processFrame(in, out);
@@ -45,13 +46,13 @@ int SegControl :: processFrame(const cv::Mat & in, cv::Mat & out)
     m_boundaryScan.processFrame(out, possibleBoundaries);
     // update boundary or add new contourTrack
     vector<Rect> rects;
-    ret = m_threeDiff.processFrame(in, out, possibleBoundaries, rects);
+    ret = m_threeDiff.processFrame(in, out, possibleBoundaries, segResults);
     return ret;
 }
 
-int SegControl :: flushFrame(cv::Mat & out)
+int SegControl :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
 {
-    return m_threeDiff.flushFrame(out);
+    return m_threeDiff.flushFrame(segResults, out);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

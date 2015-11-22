@@ -62,7 +62,7 @@ int ThreeDiff :: init(const int width, const int height)
 int ThreeDiff :: processFrame(const cv::Mat & in,
                               cv::Mat & bgResult, // also, it is the out binary frame.
                               vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
-                              vector<cv::Rect> & rects)
+                              vector<SegResults> & segResults)
 {
     m_inputFrames++;
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
@@ -83,17 +83,17 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     doBgDiff(bgResult, m_bgResults[m_curFrontIdx]);
 
     // 2. fill the 'outs' with 'lines', 'diffResult', 'simplified optical flow' 
-    doUpdateContourTracking(bgResult, curLines, rects);
+    doUpdateContourTracking(in, bgResult, curLines, segResults);
     
     // 3. do boundary check for creating new Contour.
-    doCreateNewContourTrack(bgResult, curLines, rects);
+    doCreateNewContourTrack(in, bgResult, curLines, segResults);
 
     // 4. do update internal cache/status
     updateAfterOneFrameProcess(in, bgResult, curLines);
     return 1; // output 1 frame.
 }
 
-int ThreeDiff :: flushFrame(cv::Mat & out)
+int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
 {
     // for the cache frames.    
     return 0;
@@ -140,17 +140,24 @@ together with ContourTrack's status.
 //     >= 0, process ok;
 //     < 0, process error;
 // *****************************************************************************        
-int ThreeDiff :: doUpdateContourTracking(cv::Mat & out,
-                                         vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
-                                         vector<cv::Rect> & rects)
+int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
+                                         FourBorders & curLines,
+                                         vector<SegResults> & segResults)
 {
-    // TODO: 2015-11-20 so, all are here.
-    if (m_tracks.size() == 0)
+    if (m_trackers.size() == 0)
         return 0;
     // how can we do tracking together with boundary changing!
     // 1. to kick out TDPoints that can be used by existing ContourTrack for boundary changing.
     //    how we use diffResult togather bgResult, to do tracking judge ?
-    
+    for (int k = 0; k < (int)m_trackers.size(); k++)
+    {
+        SegResults sr;
+        //m_trackers.processFrame(in, );
+        //m_trackers.updateTracker(); // re-calc the curBox, calculate the boundary cross part.
+        //sr.m_objIdx = m_trackers.getIdx();
+        //segResults.
+    }
+
     // 2. other ContourTrack for tracking.
     //    here also, how we track them
     
@@ -170,9 +177,9 @@ int ThreeDiff :: doUpdateContourTracking(cv::Mat & out,
 //     >= 0, process ok;
 //     < 0, process error;
 // *****************************************************************************    
-int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
+int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                                          vector<vector<tuple<TDPoint, TDPoint> > > & lines3,
-                                         vector<cv::Rect> & rects)
+                                         vector<SegResults> & segResults)
 {
     // check the three lines, do 'AND' operation
     vector<vector<tuple<TDPoint, TDPoint> > > & lines1 = m_crossLines[0];
@@ -260,12 +267,17 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
                     possibleWidth = std::get<1>(newEnters[m]).y - luy;                    
                     break;
                 }
-                ContourTrack *pTrack = new ContourTrack(m_objIdx++,
+                ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
                                                         m_imgWidth, m_imgHeight,
                                                         k, lux, luy,
                                                         possibleWidth, possibleHeight);
-                m_tracks.push_back(pTrack);
-                //out.push_back();
+                m_trackers.push_back(pTrack);
+                SegResults sr;
+                sr.m_objIdx = m_objIdx;
+                sr.m_bOutForRecognize = false;
+                sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
+                m_objIdx++;
+                segResults.push_back(sr);
             }
         }
     }
@@ -273,8 +285,7 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
 }
 
 int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in,                               
-                                            const cv::Mat & bgResult,
-                                      const vector<vector<tuple<TDPoint, TDPoint> > > & lines3)
+           const cv::Mat & bgResult, const vector<vector<tuple<TDPoint, TDPoint> > > & lines3)
 { 
     // diff, in, bgResult, crossLines
     m_curFrontIdx++;
@@ -302,6 +313,12 @@ int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
 
 } // namespace Seg_Three    
 ////////////////////////////// End of File //////////////////////////////////////////
+
+
+
+
+
+
 /*    
 int ThreeDiff :: doRgbDiff(const cv::Mat & first, const cv::Mat & second)
 {

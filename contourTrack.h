@@ -24,34 +24,29 @@ namespace Seg_Three
 class ContourTrack
 {    
 public:
-    ContourTrack(const int idx,
+    ContourTrack(const int idx, const cv::Mat & in,
                  const int width, const int height, // image width/height
                  const int directionIn,        
                  const int lux, const int luy, // first appear coordinate
                  const int possibleWidth, const int possibleHeight);
     ~ContourTrack();
     // read frame in and deliver to proper members
-    int processFrame();    
+    int processFrame(const cv::Mat & in, const cv::Mat & bgResult,
+                     const cv::Mat & diffAnd, const cv::Mat & diffOr);
     // when no new frames, we flush out cached frames
     int flushFrame(cv::Mat & out);
-
-public:
-    struct TrackFeatures
-    {
-        int m_xCentroid;
-        int m_yCentroid;
-        int m_width;
-        int m_height;
-        int m_r;
-        int m_g;
-        int m_b;
-    };
-
+    int getIdx() const {return m_idx;}
+    
 private:
     const int m_idx;
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
+
+    // 0. using CompressiveTrack as tracker
+    cv::Rect m_curBox; // changing every time with diffResults' influence
+    CompressiveTracker m_ctTracker;
+    
     // 1. When create new: give the basic infos
     // 2. When do tracking, using Simplified Optical Flow & update inner status.
     bool m_bAllIn; // some objects may not always in.
@@ -67,8 +62,6 @@ private:
     
     DIRECTION m_inDirection;
     DIRECTION m_outDirection;
-    // 3. using ?? as tracker
-
 
     // 4. size changing function
     double m_aw; 
