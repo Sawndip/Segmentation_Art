@@ -146,23 +146,25 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
 {
     if (m_trackers.size() == 0)
         return 0;
-    // how can we do tracking together with boundary changing!
-    // 1. to kick out TDPoints that can be used by existing ContourTrack for boundary changing.
-    //    how we use diffResult togather bgResult, to do tracking judge ?
-    for (int k = 0; k < (int)m_trackers.size(); k++)
+    // 1. leaving boundary check
+    // 2. new curBox amendment.
+    for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
     {
         SegResults sr;
-        //m_trackers.processFrame(in, );
-        //m_trackers.updateTracker(); // re-calc the curBox, calculate the boundary cross part.
+        int ret = (*it)->processFrame(in);
+        // re-calc the curBox, calculate the boundary cross part.
+        ret = (*it)->updateTrackerUsingDiff();
         //sr.m_objIdx = m_trackers.getIdx();
         //segResults.
+        if (ret < 0)
+        {
+            delete *it; // delete this ContourTrack
+            m_trackers.erase(it); // erase it from the vector.
+        }
+        else
+            it++; // increse here.
     }
-
-    // 2. other ContourTrack for tracking.
-    //    here also, how we track them
-    
-    // 3.
-    
+        
     return 0;
 }
     

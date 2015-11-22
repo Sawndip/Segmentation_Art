@@ -30,12 +30,15 @@ public:
                  const int lux, const int luy, // first appear coordinate
                  const int possibleWidth, const int possibleHeight);
     ~ContourTrack();
-    // read frame in and deliver to proper members
-    int processFrame(const cv::Mat & in, const cv::Mat & bgResult,
-                     const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    // when no new frames, we flush out cached frames
-    int flushFrame(cv::Mat & out);
+    // 1. important ones
+    int processFrame(const cv::Mat & in);
+    int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
+                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int flushFrame();
+    
+    // 2. trival ones
     int getIdx() const {return m_idx;}
+    cv::Rect & getCurBox() {return m_curBox;}
     
 private:
     const int m_idx;

@@ -57,19 +57,29 @@ ContourTrack :: ~ContourTrack()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs    
-int ContourTrack :: processFrame(const cv::Mat & in, const cv::Mat & bgResult,
-                                 const cv::Mat & diffAnd, const cv::Mat & diffOr)
+int ContourTrack :: processFrame(const cv::Mat & in)
 {
     // Process frame using compressive tracker.
     int ret = m_ctTracker.processFrame(in, m_curBox);
-    if (ret  < 0)
+    if (ret < 0)
         printf("Tracker warning \n.");
     return 0;
 }
 
-int ContourTrack :: flushFrame(cv::Mat & out)
-{
+int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
+                                           const cv::Mat & diffAnd, const cv::Mat & diffOr)
+{ 
+    int ret = 0;
     
+
+    return ret;
+}
+
+
+    
+int ContourTrack :: flushFrame()
+{
+        
     return 0;
 }; 
     
