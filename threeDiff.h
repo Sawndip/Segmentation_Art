@@ -50,29 +50,29 @@ private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
+    
     // 2. cache related
     static const int M_THREE_DIFF_CACHE_FRAMES = 2;
     int m_curFrontIdx;
-    cv::Mat m_cacheFrames[M_THREE_DIFF_CACHE_FRAMES];
-    cv::Mat m_bookResults[M_THREE_DIFF_CACHE_FRAMES];
-    cv::Mat m_diffResults[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_diffAndResults[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];    
+    cv::Mat m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
     vector<vector<tuple<TDPoint, TDPoint> > > m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
+
     // 3. contourTrack part (simple optical flow & feature extraction)
     int m_objIdx;
     vector<ContourTrack *> m_tracks;
 
 private: // inner helpers
-    int doRgbDiff(const cv::Mat & first, const cv::Mat & second);
-    bool rgbEulerDiff(const cv::Vec3b & first, const cv::Vec3b & second);
-    int doUpdateThreeDiffAfterOneFrameProcess(
-                         const cv::Mat in, const cv::Mat & bookResult,
-                         const vector<vector<tuple<TDPoint, TDPoint> > > & lines3);
+    int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bookResult,
+                                   const vector<vector<tuple<TDPoint, TDPoint> > > & lines3);
     int doUpdateContourTracking(cv::Mat & out,
                                 vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
                                 vector<cv::Rect> & rects);
     int doCreateNewContourTrack(cv::Mat & out,
                                 vector<vector<tuple<TDPoint, TDPoint> > > & lines3,
                                 vector<cv::Rect> & rects);
+    int doBgDiff(const cv::Mat & first, const cv::Mat & second);
 };
 
 } // namespace Seg_Three

@@ -170,7 +170,7 @@ int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & line
                 bEnd =  false;
             }
         }
-        if (end.y - start.y > 4)
+        if (end.y - start.y > 4) // 4 pixel as the threshold.
             lines.push_back(oneDirection);
     }
     return 0;

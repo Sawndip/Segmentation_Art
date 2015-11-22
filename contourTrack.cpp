@@ -1,3 +1,4 @@
+#include "math.h"
 #include "contourTrack.h"
 
 namespace Seg_Three
@@ -5,15 +6,17 @@ namespace Seg_Three
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 //// constructor / destructor / init
-ContourTrack :: ContourTrack(const int width, const int height,
+ContourTrack :: ContourTrack(const int idx,
+                             const int width, const int height,
                              const int directionIn,
                              const int lux, const int luy,                         
                              const int possibleWidth, const int possibleHeight)
-    : m_imgWidth(width)
+    : m_idx(idx)
+    , m_imgWidth(width)
     , m_imgHeight(height)
     , m_inputFrames(0)
     , m_bAllIn(false)
-    , m_bAllOut(false)    
+    , m_bAllOut(false)
     , m_lux(lux)
     , m_luy(luy)
     , m_xCenter(0)
@@ -27,9 +30,18 @@ ContourTrack :: ContourTrack(const int width, const int height,
 {
     assert(m_curWidth > 0 && m_curHeight > 0);
     m_xCenter = m_lux + m_curWidth / 2;
-    m_yCenter = m_luy + m_curHeight / 2;    
-    LogI("Create New ContourTrack: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
-         "possibleHeight:%d, centerX:%d, centerY:%d\n",
+    m_yCenter = m_luy + m_curHeight / 2;
+    // calculate the size changing function.
+    // take as function: y = ax^2 + bx + c
+    // We know: x=0, y=1; x=20, y=0.5; x=m_imgWidth, y=0;
+    // so: 400a + 20b = 1.5
+    m_aw = (1.5 * m_imgWidth - 20) / (400.0 * m_imgWidth - 20 * m_imgWidth * m_imgWidth);
+    m_bw = (1.5 - 400 * m_aw) / 20.0;
+    m_ah = (1.5 * m_imgHeight - 20) / (400.0 * m_imgHeight - 20 * m_imgHeight * m_imgHeight);
+    m_bw = (1.5 - 400 * m_ah) / 20.0;
+    // 
+    LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
+         "possibleHeight:%d, centerX:%d, centerY:%d\n", m_idx, 
          directionIn, lux, luy, possibleWidth, possibleHeight, m_xCenter, m_yCenter);  
     return;
 }
@@ -42,16 +54,26 @@ ContourTrack :: ~ContourTrack()
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs    
 int ContourTrack :: processFrame()
-{    
+{
+    
     return 0;
 }
 
 int ContourTrack :: flushFrame(cv::Mat & out)
 {
+    
+    return 0;
+}; 
+    
+//////////////////////////////////////////////////////////////////////////////////////////
+//// Internal Helpers
+int ContourTrack :: curMaxChangeSize(int & x, int & y)
+{
+    const double xRate = m_aw * m_curWidth * m_curWidth + m_bw * m_curWidth + m_c;
+    const double yRate = m_aw * m_curHeight * m_curHeight + m_bw * m_curHeight + m_c;
+    x = (int)round(m_curWidth * xRate);
+    y = (int)round(m_curHeight * yRate);    
     return 0;
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//// Internal Helpers    
     
 } // namespace Seg_Three

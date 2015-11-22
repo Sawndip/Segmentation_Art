@@ -10,11 +10,13 @@
 // project
 #include "segMisc.h"
 #include "vectorSpace.h"
+#include "CompressiveTracker.h"
 
 // namespace
 using :: std :: string;
 using :: std :: vector;
 using namespace Vector_Space;
+using namespace Compressive_Tracker;
 
 namespace Seg_Three
 {
@@ -22,7 +24,8 @@ namespace Seg_Three
 class ContourTrack
 {    
 public:
-    ContourTrack(const int width, const int height, // image width/height
+    ContourTrack(const int idx,
+                 const int width, const int height, // image width/height
                  const int directionIn,        
                  const int lux, const int luy, // first appear coordinate
                  const int possibleWidth, const int possibleHeight);
@@ -45,6 +48,7 @@ public:
     };
 
 private:
+    const int m_idx;
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
@@ -65,8 +69,15 @@ private:
     DIRECTION m_outDirection;
     // 3. using ?? as tracker
 
+
+    // 4. size changing function
+    double m_aw; 
+    double m_bw;
+    double m_ah; 
+    double m_bh;
+    const static int m_c = -1; // y = ax^2 + bx + c
 private: // inner helpers
-    
+    int curMaxChangeSize(int & x, int & y);
 };
 
 }//namespace

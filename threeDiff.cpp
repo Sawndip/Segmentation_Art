@@ -30,11 +30,11 @@ int ThreeDiff :: init(const int width, const int height)
         // cache part
         m_curFrontIdx = 0;
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_cacheFrames[k].create(width, height, CV_8UC3); // rgb
+            m_bgResults[k].create(width, height, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_bookResults[k].create(width, height, CV_8UC1); // gray
+            m_diffAndResults[k].create(width, height, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES - 1; k++)
-            m_diffResults[k].create(width, height, CV_8UC1); // gray
+            m_diffOrResults[k].create(width, height, CV_8UC1); // gray
         // contour
         m_objIdx = 0;        
         m_bInit = true;
@@ -52,7 +52,7 @@ int ThreeDiff :: init(const int width, const int height)
 //     4. using existing 'contourTrack' with 'diffResults' to update contourTrack;
 // args:
 //     outs: output each contourTrack's object rectangle;
-//     bookResult: psoBook's result of background/foreground;
+//     bgResult: psoBg's result of background/foreground;
 //     lines: possible new objects cross boundary lines got from 'BoundaryScan';
 // return:
 //     = 0, won't output frames;
@@ -60,19 +60,18 @@ int ThreeDiff :: init(const int width, const int height)
 //     < 0, process error;
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
-                              cv::Mat & bookResult, // also, it is the out binary frame.
+                              cv::Mat & bgResult, // also, it is the out binary frame.
                               vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
                               vector<cv::Rect> & rects)
 {
     m_inputFrames++;
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
-        in.copyTo(m_cacheFrames[m_inputFrames-1]);
-        bookResult.copyTo(m_bookResults[m_inputFrames-1]);
+        bgResult.copyTo(m_bgResults[m_inputFrames-1]);
         m_crossLines[m_inputFrames-1] = curLines;
         if (m_inputFrames > 1)
         {   
-            doRgbDiff(m_cacheFrames[m_inputFrames-1], m_cacheFrames[m_inputFrames-2]);
+            doBgDiff(m_bgResults[m_inputFrames-1], m_bgResults[m_inputFrames-2]);
             m_curFrontIdx++;
             if (m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0)
                 m_curFrontIdx = 0;
@@ -81,16 +80,16 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     }
     
     // 1. do diff in RGB for Contour's using.
-    doRgbDiff(in, m_cacheFrames[m_curFrontIdx]);
+    doBgDiff(bgResult, m_bgResults[m_curFrontIdx]);
 
     // 2. fill the 'outs' with 'lines', 'diffResult', 'simplified optical flow' 
-    doUpdateContourTracking(bookResult, curLines, rects);
+    doUpdateContourTracking(bgResult, curLines, rects);
     
     // 3. do boundary check for creating new Contour.
-    doCreateNewContourTrack(bookResult, curLines, rects);
+    doCreateNewContourTrack(bgResult, curLines, rects);
 
     // 4. do update internal cache/status
-    doUpdateThreeDiffAfterOneFrameProcess(in, bookResult, curLines);
+    updateAfterOneFrameProcess(in, bgResult, curLines);
     return 1; // output 1 frame.
 }
 
@@ -103,7 +102,7 @@ int ThreeDiff :: flushFrame(cv::Mat & out)
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers
 /****************************
-Lines, BookResults, DiffResults, CacheFrames: all these parameters are used for catch
+Lines, BgResults, DiffResults, CacheFrames: all these parameters are used for catch
 the objects' moving locations in every frame and their estimated size.
 
 When object enter or exit the screeen, location and size are special. 
@@ -117,11 +116,10 @@ together with ContourTrack's status.
 
 2. the purpose of DiffResults:
    1) extract features from the diff overlap, for instance center color, edge points
-      search it as using optical flow, then we can get MV (Using MV for next estimate 
-      searching), to finally know whether the object still in the screen and its 
-      estimate size.
+      search it as using KLT?? CompessiveTracker?? to finally know whether the object 
+      still in the screen and its estimate size.
 
-3. the purpose of BookResults:
+3. the purpose of BgResults:
    to verify the Simplified Optical Flow's result. If they are quit different, we would
    like to discard SOF's results.
 
@@ -146,10 +144,18 @@ int ThreeDiff :: doUpdateContourTracking(cv::Mat & out,
                                          vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
                                          vector<cv::Rect> & rects)
 {
+    // TODO: 2015-11-20 so, all are here.
     if (m_tracks.size() == 0)
         return 0;
     // how can we do tracking together with boundary changing!
-        
+    // 1. to kick out TDPoints that can be used by existing ContourTrack for boundary changing.
+    //    how we use diffResult togather bgResult, to do tracking judge ?
+    
+    // 2. other ContourTrack for tracking.
+    //    here also, how we track them
+    
+    // 3.
+    
     return 0;
 }
     
@@ -254,7 +260,8 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
                     possibleWidth = std::get<1>(newEnters[m]).y - luy;                    
                     break;
                 }
-                ContourTrack *pTrack = new ContourTrack(m_imgWidth, m_imgHeight,
+                ContourTrack *pTrack = new ContourTrack(m_objIdx++,
+                                                        m_imgWidth, m_imgHeight,
                                                         k, lux, luy,
                                                         possibleWidth, possibleHeight);
                 m_tracks.push_back(pTrack);
@@ -264,7 +271,38 @@ int ThreeDiff :: doCreateNewContourTrack(cv::Mat & out,
     }
     return 0;
 }
-    
+
+int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in,                               
+                                            const cv::Mat & bgResult,
+                                      const vector<vector<tuple<TDPoint, TDPoint> > > & lines3)
+{ 
+    // diff, in, bgResult, crossLines
+    m_curFrontIdx++;
+    m_curFrontIdx = m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0 ? 0 : m_curFrontIdx;
+    bgResult.copyTo(m_bgResults[m_curFrontIdx]);
+    m_crossLines[m_curFrontIdx] = lines3;
+    return 0;
+}
+
+//// other helpers
+int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
+{
+    for (int k = 0; k < m_imgHeight; k++)
+    {
+        for (int j = 0; j < m_imgWidth; j++)
+        {
+            m_diffAndResults[m_curFrontIdx].at<uchar>(k, j) =
+                first.at<uchar>(k, j) & second.at<uchar>(k, j);
+            m_diffOrResults[m_curFrontIdx].at<uchar>(k, j) =
+                first.at<uchar>(k, j) | second.at<uchar>(k, j);
+        }
+    }    
+    return 0;
+}
+
+} // namespace Seg_Three    
+////////////////////////////// End of File //////////////////////////////////////////
+/*    
 int ThreeDiff :: doRgbDiff(const cv::Mat & first, const cv::Mat & second)
 {
     for (int k = 0; k < m_imgHeight; k++)
@@ -279,8 +317,7 @@ int ThreeDiff :: doRgbDiff(const cv::Mat & first, const cv::Mat & second)
             else
                 m_diffResults[m_curFrontIdx].at<uchar>(k, j) = 0;
         }
-    }
-    
+    }    
     return 0;
 }
 
@@ -294,12 +331,4 @@ bool ThreeDiff :: rgbEulerDiff(const cv::Vec3b & first, const cv::Vec3b & second
     return sqrt((((512 + meanRed)*r*r)>>8) + 4*g*g + (((767-meanRed)*b*b)>>8)) > 20;
 }
     
-int ThreeDiff :: doUpdateThreeDiffAfterOneFrameProcess(
-                         const cv::Mat in, const cv::Mat & bookResult,
-                         const vector<vector<tuple<TDPoint, TDPoint> > > & lines3)
-{
-
-    return 0;
-}
-    
-} // namespace Seg_Three
+*/    

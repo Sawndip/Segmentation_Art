@@ -52,7 +52,8 @@ ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/segControl.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/threeDiff.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/boundaryScan.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp 
+                           ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/CompressiveTracker.cpp 
                            ${CMAKE_CURRENT_SOURCE_DIR}/testThree.cpp)
                          
 ADD_EXECUTABLE(${testPso} ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
