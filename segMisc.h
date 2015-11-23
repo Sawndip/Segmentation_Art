@@ -13,7 +13,7 @@ using :: std :: tuple;
 namespace Seg_Three
 {
 
-//// Log Macros
+//// Log Macros: Minimal Log Facility
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogI(format, ...)  printf("[%-8s:%4d] [INFO] " format, \

@@ -42,6 +42,7 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     m_bw = (1.5 - 400 * m_ah) / 20.0;
     // 2. compressive tracker part.
     m_curBox = cv::Rect(m_lux, m_luy, m_curWidth, m_curHeight);
+    m_lastBox = m_curBox;
     m_ctTracker.init(in, m_curBox); //ct.init(grayImg, box);
 
     LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
@@ -60,18 +61,31 @@ ContourTrack :: ~ContourTrack()
 int ContourTrack :: processFrame(const cv::Mat & in)
 {
     // Process frame using compressive tracker.
+    m_lastBox = m_curBox;
     int ret = m_ctTracker.processFrame(in, m_curBox);
     if (ret < 0)
-        printf("Tracker warning \n.");
+        LogW("Compressive Tracker do warning a failing track.\n.");
     return 0;
 }
-
+// must be called after processFrame
 int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
 { 
     int ret = 0;
-    
+    bool bOverlap = true;
+    if (m_lastBox.x + m_lastBox.width < m_curBox.x  ||
+        m_lastBox.y + m_lastBox.height < m_curBox.y ||
+        m_curBox.x + m_curBox.width < m_lastBox.x   ||
+        m_curBox.y + m_curBox.height < m_lastBox.y   )
+    {
+        LogW("lastBox & curBox have no overlap area.\n");
+        bOverlap = false;
+    }
 
+    // the new box cannot exceed the (last + cur) box area, also curMaxChange is engaged to
+    // limit the size of the current box area.
+        
+    
     return ret;
 }
 

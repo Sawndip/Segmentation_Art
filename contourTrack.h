@@ -39,6 +39,7 @@ public:
     // 2. trival ones
     int getIdx() const {return m_idx;}
     cv::Rect & getCurBox() {return m_curBox;}
+    cv::Rect & getLastBox() {return m_lastBox;}    
     
 private:
     const int m_idx;
@@ -47,6 +48,7 @@ private:
     int m_inputFrames;
 
     // 0. using CompressiveTrack as tracker
+    cv::Rect m_lastBox;
     cv::Rect m_curBox; // changing every time with diffResults' influence
     CompressiveTracker m_ctTracker;
     
@@ -72,6 +74,7 @@ private:
     double m_ah; 
     double m_bh;
     const static int m_c = -1; // y = ax^2 + bx + c
+
 private: // inner helpers
     int curMaxChangeSize(int & x, int & y);
 };

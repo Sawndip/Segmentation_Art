@@ -40,7 +40,7 @@ public:
     int init(const int width, const int height);
     int processFrame(const cv::Mat & in,
                      cv::Mat & bgResult, // also, it is the out binary frame.
-                     vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
+                     vector<vector<tuple<TDPoint, TDPoint> > > & curFourLines,
                      vector<SegResults> & segResults);
     
     int flushFrame(vector<SegResults> & segResults, cv::Mat & bgResult);
@@ -67,14 +67,13 @@ private:
 private: // inner helpers
     // 1. important ones
     int doUpdateContourTracking(const cv::Mat in, cv::Mat & out,
-                                vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
+                                FourBorders & curFourLines,
                                 vector<SegResults> & segResults);
     int doCreateNewContourTrack(const cv::Mat & in, cv::Mat & out,
-                                vector<vector<tuple<TDPoint, TDPoint> > > & lines3,
+                                FourBorders & lines3,
                                 vector<SegResults> & segResults);
     int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
-                                   const vector<vector<tuple<TDPoint, TDPoint> > > & lines3);
-
+                                   const FourBorders & lines3);
     // 2. trival ones
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);
 };

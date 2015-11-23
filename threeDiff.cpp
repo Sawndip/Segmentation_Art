@@ -61,14 +61,15 @@ int ThreeDiff :: init(const int width, const int height)
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
                               cv::Mat & bgResult, // also, it is the out binary frame.
-                              vector<vector<tuple<TDPoint, TDPoint> > > & curLines,
+                              FourBorders & curFourLines,
                               vector<SegResults> & segResults)
 {
     m_inputFrames++;
+    // 0. do preprocess: cache frames
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
         bgResult.copyTo(m_bgResults[m_inputFrames-1]);
-        m_crossLines[m_inputFrames-1] = curLines;
+        m_crossLines[m_inputFrames-1] = curFourLines;
         if (m_inputFrames > 1)
         {   
             doBgDiff(m_bgResults[m_inputFrames-1], m_bgResults[m_inputFrames-2]);
@@ -81,16 +82,15 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     
     // 1. do diff in RGB for Contour's using.
     doBgDiff(bgResult, m_bgResults[m_curFrontIdx]);
-
     // 2. fill the 'outs' with 'lines', 'diffResult', 'simplified optical flow' 
-    doUpdateContourTracking(in, bgResult, curLines, segResults);
-    
+    doUpdateContourTracking(in, bgResult, curFourLines, segResults);   
     // 3. do boundary check for creating new Contour.
-    doCreateNewContourTrack(in, bgResult, curLines, segResults);
-
+    doCreateNewContourTrack(in, bgResult, curFourLines, segResults);
     // 4. do update internal cache/status
-    updateAfterOneFrameProcess(in, bgResult, curLines);
-    return 1; // output 1 frame.
+    updateAfterOneFrameProcess(in, bgResult, curFourLines);
+    
+    // output 1 frame
+    return 1;
 }
 
 int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
@@ -135,13 +135,13 @@ together with ContourTrack's status.
 //     2. line1's(oldest line) TDPoints can be removed in this call
 // args:
 //     outs: output new contourTrack's object rectangle;
-//     curLines: this frames ?? 
+//     curFourLines: this frames ?? 
 // return:
 //     >= 0, process ok;
 //     < 0, process error;
 // *****************************************************************************        
 int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
-                                         FourBorders & curLines,
+                                         FourBorders & curFourLines,
                                          vector<SegResults> & segResults)
 {
     if (m_trackers.size() == 0)
@@ -153,7 +153,11 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
         SegResults sr;
         int ret = (*it)->processFrame(in);
         // re-calc the curBox, calculate the boundary cross part.
-        ret = (*it)->updateTrackerUsingDiff();
+        // TODO: PXT: just using current DiffAnd/Or for a try, may change after test.
+        ret = (*it)->updateTrackerUsingDiff(in, bgResult, m_diffAndResults[m_curFrontIdx],
+                                            m_diffOrResults[m_curFrontIdx]);
+        //const cv::Mat in, const cv::Mat & bgResult,
+        //                                   const cv::Mat & diffAnd, const cv::Mat & diffOr
         //sr.m_objIdx = m_trackers.getIdx();
         //segResults.
         if (ret < 0)
@@ -319,8 +323,6 @@ int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
 
 
 
-
-
 /*    
 int ThreeDiff :: doRgbDiff(const cv::Mat & first, const cv::Mat & second)
 {
@@ -348,6 +350,5 @@ bool ThreeDiff :: rgbEulerDiff(const cv::Vec3b & first, const cv::Vec3b & second
     int b =  first[2] - second[2];
     // TODO: 20? what else values ?
     return sqrt((((512 + meanRed)*r*r)>>8) + 4*g*g + (((767-meanRed)*b*b)>>8)) > 20;
-}
-    
+}    
 */    

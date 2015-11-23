@@ -27,8 +27,7 @@ public:
     BoundaryScan();
     ~BoundaryScan();
     int init(const int width, const int height);
-    int processFrame(const cv::Mat & in,
-                     vector<vector<tuple<TDPoint, TDPoint> > > & lines);
+    int processFrame(const cv::Mat & in, FourBorders & lines);
 
 private: // inner classes
     class Borders
@@ -73,7 +72,7 @@ private: // inner members
 private: // inner helpers
     int doErode();
     int doDilate();
-    int scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & lines);
+    int scanBorders(FourBorders & lines);
 };
 
 } // namespace Seg_Three
