@@ -95,39 +95,13 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
 
 int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
 {
-    // for the cache frames.    
+    // for the cache frames.
     return 0;
 }
     
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers
 /****************************
-Lines, BgResults, DiffResults, CacheFrames: all these parameters are used for catch
-the objects' moving locations in every frame and their estimated size.
-
-When object enter or exit the screeen, location and size are special. 
-So we use CrossLines to do some special processing: namely tell its enter/exist 
-together with ContourTrack's status.
-
-1. the purpose of Lines:
-   1) to create new contour (m_directionIn);
-   2) to get the largest size of the objects (m_bAllIn);
-   3) to know the vanishing of the objects in screen (m_directionOut);
-
-2. the purpose of DiffResults:
-   1) extract features from the diff overlap, for instance center color, edge points
-      search it as using KLT?? CompessiveTracker?? to finally know whether the object 
-      still in the screen and its estimate size.
-
-3. the purpose of BgResults:
-   to verify the Simplified Optical Flow's result. If they are quit different, we would
-   like to discard SOF's results.
-
-4. the purpose of CacheFrame:
-   1) provides RGB feature extraction;
-   2) others?   
-
-****************************/
 
 // |><| ************************************************************************
 // doUpdateContourTracking:
@@ -148,25 +122,32 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
         return 0;
     // 1. leaving boundary check
     // 2. new curBox amendment.
+    // 3. do boundary points kicking
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
     {
         SegResults sr;
-        int ret = (*it)->processFrame(in);
         // re-calc the curBox, calculate the boundary cross part.
-        // TODO: PXT: just using current DiffAnd/Or for a try, may change after test.
-        ret = (*it)->updateTrackerUsingDiff(in, bgResult, m_diffAndResults[m_curFrontIdx],
-                                            m_diffOrResults[m_curFrontIdx]);
-        //const cv::Mat in, const cv::Mat & bgResult,
-        //                                   const cv::Mat & diffAnd, const cv::Mat & diffOr
-        //sr.m_objIdx = m_trackers.getIdx();
-        //segResults.
+        int ret = (*it)->processFrame(in, bgResult, m_diffAndResults[m_curFrontIdx],
+                                      m_diffOrResults[m_curFrontIdx]);
         if (ret < 0)
+            LogW("Process failed.\n");
+        else if (ret == 1) // all out
         {
+            // TODO: other updates??
             delete *it; // delete this ContourTrack
             m_trackers.erase(it); // erase it from the vector.
         }
-        else
+        else // ok, just do post update
+        {
+            sr.m_objIdx = (*it)->getIdx();
+            sr.m_bOutForRecognize = (*it)->canOutputRegion();
+            sr.m_curBox = (*it)->getCurBox();
+            // kick the points
+            if ((*it)->isAllIn() == false)
+                kickOverlapPoints(sr.m_curBox, curFourLines, (*it)->getInDirection());
             it++; // increse here.
+        }
+        segResults.push_back(sr);
     }
         
     return 0;
@@ -249,7 +230,8 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                     
                 // we calculate the lux/luy, possible width/height
                 int lux = 0, luy = 0, possibleWidth = 0;
-                const int possibleHeight = 6; // fixed value, 6 pixels when first craeted
+                // fixed value, 8 pixels when first craeted, a little bigger than actual 6.
+                const int possibleHeight = 8; 
                 switch(k)
                 {
                 case 0: // top
@@ -317,6 +299,40 @@ int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
     return 0;
 }
 
+// if an object is just entering the border, we should kick out boundary scan's points
+// that inside object's area.
+int ThreeDiff :: kickOverlapPoints(const cv::Rect & box,
+                                   FourBorders & curFourLines, const DIRECTION direction)
+{
+    TDPoint start;
+    TDPoint end;
+    switch(direction)
+    {
+    case TOP:
+    case BOTTOM:        
+        start.x = box.x;
+        start.y = 0;
+        end.x = box.x + box.width;
+        end.y = 0;        
+        break;
+    case LEFT:
+    case RIGHT:        
+        start.x = 0;
+        start.y = box.y;
+        end.x = 0;
+        end.y = box.y + box.height;
+        break;
+    default:
+        LogW("We don't know the direction, cannot kick out points.");        
+        return -1;
+    }
+
+    vector<tuple<TDPoint, TDPoint> > & oneBorder = curFourLines[direction];
+    for (
+
+        return 0;
+}
+    
 } // namespace Seg_Three    
 ////////////////////////////// End of File //////////////////////////////////////////
 

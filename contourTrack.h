@@ -31,15 +31,17 @@ public:
                  const int possibleWidth, const int possibleHeight);
     ~ContourTrack();
     // 1. important ones
-    int processFrame(const cv::Mat & in);
-    int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
-                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int processFrame(const cv::Mat & in, const cv::Mat & bgResult,
+                     const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int flushFrame();
     
     // 2. trival ones
     int getIdx() const {return m_idx;}
+    int isAllIn() const {return m_bAllIn;}    
     cv::Rect & getCurBox() {return m_curBox;}
     cv::Rect & getLastBox() {return m_lastBox;}    
+    bool canOutputRegion() {return m_bOutputRegion;}
+    DIRECTION getInDirection(){return m_inDirection;}
     
 private:
     const int m_idx;
@@ -56,12 +58,7 @@ private:
     // 2. When do tracking, using Simplified Optical Flow & update inner status.
     bool m_bAllIn; // some objects may not always in.
     bool m_bAllOut;
-    int m_lux;
-    int m_luy;
-    int m_xCenter;
-    int m_yCenter;
-    int m_curWidth;
-    int m_curHeight;
+    bool m_bOutputRegion;
     int m_largestWidth;
     int m_largestHeight;
     
@@ -76,7 +73,13 @@ private:
     const static int m_c = -1; // y = ax^2 + bx + c
 
 private: // inner helpers
+    int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
+                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int doShrinkBoxUsingImage(cv::Mat & diffOr, cv::Rect & maxBox);
+    // trival ones
     int curMaxChangeSize(int & x, int & y);
+    double calcOverlapRate(cv::Rect & a, cv::Rect & b);
+    cv::Rect calcOverlapArea(cv::Rect & a, cv::Rect & b);
 };
 
 }//namespace

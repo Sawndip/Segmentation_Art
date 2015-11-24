@@ -49,7 +49,7 @@ struct TDRect
 
 typedef vector<vector<tuple<TDPoint, TDPoint> > > FourBorders;
 
-enum DIRECTION {TOP = 0, BOTTOME, RIGHT, LEFT, DIRECTION_NUM = 4, DIRECTION_UNKNOWN = 4};
+enum DIRECTION {TOP = 0, BOTTOM, RIGHT, LEFT, DIRECTION_NUM = 4, DIRECTION_UNKNOWN = 4};
 enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT, MOVING_UNKNOWN};
 
 extern bool isYContainedBy(const std::tuple<TDPoint, TDPoint> & small,

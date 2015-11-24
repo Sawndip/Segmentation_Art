@@ -50,8 +50,7 @@ args:
    lines: output result, the foreground lines that just in borders
 return:   
 ****************************************************************************/
-int BoundaryScan :: processFrame(const cv::Mat & in,
-                                 vector<vector<tuple<TDPoint, TDPoint> > > & lines)
+int BoundaryScan :: processFrame(const cv::Mat & in, FourBorders & lines)
 {
     m_inputFrames++;
     // 1. first extract border data (two lines), `in` data is in Gray(CV_8UC1);
