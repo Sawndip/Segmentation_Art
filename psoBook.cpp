@@ -18,6 +18,21 @@ double distanceToProbability(const double distance)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// PsoNN class method
+double PsoNN :: processOneInput(const double input)
+{
+    return 0.0;
+    //m_inputFrames++;
+    //m_lastInput = input;
+    //if (m_inputFrames == 1)
+    //    m_bgNeuron.setWeightVector(input);
+    // 
+    //const double bgDistance = grayEulerDistance(m_bgNeuron.getWeightVector(), input);
+    //const double movingDistance = grayEulerDistance(m_movingNeuron.getWeightVector(), input);
+    //const double bgProbability = distanceToProbability(bgDistance);
+    //const double movingProbability = distanceToProbability(movingDistance);
+    //return movingProbability > bgProbability ? (1 - movingProbability) : bgProbability;
+}
+    
 double PsoNN :: processOneInput(const VectorSpace<double> & input)
 {
     m_inputFrames++;
@@ -60,7 +75,7 @@ int PsoNN :: updateNeuron(const bool bBg)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 //// PsoBook class method
-int PsoBook :: processFrame(const cv::Mat & in, cv::Mat & out)
+int PsoBook :: processFrameRgb(const cv::Mat & in, cv::Mat & out)
 {
     assert(in.cols == m_imgWidth && in.rows == m_imgHeight);
     assert(out.cols == m_imgWidth && out.rows == m_imgHeight);
@@ -85,6 +100,27 @@ int PsoBook :: processFrame(const cv::Mat & in, cv::Mat & out)
     return refineNetsByCollectiveWisdom(selfProbabilty, out);
 }
 
+int PsoBook :: processFrameGray(const cv::Mat & in, cv::Mat & out)
+{
+    assert(in.cols == m_imgWidth && in.rows == m_imgHeight);
+    assert(out.cols == m_imgWidth && out.rows == m_imgHeight);
+    assert(in.channels() == 1 && out.channels() ==1);
+    m_inputFrames++;
+    vector<double> selfProbabilty(m_imgWidth * m_imgHeight, 0.0);
+
+    for (int k = 0; k < m_imgHeight; k++)
+    {
+        for (int j = 0; j < m_imgWidth; j++)
+        {
+            selfProbabilty[k*m_imgWidth+j] =
+                m_pPsos[k][j]->processOneInput(out.at<uchar>(k, j));
+            out.at<uchar>(k, j) = 0;
+        }
+    }
+    
+    return refineNetsByCollectiveWisdom(selfProbabilty, out);
+}
+    
 // it seems this can be done by Erode/Dilate    
 int PsoBook :: refineNetsByCollectiveWisdom(const vector<double> & p, cv::Mat & out)
 {

@@ -74,7 +74,7 @@ int main(int argc, char * argv[])
                 i, imgFilePathes[i].c_str(), inFrame.type());
         Mat binaryFrame(480, 640, CV_8UC1);
         // 
-        if (psoBook.processFrame(inFrame, binaryFrame) > 0)
+        if (psoBook.processFrameRgb(inFrame, binaryFrame) > 0)
         {
             //// Draw the detected objects
             //for (int k  0; k < (int)rects.size(); k++)

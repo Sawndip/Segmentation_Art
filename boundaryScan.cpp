@@ -169,8 +169,9 @@ int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & line
                 bEnd =  false;
             }
         }
-        if (end.x - start.x > 4) // 4 pixel as the threshold of object width.
-            lines.push_back(oneDirection);
+        if (end.x - start.x < 4)
+            oneDirection.clear();// 4 pixel as the threshold of object width.
+        lines.push_back(oneDirection);
     }
     return 0;
 }

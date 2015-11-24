@@ -33,7 +33,7 @@ int ThreeDiff :: init(const int width, const int height)
             m_bgResults[k].create(width, height, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
             m_diffAndResults[k].create(width, height, CV_8UC1); // gray
-        for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES - 1; k++)
+        for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
             m_diffOrResults[k].create(width, height, CV_8UC1); // gray
         // contour
         m_objIdx = 0;        

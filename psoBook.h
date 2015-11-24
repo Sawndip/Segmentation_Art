@@ -89,6 +89,7 @@ public:
     }
     // calculate PsoNN's output, update internal neurons' states.
     double processOneInput(const VectorSpace<double> & input);
+    double processOneInput(const double input);
     int updateNeuron(const bool bBg);
 
 private:
@@ -96,6 +97,7 @@ private:
     Neuron m_bgNeuron;
     Neuron m_movingNeuron;
     unsigned int m_inputFrames;
+    double m_lastInput;
     VectorSpace<double> m_lastInputVector;
 };
 
@@ -106,8 +108,9 @@ public:
     ~PsoBook();    
     // API
     int init(const int width, const int height);
-    int processFrame(const cv::Mat & in, cv::Mat & out);
-
+    int processFrameGray(const cv::Mat & in, cv::Mat & out);
+    int processFrameRgb(const cv::Mat & in, cv::Mat & out);
+    
 private:
     bool m_bInit;
     int m_imgWidth;

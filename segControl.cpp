@@ -39,7 +39,10 @@ int SegControl :: processFrame(const cv::Mat & in,
                                vector<SegResults> & segResults, cv::Mat & out)
 {   // we get psoBook's opinion
     int ret = -1;
-    ret = m_psoBook.processFrame(in, out);
+    if (in.channels() == 3)
+        ret = m_psoBook.processFrameRgb(in, out);
+    else
+        ret = m_psoBook.processFrameGray(in, out);
     assert(ret >= 0);
     // four directions
     vector<vector<tuple<TDPoint, TDPoint> > > possibleBoundaries;

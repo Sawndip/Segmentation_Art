@@ -10,7 +10,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 // project
-#include "psoBook.h"
+#include "segMisc.h"
+#include "segControl.h"
 
 // namespaces
 using std :: string;
@@ -62,33 +63,44 @@ int main(int argc, char * argv[])
     string imgFileFolder("./data");
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
-
-    PsoBook psoBook;
-    psoBook.init(640, 480);
+ 
+    SegControl seg;
+    seg.init(640, 480);    
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
-    {
-        //Mat readFrame = imread(imgFilePathes[i]);
-        //Mat inFrame;         cvtColor(readFrame, inFrame, CV_BGR2Lab);
+    {   // 0. prepare
         Mat inFrame = imread(imgFilePathes[i]);
+        Mat inFrameGray;
+        Mat binaryFrame(480, 640, CV_8UC1);
+        cvtColor(inFrame, inFrameGray, CV_RGB2GRAY);        
         printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
                 i, imgFilePathes[i].c_str(), inFrame.type());
-        Mat binaryFrame(480, 640, CV_8UC1);
-        if (psoBook.processFrame(inFrame, binaryFrame) > 0)
+        // 1. start process
+        vector<SegResults> segResults;        
+        if (seg.processFrame(inFrame, segResults, binaryFrame) > 0)
         {
             //// Draw the detected objects
-            //for (int k  0; k < (int)rects.size(); k++)
-            //    rectangle(frame, rects[k], Scalar(200,0,0), 2);
-            putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
+            for (int k = 0; k < (int)segResults.size(); k++)
+            {
+                putText(binaryFrame, intToString(segResults[k].m_objIdx),
+                        cvPoint(segResults[k].m_curBox.x, segResults[k].m_curBox.y),
+                        2, 1, CV_RGB(25,200,25));
+                rectangle(binaryFrame, segResults[k].m_curBox, Scalar(200,0,0), 2);
+            }
+
+            //putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
             //putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-            imshow("PsoSegment", inFrame);
-            imshow("bgfg", binaryFrame);
-            cv::moveWindow("PsoSegment", 10, 10);
-            cv::moveWindow("bgfg", 660, 10);             
+            imshow("In", inFrame);
+            imshow("InGray", inFrameGray);            
+            imshow("Bg", binaryFrame);
+            cv::moveWindow("In", 10, 10);
+            cv::moveWindow("InGray", 660, 10);            
+            cv::moveWindow("Bg", 10, 660);             
         }
 
         //waitKey(0);
         waitKey(1);
         inFrame.release();
+        inFrameGray.release();
         binaryFrame.release();
         //getchar();
     } 
