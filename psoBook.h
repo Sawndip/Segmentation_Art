@@ -89,7 +89,7 @@ public:
     }
     // calculate PsoNN's output, update internal neurons' states.
     double processOneInput(const VectorSpace<double> & input);
-    double processOneInput(const double input);
+    double processOneInput(const double input);    
     int updateNeuron(const bool bBg);
 
 private:

@@ -21,9 +21,8 @@ int SegControl :: init(const int width, const int height)
     int ret = -1;
     m_imgWidth = width;
     m_imgHeight = height;
-    m_bookResult.create(width, height, CV_8UC1);
     // 2. key members
-    ret = m_psoBook.init(width, height);
+    ret = m_segBg.init(width, height);
     assert(ret >= 0);
     ret = m_boundaryScan.init(width, height);
     assert(ret >= 0);
@@ -39,13 +38,10 @@ int SegControl :: processFrame(const cv::Mat & in,
                                vector<SegResults> & segResults, cv::Mat & out)
 {   // we get psoBook's opinion
     int ret = -1;
-    if (in.channels() == 3)
-        ret = m_psoBook.processFrameRgb(in, out);
-    else
-        ret = m_psoBook.processFrameGray(in, out);
+    ret = m_segBg.processFrame(in, out);
     assert(ret >= 0);
     // four directions
-    vector<vector<tuple<TDPoint, TDPoint> > > possibleBoundaries;
+    FourBorders possibleBoundaries;
     m_boundaryScan.processFrame(out, possibleBoundaries);
     // update boundary or add new contourTrack
     vector<Rect> rects;

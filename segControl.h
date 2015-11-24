@@ -17,12 +17,13 @@
 #include "psoBook.h"
 #include "boundaryScan.h"
 #include "contourTrack.h"
+#include "VarFlowWA.h"
 // namespace
 using :: std :: string;
 using :: std :: vector;
 using namespace cv;
 using namespace Vector_Space;
-
+using namespace Var_FlowWA;
 namespace Seg_Three
 {
 
@@ -47,11 +48,10 @@ private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
-    cv::Mat m_bookResult;    
     // key members    
     ThreeDiff m_threeDiff;
     BoundaryScan m_boundaryScan;    
-    PsoBook m_psoBook;
+    VarFlowWA m_segBg;
 };
 
 }//namespace
