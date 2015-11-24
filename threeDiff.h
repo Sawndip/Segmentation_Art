@@ -74,6 +74,9 @@ private: // inner helpers
                                 vector<SegResults> & segResults);
     int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
                                    const FourBorders & lines3);
+    int kickOverlapPoints(const cv::Rect & box,
+                          FourBorders & curFourLines, const DIRECTION direction);
+    
     // 2. trival ones
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);
 };

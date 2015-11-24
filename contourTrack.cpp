@@ -17,6 +17,7 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     , m_inputFrames(0)
     , m_bAllIn(false)
     , m_bAllOut(false)
+    , m_bOutputRegion(false)
     , m_lastBox(lux, luy, possibleWidth, possibleHeight)
     , m_curBox(m_lastBox)
     , m_largestWidth(possibleWidth)
@@ -41,13 +42,10 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     
     // 2. compressive tracker part.
     m_ctTracker.init(in, m_curBox); //ct.init(grayImg, box);
-
-    // 3. other members
-    m_bOutputRegion = false;
     
     LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
-         "possibleHeight:%d, centerX:%d, centerY:%d\n", m_idx, 
-         directionIn, lux, luy, possibleWidth, possibleHeight, m_xCenter, m_yCenter);
+         "possibleHeight:%d. \n", m_idx, 
+         directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
     return;
 }
 
@@ -154,7 +152,7 @@ int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & b
 }
 
 // box's width & height must be an even number.
-int ContourTrack :: doShrinkBoxUsingImage(cv::Mat & image, cv::Rect & box)
+int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
 {   // using a 2x2 window do scaning the image from the border of the box
     // 1. top
     int k = 0;
@@ -169,7 +167,7 @@ int ContourTrack :: doShrinkBoxUsingImage(cv::Mat & image, cv::Rect & box)
                 image.at<uchar>(box.x + k+1, box.y + j+1) )
                 break; // find the boundary.
         }
-        if (j < box.heihgt)
+        if (j < box.height)
             break;
     }
     // do update: 
@@ -238,10 +236,10 @@ int ContourTrack :: doShrinkBoxUsingImage(cv::Mat & image, cv::Rect & box)
 // shrink or dilate
 int ContourTrack :: curMaxChangeSize(int & x, int & y)
 {
-    const double xRate = m_aw * m_curWidth * m_curWidth + m_bw * m_curWidth + m_c;
-    const double yRate = m_aw * m_curHeight * m_curHeight + m_bw * m_curHeight + m_c;
-    x = (int)round(m_curWidth * xRate);
-    y = (int)round(m_curHeight * yRate);    
+    const double xRate = m_aw*m_lastBox.width*m_lastBox.width + m_bw*m_lastBox.width + m_c;
+    const double yRate = m_ah*m_lastBox.height*m_lastBox.height + m_bh*m_lastBox.height + m_c;
+    x = (int)round(m_lastBox.width * xRate);
+    y = (int)round(m_lastBox.height * yRate);    
     return 0;
 }
 

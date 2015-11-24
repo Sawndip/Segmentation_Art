@@ -89,7 +89,7 @@ int BoundaryScan :: processFrame(const cv::Mat & in, FourBorders & lines)
 //simplified Erode/dilate
 int BoundaryScan :: doErode()
 {
-    // TODO: following code just deal with 2x2 window! Be aware of it.
+    // NOTE: following code just deal with 2x2 window! Be aware of it.
     for (int n = 0; n < 4; n++)
     {   // note k = k + M_ELEMENT_HEIGHT
         for (int k = 0; k < m_borders.rows; k+=M_ELEMENT_HEIGHT)
@@ -152,15 +152,15 @@ int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & line
             {
                 bEnd = false;
                 bStart = true;
-                start.x = 0;
-                start.y = k;
+                start.x = k;
+                start.y = 0;
             }
             if (bStart == true && m_directions[n][k] != 0xFF)
             {
                 bEnd = true;
                 bStart = false;
-                end.x = 0;
-                end.y = k;
+                end.x = k;
+                end.y = 0;
             }            
             if (bStart == true && bEnd == true)
             {
@@ -169,7 +169,7 @@ int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & line
                 bEnd =  false;
             }
         }
-        if (end.y - start.y > 4) // 4 pixel as the threshold.
+        if (end.x - start.x > 4) // 4 pixel as the threshold of object width.
             lines.push_back(oneDirection);
     }
     return 0;

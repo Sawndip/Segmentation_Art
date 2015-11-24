@@ -50,7 +50,6 @@ private: // inner classes
             left = new unsigned char[columns * rows];
             right = new unsigned char[columns * rows];
         }
-        
     public:
         int columns;
         int rows;

@@ -48,17 +48,15 @@ private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
-
-    // 0. using CompressiveTrack as tracker
-    cv::Rect m_lastBox;
-    cv::Rect m_curBox; // changing every time with diffResults' influence
-    CompressiveTracker m_ctTracker;
     
-    // 1. When create new: give the basic infos
-    // 2. When do tracking, using Simplified Optical Flow & update inner status.
     bool m_bAllIn; // some objects may not always in.
     bool m_bAllOut;
     bool m_bOutputRegion;
+    
+    // 1. using CompressiveTrack as tracker
+    cv::Rect m_lastBox;
+    cv::Rect m_curBox; // changing every time with diffResults' influence
+    CompressiveTracker m_ctTracker;    
     int m_largestWidth;
     int m_largestHeight;
     
@@ -75,11 +73,12 @@ private:
 private: // inner helpers
     int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
                                const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    int doShrinkBoxUsingImage(cv::Mat & diffOr, cv::Rect & maxBox);
+    int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box);
     // trival ones
     int curMaxChangeSize(int & x, int & y);
     double calcOverlapRate(cv::Rect & a, cv::Rect & b);
     cv::Rect calcOverlapArea(cv::Rect & a, cv::Rect & b);
+    void boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox);
 };
 
 }//namespace

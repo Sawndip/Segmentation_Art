@@ -101,7 +101,6 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
     
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers
-/****************************
 
 // |><| ************************************************************************
 // doUpdateContourTracking:
@@ -182,18 +181,18 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
         vector<int> ends;        
         for (;it1 != lines1[k].end(); it1++)
         {
-            starts.push_back(std::get<0>(*it1).y);
-            starts.push_back(std::get<1>(*it1).y);            
+            starts.push_back(std::get<0>(*it1).x);
+            starts.push_back(std::get<1>(*it1).x);            
         }           
         for (;it2 != lines2[k].end(); it2++)
         {
-            starts.push_back(std::get<0>(*it2).y);
-            starts.push_back(std::get<1>(*it2).y);            
+            starts.push_back(std::get<0>(*it2).x);
+            starts.push_back(std::get<1>(*it2).x);            
         }           
         for (;it3 != lines3[k].end(); it3++)
         {
-            starts.push_back(std::get<0>(*it3).y);
-            starts.push_back(std::get<1>(*it3).y);            
+            starts.push_back(std::get<0>(*it3).x);
+            starts.push_back(std::get<1>(*it3).x);            
         }
         std::sort(starts.begin(), starts.end());
         std::sort(ends.begin(), ends.end());
@@ -208,10 +207,10 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                 if (starts[j] >= ends[i] && starts[j-1] < ends[i])
                 {
                     startBegin = j;
-                    start.x = 0;
-                    start.y = starts[j-1];
-                    end.x = 0;
-                    end.y = ends[i];
+                    start.x = starts[j-1];
+                    start.y = 0;
+                    end.x = ends[i];
+                    end.y = 0;
                     newEnters.push_back(std::make_tuple(start, end));
                     break;
                 }
@@ -222,7 +221,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                 int h = 0;
                 for (h = 0; h < (int)lines1[k].size(); h++)
                 {   // newEnters[m] is part of lines1[h]
-                    if (isYContainedBy(newEnters[m], lines1[k][h]) == true)
+                    if (isXContainedBy(newEnters[m], lines1[k][h]) == true)
                         break;
                 }
                 if (h == (int)lines1[k].size()) // not part of lines1
@@ -235,24 +234,24 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                 switch(k)
                 {
                 case 0: // top
-                    lux = std::get<0>(newEnters[m]).y; // start point
+                    lux = std::get<0>(newEnters[m]).x; // start point
                     luy = 0;
-                    possibleWidth = std::get<1>(newEnters[m]).y - lux;
+                    possibleWidth = std::get<1>(newEnters[m]).x - lux;
                     break;                    
                 case 1: // bottom
-                    lux = std::get<0>(newEnters[m]).y;
+                    lux = std::get<0>(newEnters[m]).x;
                     luy = m_imgHeight - possibleHeight;
-                    possibleWidth = std::get<1>(newEnters[m]).y - lux;
+                    possibleWidth = std::get<1>(newEnters[m]).x - lux;
                     break;                    
                 case 2: // left
                     lux = 0;
-                    luy = std::get<0>(newEnters[m]).y;
-                    possibleWidth = std::get<1>(newEnters[m]).y - luy;
+                    luy = std::get<0>(newEnters[m]).x;
+                    possibleWidth = std::get<1>(newEnters[m]).x - luy;
                     break;                    
                 case 3: // right
                     lux = m_imgWidth - possibleWidth;
-                    luy = std::get<0>(newEnters[m]).y;;
-                    possibleWidth = std::get<1>(newEnters[m]).y - luy;                    
+                    luy = std::get<0>(newEnters[m]).x;;
+                    possibleWidth = std::get<1>(newEnters[m]).x - luy;                    
                     break;
                 }
                 ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
@@ -317,20 +316,46 @@ int ThreeDiff :: kickOverlapPoints(const cv::Rect & box,
         break;
     case LEFT:
     case RIGHT:        
-        start.x = 0;
-        start.y = box.y;
-        end.x = 0;
-        end.y = box.y + box.height;
+        start.x = box.y;
+        start.y = 0;
+        end.x = box.y + box.height;
+        end.y = 0;
         break;
     default:
         LogW("We don't know the direction, cannot kick out points.");        
         return -1;
     }
 
+    // now, change or kick out the points between [start, end]
     vector<tuple<TDPoint, TDPoint> > & oneBorder = curFourLines[direction];
-    for (
+    for (auto it = oneBorder.begin(); it != oneBorder.end(); /*it++ no increment*/)
+    {
+        if (std::get<1>(*it).x < start.x || std::get<0>(*it).x >= end.x)
+            it++;
+        else if (std::get<0>(*it).x < start.x && std::get<1>(*it).x > end.x)
+        {
+            TDPoint end0 = start;
+            TDPoint start1 = end;
+            oneBorder.insert(it, std::make_tuple(std::get<0>(*it), end0));
+            oneBorder.insert(it, std::make_tuple(start1, std::get<1>(*it)));
+            oneBorder.erase(it); // insert two, remove one.
+            // no need it++, for we already do erase.
+        }
+        else if (std::get<0>(*it).x < start.x) // change it.
+        {
+            std::get<1>(*it) = start; // end point as the start.
+            it++;
+        }
+        else if (std::get<1>(*it).x > end.x) // change it.
+        {
+            std::get<0>(*it) = end; // end point as the start.
+            it++;
+        }
+        else // inside [start, end]
+            oneBorder.erase(it);
+    }
 
-        return 0;
+    return 0;
 }
     
 } // namespace Seg_Three    
