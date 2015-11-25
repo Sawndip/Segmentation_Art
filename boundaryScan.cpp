@@ -74,13 +74,23 @@ int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
         }
     }
 
-    // 2. we do open / close: seems for simplified erode/dilate, just open is ok.
-    // oepn: erode then dilate
-    doErode();
-    doDilate();            
-    // close: dilate then erode
-    doDilate();
-    doErode();
+    // 2. we do open / close: seems for simplified erode/dilate, just open is ok.    
+    for (int k = 0; k < 2; k++)
+    {   // oepn: erode then dilate
+        doErode();
+        doDilate();            
+        // close: dilate then erode
+        doDilate();
+        doErode();
+    }
+    // make the close enough part connected
+    for (int k = 0; k < 2; k++)
+    {   
+        doDilate();
+        doDilate();
+        doErode();
+        doErode();
+    }
     
     // 3. scan the border, get the TDPoint of the lines
     scanBorders(lines);
@@ -184,12 +194,24 @@ int BoundaryScan :: scanBorders(FourBorders & lines)
                 line.b.y = 0;
                 if (line.b.x - line.a.x >= 4)
                     lines.m_lines[n].push_back(line);
-                LogI("Get One Line\n");
+                LogI("Get One Line: n-%d, %d to %d\n", n, line.a.x, line.b.x);
                 bStart = false;
             }
         }
+        // for these are close enough lines, we merge them. Big chance they are the same object.
+        // mergeLines(lines.m_lines[n]);
     }
     return 0;
 }
 
+//int BoundaryScan :: mergeLines(vector<TDLine> & lines)
+//{
+//    for (auto it = lines.begin(); it != lines.end(); /*No Increse Here*/)
+//    {
+//        
+// 
+//    }
+//    return 0;
+//}
+    
 } // namespace Seg_Three

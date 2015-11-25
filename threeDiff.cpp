@@ -124,6 +124,7 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const cv::Mat & bgRes
     // 1. leaving boundary check
     // 2. new curBox amendment.
     // 3. do boundary points kicking
+    // TODO: how to merge TRACKERS that track the same object.
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
     {
         SegResults sr;
@@ -200,9 +201,9 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
         std::sort(starts.begin(), starts.end());
         std::sort(ends.begin(), ends.end());
         auto it1 = std::unique(starts.begin(), starts.end());
-        starts.resize(std::distance(starts.begin(), it1));
+        starts.erase(it1, starts.end());
         auto it2 = std::unique(ends.begin(), ends.end());
-        ends.resize(std::distance(ends.begin(), it2));
+        ends.erase(it2, ends.end());
         
         vector<TDLine> newEnters;
         int startBegin = 1;
