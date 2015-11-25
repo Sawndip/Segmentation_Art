@@ -170,8 +170,11 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
                                          vector<SegResults> & segResults)
 {
     // check the three lines, do 'AND' operation
-    FourBorders & lines1 = m_crossLines[0];
-    FourBorders & lines2 = m_crossLines[1];
+    const int oldIdx = (m_curFrontIdx - 1) < 0 ?
+                          M_THREE_DIFF_CACHE_FRAMES - 1 : m_curFrontIdx - 1;
+    FourBorders & lines1 = m_crossLines[oldIdx];
+    FourBorders & lines2 = m_crossLines[m_curFrontIdx];
+    
     assert(lines1.m_widthTB == lines2.m_widthTB && lines2.m_widthTB == lines3.m_widthTB);
     for (int k=0; k < 4; k++)
     {
@@ -196,7 +199,11 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
 
         std::sort(starts.begin(), starts.end());
         std::sort(ends.begin(), ends.end());
-
+        auto it1 = std::unique(starts.begin(), starts.end());
+        starts.resize(std::distance(starts.begin(), it1));
+        auto it2 = std::unique(ends.begin(), ends.end());
+        ends.resize(std::distance(ends.begin(), it2));
+        
         vector<TDLine> newEnters;
         int startBegin = 1;
         for (int i = 0; i < (int)ends.size(); i++)
@@ -215,6 +222,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
                     break;
                 }
             }
+            
             // we get possible newEnters, so just create new objects.
             for (int m = 0; m < (int)newEnters.size(); m++)
             {
@@ -332,27 +340,29 @@ int ThreeDiff :: kickOverlapPoints(const cv::Rect & box,
     {
         if ((*it).b.x < start.x || (*it).a.x >= end.x)
             it++;
-        else if ((*it).a.x < start.x && (*it).b.x > end.x)
-        {
-            TDPoint end0 = start;
-            TDPoint start1 = end;
-            oneBorder.insert(it, TDLine((*it).a, end0));
-            oneBorder.insert(it, TDLine(start1, (*it).b));
-            oneBorder.erase(it); // insert two, remove one.
-            // no need it++, for we already do erase.
-        }
-        else if ((*it).a.x < start.x) // change it.
-        {
-            (*it).b = start; // end point as the start.
-            it++;
-        }
-        else if ((*it).b.x > end.x) // change it.
-        {
-            (*it).a = end; // end point as the start.
-            it++;
-        }
-        else // inside [start, end]
+        else
             oneBorder.erase(it);
+        //else if ((*it).a.x < start.x && (*it).b.x > end.x)
+        //{
+        //    TDPoint end0 = start;
+        //    TDPoint start1 = end;
+        //    oneBorder.insert(it, TDLine((*it).a, end0));
+        //    oneBorder.insert(it, TDLine(start1, (*it).b));
+        //    oneBorder.erase(it); // insert two, remove one.
+        //    // no need it++, for we already do erase.
+        //}
+        //else if ((*it).a.x < start.x) // change it.
+        //{
+        //    (*it).b = start; // end point as the start.
+        //    it++;
+        //}
+        //else if ((*it).b.x > end.x) // change it.
+        //{
+        //    (*it).a = end; // end point as the start.
+        //    it++;
+        //}
+        //else // inside [start, end]
+        //    oneBorder.erase(it);
     }
 
     return 0;

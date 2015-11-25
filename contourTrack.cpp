@@ -105,7 +105,10 @@ int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & b
     if (luy < 0) luy = 0;
     if (rbx > m_imgWidth) rbx = m_imgWidth-1;
     if (rby > m_imgHeight) rby = m_imgHeight-1;
-    assert(rbx > lux && rby > luy);
+    if (rbx <= lux || rby < luy)
+    LogW("%d-%d-%d-%d, %d-%d-%d-%d. dx-%d,dy-%d\n",rbx,lux,rby,luy,m_curBox.x,m_curBox.y,
+          m_curBox.width, m_curBox.height, dx, dy);
+    //assert(rbx > lux && rby > luy);
     cv::Rect maxBox(lux, luy, rbx - lux, rby - luy);
     if (maxBox.width % 2 != 0) maxBox.width--;
     if (maxBox.height % 2 != 0) maxBox.height--;

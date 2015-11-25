@@ -65,12 +65,12 @@ int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
     {
         for (int j = 0; j < lines.m_widthLR; j++)
         {
-            m_bordersMem.left[k*lines.m_widthLR+j] = bgResult.at<uchar>(k, j);
-            m_bordersMem.left[(k+1)*lines.m_widthLR+j] = bgResult.at<uchar>(k+1, j);
+            m_bordersMem.left[k*lines.m_widthLR+j] = bgResult.at<uchar>(j, k);
+            m_bordersMem.left[(k+1)*lines.m_widthLR+j] = bgResult.at<uchar>(j, k+1);
             m_bordersMem.right[k*lines.m_widthLR+j] =
-                bgResult.at<uchar>(m_imgWidth-k-1, j);
+                bgResult.at<uchar>(j, m_imgWidth-k-1);
             m_bordersMem.right[(k+1)*lines.m_widthLR+j] =
-                bgResult.at<uchar>(m_imgWidth-(k+1)-1, j);
+                bgResult.at<uchar>(j, m_imgWidth-(k+1)-1);
         }
     }
 
@@ -184,7 +184,7 @@ int BoundaryScan :: scanBorders(FourBorders & lines)
                 line.b.y = 0;
                 if (line.b.x - line.a.x >= 4)
                     lines.m_lines[n].push_back(line);
-                //LogI("Get One Line\n");
+                LogI("Get One Line\n");
                 bStart = false;
             }
         }
