@@ -43,7 +43,8 @@ INCLUDE_DIRECTORIES (${Boost_INCLUDE_DIRS})
 
 # included directories
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/opticalFlow 
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/opticalFlow
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/compressiveTracking
                    )
 # add linking directory
 LINK_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR})
@@ -54,7 +55,8 @@ ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/segControl.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/boundaryScan.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/CompressiveTracker.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/segMisc.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/compressiveTracking/CompressiveTracker.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/opticalFlow/VarFlowWA.cpp 
                            ${CMAKE_CURRENT_SOURCE_DIR}/testThree.cpp)
                          

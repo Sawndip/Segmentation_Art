@@ -2,17 +2,12 @@
 
 namespace Seg_Three
 {
-    bool isYContainedBy(const std:tuple<TDPoint, TDPoint> & small,
-                        const std:tuple<TDPoint, TDPoint> & large)
+    bool isXContainedBy(const TDLine & small, const TDLine & large)
     {
-        return std::get<0>(small).y >= std::get<0>(large).y &&
-               std::get<1>(small).y <= std::get<1>(large).y &&
-    }
-    bool isXContainedBy(const std:tuple<TDPoint, TDPoint> & small,
-                        const std:tuple<TDPoint, TDPoint> & large)
+        return small.a.x >= large.a.x && small.b.x <= large.b.x;
+    }    
+    bool isYContainedBy(const TDLine & small, const TDLine & large)
     {
-        return std::get<0>(small).x >= std::get<0>(large).x &&
-               std::get<1>(small).x <= std::get<1>(large).x &&
+        return small.a.y >= large.a.y && small.b.y <= large.b.y;
     }
-
 } // namespace

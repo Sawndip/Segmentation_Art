@@ -35,23 +35,26 @@ int SegControl :: init(const int width, const int height)
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs
 int SegControl :: processFrame(const cv::Mat & in,
-                               vector<SegResults> & segResults, cv::Mat & out)
+                               vector<SegResults> & segResults,
+                               cv::Mat & bgResult)
 {   // we get psoBook's opinion
     int ret = -1;
-    ret = m_segBg.processFrame(in, out);
+    ret = m_segBg.processFrame(in, bgResult);
     assert(ret >= 0);
-    // four directions
-    FourBorders possibleBoundaries;
-    m_boundaryScan.processFrame(out, possibleBoundaries);
-    // update boundary or add new contourTrack
-    vector<Rect> rects;
-    ret = m_threeDiff.processFrame(in, out, possibleBoundaries, segResults);
+    if (ret > 0) // got a frame
+    {    
+        // four directions
+        FourBorders possibleBoundaries(m_imgWidth, m_imgHeight);
+        m_boundaryScan.processFrame(bgResult, possibleBoundaries);
+        // update boundary or add new contourTrack
+        ret = m_threeDiff.processFrame(in, bgResult, possibleBoundaries, segResults);
+    }
     return ret;
 }
 
-int SegControl :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
+int SegControl :: flushFrame(vector<SegResults> & segResults)
 {
-    return m_threeDiff.flushFrame(segResults, out);
+    return m_threeDiff.flushFrame(segResults);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

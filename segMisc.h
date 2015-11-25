@@ -39,24 +39,60 @@ struct TDPoint
     int y;
 };
 
-struct TDRect
+struct TDLine
 {
-    int x;
-    int y;
-    int width;
-    int height;
+    TDLine() = default;
+    TDLine(const TDPoint & _a, const TDPoint & _b) : a(_a), b(_b) {}
+    TDPoint a;
+    TDPoint b;
 };
 
-typedef vector<vector<tuple<TDPoint, TDPoint> > > FourBorders;
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+class FourBorders
+{
+public:
+    FourBorders() = default;
+    FourBorders(const int imgWidth, const int imgHeight)
+    {
+        init(imgWidth, 2, imgHeight, 2, 0, 0, 0, 0);
+    }
+    FourBorders(const int widthTB, const int heightTB, const int widthLR, const int heightLR,
+                const int skipT, const int skipB, const int skipL, const int skipR)
+    {
+        init(widthTB, heightTB, widthLR, heightLR, skipT, skipB, skipL, skipR);
+    }
+    int init(const int widthTB, const int heightTB, const int widthLR, const int heightLR,
+             const int skipT, const int skipB, const int skipL, const int skipR)
+    {
+        m_skipT = skipT;
+        m_skipB = skipB;
+        m_skipL = skipL;
+        m_skipR = skipR;        
+        m_widthTB = widthTB;
+        m_heightTB = heightTB;
+        m_widthLR = widthLR;
+        m_heightLR = heightLR;
+        return 0;
+    }
+    
+public:
+    int m_skipT; // Top Bottome Left Right skip pixels  
+    int m_skipB;
+    int m_skipL;
+    int m_skipR;    
+    int m_widthTB;
+    int m_heightTB;
+    int m_widthLR;
+    int m_heightLR;
+    vector<TDLine> m_lines[4];
+};
 
 enum DIRECTION {TOP = 0, BOTTOM, RIGHT, LEFT, DIRECTION_NUM = 4, DIRECTION_UNKNOWN = 4};
 enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT, MOVING_UNKNOWN};
 
-extern bool isYContainedBy(const std::tuple<TDPoint, TDPoint> & small,
-                           const std::tuple<TDPoint, TDPoint> & large);
-extern bool isXContainedBy(const std::tuple<TDPoint, TDPoint> & small,
-                           const std::tuple<TDPoint, TDPoint> & large);
-
+extern bool isYContainedBy(const TDLine & small, const TDLine & large);
+extern bool isXContainedBy(const TDLine & small, const TDLine & large);
 }
 
 #endif ////

@@ -20,39 +20,49 @@ using namespace Vector_Space;
 
 namespace Seg_Three
 {
-//////////////////////////////////////////////////////////////////////////////////////////
-class BoundaryScan // San Fen
+//////////////////////////////////////////////////////////////////////////////////////////    
+class BoundaryScan
 {
 public:
     BoundaryScan();
     ~BoundaryScan();
     int init(const int width, const int height);
-    int processFrame(const cv::Mat & in, FourBorders & lines);
+    int processFrame(const cv::Mat & bgResult, FourBorders & lines);
 
 private: // inner classes
-    class Borders
+    class BordersMem
     {
     public:
-        Borders() : top(NULL), bottom(NULL), left(NULL),right(NULL) {};
-        ~Borders()
+        BordersMem() : bInit(false), top(NULL), bottom(NULL), left(NULL),right(NULL) {};
+        ~BordersMem()
         {
             if (top) delete [] top;
             if (bottom) delete [] bottom;
             if (left) delete [] left;
             if (right) delete [] right;            
         }
-        void init(const int r, const int w)
+        void init(const int _widthTB, const int _heightTB,
+                  const int _widthLR, const int _heightLR)
         {
-            rows = w;
-            columns = rows;
-            top = new unsigned char[columns * rows];
-            bottom = new unsigned char[columns * rows];
-            left = new unsigned char[columns * rows];
-            right = new unsigned char[columns * rows];
-        }
+            if (bInit == false)
+            {
+                widthTB = _widthTB;
+                heightTB = _heightTB;                
+                widthLR = _widthLR;
+                heightLR = _heightLR;                
+                top = new unsigned char[widthTB * heightTB];
+                bottom = new unsigned char[widthTB * heightTB];
+                left = new unsigned char[widthLR * heightLR];
+                right = new unsigned char[widthLR * heightLR];
+                bInit = true;
+            }
+        }        
     public:
-        int columns;
-        int rows;
+        bool bInit;
+        int widthTB;
+        int widthLR;
+        int heightTB;
+        int heightLR;        
         unsigned char * top;
         unsigned char * bottom;
         unsigned char * left;        
@@ -64,10 +74,10 @@ private: // inner members
     int m_imgHeight;
     int m_inputFrames;
     unsigned char *m_directions[DIRECTION_NUM];
-    Borders m_borders;
-    static const int M_BORDER_ROWS = 2;
+    BordersMem m_bordersMem;
     static const int M_ELEMENT_WIDTH = 2;    
     static const int M_ELEMENT_HEIGHT = 2;
+
 private: // inner helpers
     int doErode();
     int doDilate();

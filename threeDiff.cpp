@@ -30,12 +30,13 @@ int ThreeDiff :: init(const int width, const int height)
         // cache part
         m_curFrontIdx = 0;
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_bgResults[k].create(width, height, CV_8UC1); // gray
+            m_bgResults[k].create(height, width, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_diffAndResults[k].create(width, height, CV_8UC1); // gray
+            m_diffAndResults[k].create(height, width, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_diffOrResults[k].create(width, height, CV_8UC1); // gray
-        // contour
+            m_diffOrResults[k].create(height, width, CV_8UC1); // gray
+        // crossLines won't be init here.
+        // ContourTrack
         m_objIdx = 0;        
         m_bInit = true;
     }
@@ -60,7 +61,7 @@ int ThreeDiff :: init(const int width, const int height)
 //     < 0, process error;
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
-                              cv::Mat & bgResult, // also, it is the out binary frame.
+                              const cv::Mat & bgResult,
                               FourBorders & curFourLines,
                               vector<SegResults> & segResults)
 {
@@ -69,7 +70,8 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
         bgResult.copyTo(m_bgResults[m_inputFrames-1]);
-        m_crossLines[m_inputFrames-1] = curFourLines;
+        m_crossLines[m_inputFrames-1] = curFourLines;        
+        //copyLines(curFourLines, m_crossLines[m_inputFrames-1]);
         if (m_inputFrames > 1)
         {   
             doBgDiff(m_bgResults[m_inputFrames-1], m_bgResults[m_inputFrames-2]);
@@ -93,7 +95,7 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     return 1;
 }
 
-int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
+int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 {
     // for the cache frames.
     return 0;
@@ -102,7 +104,7 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers
 
-// |><| ************************************************************************
+// |><| **********************************************************************************
 // doUpdateContourTracking:
 //     1. Using m_crossLines to check new coming in objects
 //     2. line1's(oldest line) TDPoints can be removed in this call
@@ -112,8 +114,8 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults, cv::Mat & out)
 // return:
 //     >= 0, process ok;
 //     < 0, process error;
-// *****************************************************************************        
-int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
+// ***************************************************************************************
+int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const cv::Mat & bgResult,
                                          FourBorders & curFourLines,
                                          vector<SegResults> & segResults)
 {
@@ -155,49 +157,47 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, cv::Mat & bgResult,
 // |><| ************************************************************************
 // doCreateNewContourTrack:
 //     1. Using m_crossLines to check new coming in objects
-//     2. line1's(oldest line) TDPoints can be removed in this call
-//     3. only deal with enter objects. Exit objects handle in 'doUpdateContourTracking'.
+//     2. only deal with enter objects. Exit objects handle in 'doUpdateContourTracking'.
 // args:
 //     outs: output new contourTrack's object rectangle;
 // return:
 //     >= 0, process ok;
 //     < 0, process error;
 // *****************************************************************************    
-int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
-                                         vector<vector<tuple<TDPoint, TDPoint> > > & lines3,
+int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
+                                         const cv::Mat & bgResult,
+                                         FourBorders & lines3,
                                          vector<SegResults> & segResults)
 {
     // check the three lines, do 'AND' operation
-    vector<vector<tuple<TDPoint, TDPoint> > > & lines1 = m_crossLines[0];
-    vector<vector<tuple<TDPoint, TDPoint> > > & lines2 = m_crossLines[1];
-    assert(lines1.size() == lines2.size() && lines1.size() == lines3.size());
-    for (int k=0; k < (int)lines1.size(); k++)
+    FourBorders & lines1 = m_crossLines[0];
+    FourBorders & lines2 = m_crossLines[1];
+    assert(lines1.m_widthTB == lines2.m_widthTB && lines2.m_widthTB == lines3.m_widthTB);
+    for (int k=0; k < 4; k++)
     {
-        auto it1 = lines1[k].begin();
-        auto it2 = lines2[k].begin();
-        auto it3 = lines3[k].begin();    
         // 1. first we kick out unlikely Points in lines1
         vector<int> starts;
-        vector<int> ends;        
-        for (;it1 != lines1[k].end(); it1++)
+        vector<int> ends;
+        for (int j = 0; j < (int)lines1.m_lines[k].size(); j++)
         {
-            starts.push_back(std::get<0>(*it1).x);
-            starts.push_back(std::get<1>(*it1).x);            
+            starts.push_back(lines1.m_lines[k][j].a.x);
+            ends.push_back(lines1.m_lines[k][j].b.x);            
         }           
-        for (;it2 != lines2[k].end(); it2++)
+        for (int j = 0; j < (int)lines2.m_lines[k].size(); j++)
         {
-            starts.push_back(std::get<0>(*it2).x);
-            starts.push_back(std::get<1>(*it2).x);            
+            starts.push_back(lines2.m_lines[k][j].a.x);
+            ends.push_back(lines2.m_lines[k][j].b.x);            
         }           
-        for (;it3 != lines3[k].end(); it3++)
+        for (int j = 0; j < (int)lines3.m_lines[k].size(); j++)
         {
-            starts.push_back(std::get<0>(*it3).x);
-            starts.push_back(std::get<1>(*it3).x);            
-        }
+            starts.push_back(lines3.m_lines[k][j].a.x);
+            ends.push_back(lines3.m_lines[k][j].b.x);            
+        }           
+
         std::sort(starts.begin(), starts.end());
         std::sort(ends.begin(), ends.end());
 
-        vector<tuple<TDPoint, TDPoint> > newEnters;
+        vector<TDLine> newEnters;
         int startBegin = 1;
         for (int i = 0; i < (int)ends.size(); i++)
         {
@@ -211,7 +211,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                     start.y = 0;
                     end.x = ends[i];
                     end.y = 0;
-                    newEnters.push_back(std::make_tuple(start, end));
+                    newEnters.push_back(TDLine(start, end));
                     break;
                 }
             }
@@ -219,12 +219,12 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
             for (int m = 0; m < (int)newEnters.size(); m++)
             {
                 int h = 0;
-                for (h = 0; h < (int)lines1[k].size(); h++)
+                for (h = 0; h < (int)lines1.m_lines[k].size(); h++)
                 {   // newEnters[m] is part of lines1[h]
-                    if (isXContainedBy(newEnters[m], lines1[k][h]) == true)
+                    if (isXContainedBy(newEnters[m], lines1.m_lines[k][h]) == true)
                         break;
                 }
-                if (h == (int)lines1[k].size()) // not part of lines1
+                if (h == (int)lines1.m_lines[k].size()) // not part of lines1
                     continue;
                     
                 // we calculate the lux/luy, possible width/height
@@ -234,24 +234,24 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
                 switch(k)
                 {
                 case 0: // top
-                    lux = std::get<0>(newEnters[m]).x; // start point
+                    lux = newEnters[m].a.x; // start point
                     luy = 0;
-                    possibleWidth = std::get<1>(newEnters[m]).x - lux;
+                    possibleWidth = newEnters[m].b.x - lux;
                     break;                    
                 case 1: // bottom
-                    lux = std::get<0>(newEnters[m]).x;
+                    lux = newEnters[m].a.x;
                     luy = m_imgHeight - possibleHeight;
-                    possibleWidth = std::get<1>(newEnters[m]).x - lux;
+                    possibleWidth = newEnters[m].b.x - lux;
                     break;                    
                 case 2: // left
                     lux = 0;
-                    luy = std::get<0>(newEnters[m]).x;
-                    possibleWidth = std::get<1>(newEnters[m]).x - luy;
+                    luy = newEnters[m].a.x;
+                    possibleWidth = newEnters[m].b.x - luy;
                     break;                    
                 case 3: // right
-                    lux = m_imgWidth - possibleWidth;
-                    luy = std::get<0>(newEnters[m]).x;;
-                    possibleWidth = std::get<1>(newEnters[m]).x - luy;                    
+                    lux = m_imgWidth - possibleHeight;
+                    luy = newEnters[m].a.x;;
+                    possibleWidth = newEnters[m].b.x - luy;                    
                     break;
                 }
                 ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
@@ -271,8 +271,8 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, cv::Mat & bgResult,
     return 0;
 }
 
-int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in,                               
-           const cv::Mat & bgResult, const vector<vector<tuple<TDPoint, TDPoint> > > & lines3)
+int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
+                                            const FourBorders & lines3)
 { 
     // diff, in, bgResult, crossLines
     m_curFrontIdx++;
@@ -327,28 +327,28 @@ int ThreeDiff :: kickOverlapPoints(const cv::Rect & box,
     }
 
     // now, change or kick out the points between [start, end]
-    vector<tuple<TDPoint, TDPoint> > & oneBorder = curFourLines[direction];
+    vector<TDLine> & oneBorder = curFourLines.m_lines[direction];
     for (auto it = oneBorder.begin(); it != oneBorder.end(); /*it++ no increment*/)
     {
-        if (std::get<1>(*it).x < start.x || std::get<0>(*it).x >= end.x)
+        if ((*it).b.x < start.x || (*it).a.x >= end.x)
             it++;
-        else if (std::get<0>(*it).x < start.x && std::get<1>(*it).x > end.x)
+        else if ((*it).a.x < start.x && (*it).b.x > end.x)
         {
             TDPoint end0 = start;
             TDPoint start1 = end;
-            oneBorder.insert(it, std::make_tuple(std::get<0>(*it), end0));
-            oneBorder.insert(it, std::make_tuple(start1, std::get<1>(*it)));
+            oneBorder.insert(it, TDLine((*it).a, end0));
+            oneBorder.insert(it, TDLine(start1, (*it).b));
             oneBorder.erase(it); // insert two, remove one.
             // no need it++, for we already do erase.
         }
-        else if (std::get<0>(*it).x < start.x) // change it.
+        else if ((*it).a.x < start.x) // change it.
         {
-            std::get<1>(*it) = start; // end point as the start.
+            (*it).b = start; // end point as the start.
             it++;
         }
-        else if (std::get<1>(*it).x > end.x) // change it.
+        else if ((*it).b.x > end.x) // change it.
         {
-            std::get<0>(*it) = end; // end point as the start.
+            (*it).a = end; // end point as the start.
             it++;
         }
         else // inside [start, end]
@@ -360,36 +360,3 @@ int ThreeDiff :: kickOverlapPoints(const cv::Rect & box,
     
 } // namespace Seg_Three    
 ////////////////////////////// End of File //////////////////////////////////////////
-
-
-
-
-/*    
-int ThreeDiff :: doRgbDiff(const cv::Mat & first, const cv::Mat & second)
-{
-    for (int k = 0; k < m_imgHeight; k++)
-    {
-        for (int j = 0; j < m_imgWidth; j++)
-        {
-            vector<uchar> input;
-            const cv::Vec3b & firstIntensity = first.at<cv::Vec3b>(k, j);
-            const cv::Vec3b & secondIntensity = second.at<cv::Vec3b>(k, j);
-            if (rgbEulerDiff(firstIntensity, secondIntensity) == true)
-                m_diffResults[m_curFrontIdx].at<uchar>(k, j) = 255;
-            else
-                m_diffResults[m_curFrontIdx].at<uchar>(k, j) = 0;
-        }
-    }    
-    return 0;
-}
-
-bool ThreeDiff :: rgbEulerDiff(const cv::Vec3b & first, const cv::Vec3b & second)
-{
-    int meanRed = (first[0] + second[0]) / 2;
-    int r =  first[0] - second[0];
-    int g =  first[1] - second[1];
-    int b =  first[2] - second[2];
-    // TODO: 20? what else values ?
-    return sqrt((((512 + meanRed)*r*r)>>8) + 4*g*g + (((767-meanRed)*b*b)>>8)) > 20;
-}    
-*/    

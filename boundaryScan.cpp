@@ -20,21 +20,10 @@ int BoundaryScan :: init(const int width, const int height)
     m_imgWidth = width;
     m_imgHeight = height;
     m_inputFrames = 0;
-    m_borders.init(M_BORDER_ROWS, m_imgWidth);
-    // actualy not used, for we use a simplified erode/dilate
-    for (int k = 0; k < M_ELEMENT_HEIGHT; k++)
-    {
-        for (int j = 0; j < M_ELEMENT_HEIGHT; j++)
-        {
-            //erodeMatrix[k][j] = 255;
-            //dilateMatrix[k][j] = 255;
-        }
-    }
-    // 
-    m_directions[0] = m_borders.top;
-    m_directions[1] = m_borders.bottom;
-    m_directions[2] = m_borders.left;
-    m_directions[3] = m_borders.right;    
+    m_directions[0] = m_bordersMem.top;
+    m_directions[1] = m_bordersMem.bottom;
+    m_directions[2] = m_bordersMem.left;
+    m_directions[3] = m_bordersMem.right;    
     return 0;    
 }
 
@@ -50,30 +39,44 @@ args:
    lines: output result, the foreground lines that just in borders
 return:   
 ****************************************************************************/
-int BoundaryScan :: processFrame(const cv::Mat & in, FourBorders & lines)
+int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
 {
     m_inputFrames++;
-    // 1. first extract border data (two lines), `in` data is in Gray(CV_8UC1);
-    assert(in.channels() == 1);
-    assert((int)in.step[0] == m_imgWidth && (int)in.step[1] == (int)sizeof(unsigned char));
-    memcpy(m_borders.top, in.data, M_BORDER_ROWS * m_imgWidth);
-    memcpy(m_borders.bottom, in.data + in.step[0]*(m_imgHeight-M_BORDER_ROWS),
-           M_BORDER_ROWS*m_imgWidth);
+    // 0. prepare
+    assert(bgResult.channels() == 1);
+    assert((int)bgResult.step[0] == m_imgWidth &&
+           (int)bgResult.step[1] == (int)sizeof(unsigned char));
+    if (m_bordersMem.bInit == false)
+        //normaly heightTB=heightLR=2, widthTB=imgWidth, widthLR=imgHeight
+        m_bordersMem.init(lines.m_widthTB, lines.m_heightTB,
+                          lines.m_widthLR, lines.m_heightLR); 
+    // 1. first extract border data from bgResult
+    
+    memcpy(m_bordersMem.top,
+           bgResult.data + lines.m_skipT*lines.m_widthTB,
+           lines.m_widthTB * lines.m_heightTB);
+    memcpy(m_bordersMem.bottom,
+           bgResult.data + bgResult.step[0]*(m_imgHeight-lines.m_skipB-lines.m_widthTB),
+           lines.m_widthTB * lines.m_heightTB);
     
     // for left & right data
-    for (int j = 0; j < M_BORDER_ROWS; j++)   
+    for (int k = 0; k < lines.m_heightLR; k+=2) //note +=2
     {
-        for (int k = 0; k < m_imgHeight; k++)
+        for (int j = 0; j < lines.m_widthLR; j++)
         {
-            m_borders.left[j*m_imgHeight+k] = in.at<uchar>(k, j);
-            m_borders.right[j*m_imgHeight+k] = in.at<uchar>(k, m_imgWidth - j - 1);
+            m_bordersMem.left[k*lines.m_heightLR+j] = bgResult.at<uchar>(k, j);
+            m_bordersMem.left[(k+1)*lines.m_heightLR+j] = bgResult.at<uchar>(k+1, j);
+            m_bordersMem.right[j*lines.m_heightLR+k] =
+                bgResult.at<uchar>(m_imgWidth-k-1, j);
+            m_bordersMem.right[(j+1)*lines.m_heightLR+k] =
+                bgResult.at<uchar>(m_imgWidth-(k+1)-1, j);
         }
     }
 
     // 2. we do open / close: seems for simplified erode/dilate, just open is ok.
     // oepn: erode then dilate
     doErode();
-    doDilate();
+    doDilate();            
     // close: dilate then erode
     doDilate();
     doErode();
@@ -90,63 +93,80 @@ int BoundaryScan :: processFrame(const cv::Mat & in, FourBorders & lines)
 int BoundaryScan :: doErode()
 {
     // NOTE: following code just deal with 2x2 window! Be aware of it.
+    int width = m_bordersMem.widthTB, height = m_bordersMem.heightTB;
     for (int n = 0; n < 4; n++)
     {   // note k = k + M_ELEMENT_HEIGHT
-        for (int k = 0; k < m_borders.rows; k+=M_ELEMENT_HEIGHT)
+        if (n >= 2)
         {
-            for (int j = 0; j < m_borders.columns - 1; j++)
+            height = m_bordersMem.heightLR;
+            width = m_bordersMem.widthLR;
+        }
+        for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
+        {
+            for (int j = 0; j < width - 1; j++)
             {
-                m_directions[n][k*m_borders.columns + j] =
-                  m_directions[n][(k+1)*m_borders.columns + j] =
-                    m_directions[n][k*m_borders.columns + j]     &
-                    m_directions[n][(k+1)*m_borders.columns + j] &
-                    m_directions[n][k*m_borders.columns + j+1]   & 
-                    m_directions[n][(k+1)*m_borders.columns + j+1];
-                if (j == m_borders.columns - M_ELEMENT_WIDTH)
-                    m_directions[n][k*m_borders.columns + j+1] =
-                        m_directions[n][(k+1)*m_borders.columns + j+1] =
-                            m_directions[n][k*m_borders.columns + j+1]   &
-                            m_directions[n][(k+1)*m_borders.columns + j+1];
+                m_directions[n][k*width + j] =
+                  m_directions[n][(k+1)*width + j] =
+                    m_directions[n][k*width + j]     &
+                    m_directions[n][(k+1)*width + j] &
+                    m_directions[n][k*width + j+1]   & 
+                    m_directions[n][(k+1)*width + j+1];
+                if (j == width - M_ELEMENT_WIDTH)
+                    m_directions[n][k*width + j+1] =
+                        m_directions[n][(k+1)*width + j+1] =
+                            m_directions[n][k*width + j+1]   &
+                            m_directions[n][(k+1)*width + j+1];
             }
         }
     }
+    
     return 0;
 }
 
 int BoundaryScan :: doDilate()
 {
+    int width = m_bordersMem.widthTB, height = m_bordersMem.heightTB;
     for (int n = 0; n < 4; n++)
     {   // note k = k + M_ELEMENT_HEIGHT
-        for (int k = 0; k < m_borders.rows; k+=M_ELEMENT_HEIGHT)   
+        if (n >= 2)
         {
-            for (int j = 0; j < m_borders.columns - 1; j++)
+            height = m_bordersMem.heightLR;
+            width = m_bordersMem.widthLR;
+        }
+        for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
+        {
+            for (int j = 0; j < width - 1; j++)
             {
-                m_directions[n][k*m_borders.columns + j] =
-                  m_directions[n][(k+1)*m_borders.columns + j] =
-                    m_directions[n][k*m_borders.columns + j]     |
-                    m_directions[n][(k+1)*m_borders.columns + j] |
-                    m_directions[n][k*m_borders.columns + j+1]   | 
-                    m_directions[n][(k+1)*m_borders.columns + j+1];
-                if (j == m_borders.columns - 2)
-                    m_directions[n][k*m_borders.columns + j+1] =
-                        m_directions[n][(k+1)*m_borders.columns + j+1] =
-                            m_directions[n][k*m_borders.columns + j+1]   |
-                            m_directions[n][(k+1)*m_borders.columns + j+1];
+                m_directions[n][k*width + j] =
+                  m_directions[n][(k+1)*width + j] =
+                    m_directions[n][k*width + j]     |
+                    m_directions[n][(k+1)*width + j] |
+                    m_directions[n][k*width + j+1]   | 
+                    m_directions[n][(k+1)*width + j+1];
+                if (j == width - M_ELEMENT_WIDTH)
+                    m_directions[n][k*width + j+1] =
+                        m_directions[n][(k+1)*width + j+1] =
+                            m_directions[n][k*width + j+1]   |
+                            m_directions[n][(k+1)*width + j+1];
             }
         }
     }
     return 0;
 }
 
-int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & lines)
+int BoundaryScan :: scanBorders(FourBorders & lines)
 {
     // we get borders with erode/dilate, then we get the foreground lines.
+    LogI("Scan the border.\n");
+    int width = m_bordersMem.widthTB;
     for (int n = 0; n < 4; n++)
     {
+        if (n >= 2) // for left/right borders
+            width = m_bordersMem.widthLR;
+
         TDPoint start, end;
         bool bStart = false, bEnd = false;
-        vector<tuple<TDPoint, TDPoint> > oneDirection;
-        for (int k = 0; k < m_borders.columns; k++)
+        for (int k = 0; k < width; k++)
         {
             if (bStart == false && m_directions[n][k] == 0xFF)
             {
@@ -164,14 +184,13 @@ int BoundaryScan :: scanBorders(vector<vector<tuple<TDPoint, TDPoint> > > & line
             }            
             if (bStart == true && bEnd == true)
             {
-                oneDirection.push_back(std::make_tuple(start, end));
+                if (end.x - start.x >= 4)
+                    lines.m_lines[n].push_back(TDLine(start, end));
+                LogI("Get One Line\n");
                 bStart = false;
                 bEnd =  false;
             }
         }
-        if (end.x - start.x < 4)
-            oneDirection.clear();// 4 pixel as the threshold of object width.
-        lines.push_back(oneDirection);
     }
     return 0;
 }

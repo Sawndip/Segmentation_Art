@@ -40,9 +40,11 @@ public:
     ~SegControl();
     int init(const int width, const int height);
     // read frame in and deliver to proper members
-    int processFrame(const cv::Mat & in, vector<SegResults> & segResults, cv::Mat & out);
+    int processFrame(const cv::Mat & in,
+                     vector<SegResults> & segResults,
+                     cv::Mat & bgResult);
     // when no new frames, we flush out cached frames
-    int flushFrame(vector<SegResults> & segResults, cv::Mat & out);
+    int flushFrame(vector<SegResults> & segResults);
 
 private:
     int m_imgWidth;

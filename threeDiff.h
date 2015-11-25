@@ -39,11 +39,11 @@ public:
     ~ThreeDiff();    
     int init(const int width, const int height);
     int processFrame(const cv::Mat & in,
-                     cv::Mat & bgResult, // also, it is the out binary frame.
-                     vector<vector<tuple<TDPoint, TDPoint> > > & curFourLines,
+                     const cv::Mat & bgResult, // also, it is the out binary frame.
+                     FourBorders & curFourLines,
                      vector<SegResults> & segResults);
     
-    int flushFrame(vector<SegResults> & segResults, cv::Mat & bgResult);
+    int flushFrame(vector<SegResults> & segResults);
     
 private:
     // 1. general 
@@ -58,7 +58,7 @@ private:
     cv::Mat m_diffAndResults[M_THREE_DIFF_CACHE_FRAMES];
     cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];    
     cv::Mat m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
-    vector<vector<tuple<TDPoint, TDPoint> > > m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
+    FourBorders m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
 
     // 3. contourTrack part (using compressiveTracker, then do postprocess with diffResults)
     int m_objIdx;
@@ -66,10 +66,10 @@ private:
 
 private: // inner helpers
     // 1. important ones
-    int doUpdateContourTracking(const cv::Mat in, cv::Mat & out,
+    int doUpdateContourTracking(const cv::Mat in, const cv::Mat & bgResult,
                                 FourBorders & curFourLines,
                                 vector<SegResults> & segResults);
-    int doCreateNewContourTrack(const cv::Mat & in, cv::Mat & out,
+    int doCreateNewContourTrack(const cv::Mat & in, const cv::Mat & bgResult,
                                 FourBorders & lines3,
                                 vector<SegResults> & segResults);
     int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
