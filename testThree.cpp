@@ -72,8 +72,8 @@ int main(int argc, char * argv[])
         Mat inFrameGray;
         Mat binaryFrame(480, 640, CV_8UC1);
         cvtColor(inFrame, inFrameGray, CV_RGB2GRAY);        
-        //printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
-        //        i, imgFilePathes[i].c_str(), inFrame.type());
+        printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
+                i, imgFilePathes[i].c_str(), inFrame.type());
         // 1. start process
         vector<SegResults> segResults;    
         if (seg.processFrame(inFrameGray, segResults, binaryFrame) > 0)

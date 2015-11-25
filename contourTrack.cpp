@@ -29,19 +29,20 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     // 1. calculate the size changing function.
     // take as function: y = ax^2 + bx + c
     // We know: x=0, y=1; x=20, y=0.5; x=m_imgWidth, y=0;
-    // so: 400a + 20b = 1.5
+    // so: 400a + 20b = -0.5
     const int halfChangingValue = 20; // 20 pixel, then can change 10 pixels.
-    m_aw = (1.5 * m_imgWidth - halfChangingValue) /
+    m_aw = (halfChangingValue- 0.5 * m_imgWidth) /
                   (halfChangingValue * halfChangingValue * m_imgWidth -
                    halfChangingValue * m_imgWidth * m_imgWidth);
-    m_bw = (1.5 - halfChangingValue * halfChangingValue * m_aw) / halfChangingValue;
-    m_ah = (1.5 * m_imgHeight - halfChangingValue) /
+    m_bw = (-0.5 - halfChangingValue * halfChangingValue * m_aw) / halfChangingValue;
+    m_ah = (halfChangingValue - 0.5 * m_imgHeight) /
             (halfChangingValue * halfChangingValue * m_imgHeight -
              halfChangingValue * m_imgHeight * m_imgHeight);
-    m_bw = (1.5 - halfChangingValue * halfChangingValue * m_ah) / halfChangingValue;
+    m_bh = (-0.5 - halfChangingValue * halfChangingValue * m_ah) / halfChangingValue;
     
     // 2. compressive tracker part.
-    m_ctTracker.init(in, m_curBox); //ct.init(grayImg, box);
+    m_ctTracker = new CompressiveTracker();
+    m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);
     
     LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
          "possibleHeight:%d. \n", m_idx, 
@@ -61,7 +62,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, const cv::Mat & bgResult,
 {
     // Process frame using compressive tracker.
     m_lastBox = m_curBox;
-    int ret = m_ctTracker.processFrame(in, m_curBox);
+    int ret = m_ctTracker->processFrame(in, m_curBox);
     if (ret < 0)
         LogW("Compressive Tracker do warning a failing track.\n.");
     else
@@ -69,9 +70,11 @@ int ContourTrack :: processFrame(const cv::Mat & in, const cv::Mat & bgResult,
         // re-calculate the m_curBox area,
         // also update the inner status of the object, such as bAllIn, bAllOut
         updateTrackerUsingDiff(in, bgResult, diffAnd, diffOr);
+        // TODO: PXT: fix following reallocateiong.
         // prepare for the next processFrame call.
-        m_ctTracker.reset();
-        m_ctTracker.init(in, m_curBox);
+        delete m_ctTracker;
+        m_ctTracker = new CompressiveTracker();
+        m_ctTracker->init(in, m_curBox);
     }
     return 0;
 }
@@ -100,8 +103,8 @@ int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & b
     int rby = m_curBox.y + m_curBox.height + dy;
     if (lux < 0) lux = 0;
     if (luy < 0) luy = 0;
-    if (rbx > m_imgWidth) rbx = m_imgWidth;
-    if (rby > m_imgHeight) rby = m_imgHeight;
+    if (rbx > m_imgWidth) rbx = m_imgWidth-1;
+    if (rby > m_imgHeight) rby = m_imgHeight-1;
     assert(rbx > lux && rby > luy);
     cv::Rect maxBox(lux, luy, rbx - lux, rby - luy);
     if (maxBox.width % 2 != 0) maxBox.width--;
@@ -239,7 +242,8 @@ int ContourTrack :: curMaxChangeSize(int & x, int & y)
     const double xRate = m_aw*m_lastBox.width*m_lastBox.width + m_bw*m_lastBox.width + m_c;
     const double yRate = m_ah*m_lastBox.height*m_lastBox.height + m_bh*m_lastBox.height + m_c;
     x = (int)round(m_lastBox.width * xRate);
-    y = (int)round(m_lastBox.height * yRate);    
+    y = (int)round(m_lastBox.height * yRate);
+    assert(x >= 0 && y >= 0);
     return 0;
 }
 

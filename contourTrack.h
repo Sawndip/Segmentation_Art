@@ -56,7 +56,7 @@ private:
     // 1. using CompressiveTrack as tracker
     cv::Rect m_lastBox;
     cv::Rect m_curBox; // changing every time with diffResults' influence
-    CompressiveTracker m_ctTracker;    
+    CompressiveTracker *m_ctTracker;    
     int m_largestWidth;
     int m_largestHeight;
     
@@ -68,7 +68,7 @@ private:
     double m_bw;
     double m_ah; 
     double m_bh;
-    const static int m_c = -1; // y = ax^2 + bx + c
+    const static int m_c = 1; // y = ax^2 + bx + c
 
 private: // inner helpers
     int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,

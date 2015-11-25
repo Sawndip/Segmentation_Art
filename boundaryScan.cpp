@@ -20,10 +20,6 @@ int BoundaryScan :: init(const int width, const int height)
     m_imgWidth = width;
     m_imgHeight = height;
     m_inputFrames = 0;
-    m_directions[0] = m_bordersMem.top;
-    m_directions[1] = m_bordersMem.bottom;
-    m_directions[2] = m_bordersMem.left;
-    m_directions[3] = m_bordersMem.right;    
     return 0;    
 }
 
@@ -47,11 +43,16 @@ int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
     assert((int)bgResult.step[0] == m_imgWidth &&
            (int)bgResult.step[1] == (int)sizeof(unsigned char));
     if (m_bordersMem.bInit == false)
+    {
         //normaly heightTB=heightLR=2, widthTB=imgWidth, widthLR=imgHeight
         m_bordersMem.init(lines.m_widthTB, lines.m_heightTB,
-                          lines.m_widthLR, lines.m_heightLR); 
-    // 1. first extract border data from bgResult
-    
+                          lines.m_widthLR, lines.m_heightLR);
+        m_directions[0] = m_bordersMem.top;
+        m_directions[1] = m_bordersMem.bottom;
+        m_directions[2] = m_bordersMem.left;
+        m_directions[3] = m_bordersMem.right;    
+    }
+    // 1. first extract border data from bgResult    
     memcpy(m_bordersMem.top,
            bgResult.data + lines.m_skipT*lines.m_widthTB,
            lines.m_widthTB * lines.m_heightTB);
@@ -64,11 +65,11 @@ int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
     {
         for (int j = 0; j < lines.m_widthLR; j++)
         {
-            m_bordersMem.left[k*lines.m_heightLR+j] = bgResult.at<uchar>(k, j);
-            m_bordersMem.left[(k+1)*lines.m_heightLR+j] = bgResult.at<uchar>(k+1, j);
-            m_bordersMem.right[j*lines.m_heightLR+k] =
+            m_bordersMem.left[k*lines.m_widthLR+j] = bgResult.at<uchar>(k, j);
+            m_bordersMem.left[(k+1)*lines.m_widthLR+j] = bgResult.at<uchar>(k+1, j);
+            m_bordersMem.right[k*lines.m_widthLR+j] =
                 bgResult.at<uchar>(m_imgWidth-k-1, j);
-            m_bordersMem.right[(j+1)*lines.m_heightLR+k] =
+            m_bordersMem.right[(k+1)*lines.m_widthLR+j] =
                 bgResult.at<uchar>(m_imgWidth-(k+1)-1, j);
         }
     }
@@ -98,9 +99,10 @@ int BoundaryScan :: doErode()
     {   // note k = k + M_ELEMENT_HEIGHT
         if (n >= 2)
         {
+            width = m_bordersMem.widthLR;            
             height = m_bordersMem.heightLR;
-            width = m_bordersMem.widthLR;
         }
+
         for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
         {
             for (int j = 0; j < width - 1; j++)
@@ -116,10 +118,11 @@ int BoundaryScan :: doErode()
                         m_directions[n][(k+1)*width + j+1] =
                             m_directions[n][k*width + j+1]   &
                             m_directions[n][(k+1)*width + j+1];
+                //if (m_directions[n][k*width + j] == 0xFF)
+                //    LogI("One point 255, x=%d, y=%d\n", j, k);
             }
         }
-    }
-    
+    }    
     return 0;
 }
 
@@ -164,31 +167,25 @@ int BoundaryScan :: scanBorders(FourBorders & lines)
         if (n >= 2) // for left/right borders
             width = m_bordersMem.widthLR;
 
-        TDPoint start, end;
-        bool bStart = false, bEnd = false;
+        TDLine line;
+        bool bStart = false;
         for (int k = 0; k < width; k++)
         {
             if (bStart == false && m_directions[n][k] == 0xFF)
             {
-                bEnd = false;
                 bStart = true;
-                start.x = k;
-                start.y = 0;
+                line.a.x = k;
+                line.a.y = 0;
             }
             if (bStart == true && m_directions[n][k] != 0xFF)
             {
-                bEnd = true;
                 bStart = false;
-                end.x = k;
-                end.y = 0;
-            }            
-            if (bStart == true && bEnd == true)
-            {
-                if (end.x - start.x >= 4)
-                    lines.m_lines[n].push_back(TDLine(start, end));
-                LogI("Get One Line\n");
+                line.b.x = k;
+                line.b.y = 0;
+                if (line.b.x - line.a.x >= 4)
+                    lines.m_lines[n].push_back(line);
+                //LogI("Get One Line\n");
                 bStart = false;
-                bEnd =  false;
             }
         }
     }
