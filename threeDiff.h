@@ -9,7 +9,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segMisc.h"
+#include "segUtil.h"
 #include "vectorSpace.h"
 #include "contourTrack.h"
 
@@ -39,10 +39,9 @@ public:
     ~ThreeDiff();    
     int init(const int width, const int height);
     int processFrame(const cv::Mat & in,
-                     const cv::Mat & bgResult, // also, it is the out binary frame.
+                     const BgResult & bgResult,
                      FourBorders & curFourLines,
-                     vector<SegResults> & segResults);
-    
+                     vector<SegResults> & segResults);    
     int flushFrame(vector<SegResults> & segResults);
     
 private:
@@ -56,8 +55,9 @@ private:
     static const int M_THREE_DIFF_CACHE_FRAMES = 2;
     int m_curFrontIdx;
     cv::Mat m_diffAndResults[M_THREE_DIFF_CACHE_FRAMES];
-    cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];    
-    cv::Mat m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];
+    // background binary data & border mv angle
+    BgResult m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
     FourBorders m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
 
     // 3. contourTrack part (using compressiveTracker, then do postprocess with diffResults)

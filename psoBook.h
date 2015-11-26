@@ -12,7 +12,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segMisc.h"
+#include "segUtil.h"
 #include "vectorSpace.h"
 
 // namespace

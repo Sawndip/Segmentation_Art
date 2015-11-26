@@ -25,35 +25,43 @@ int SegControl :: init(const int width, const int height,
     m_imgHeight = height;
     m_skipTB = skipTB;
     m_skipLR = skipLR;
-    m_scanBordSizeTB = scanSizeTB;
-    m_scanBordSizeLR = scanSizeLR;
+    m_scanSizeTB = scanSizeTB;
+    m_scanSizeLR = scanSizeLR;
     // 2. key members
     ret = m_segBg.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
     assert(ret >= 0);
+    // boundaryScan play an important role
     ret = m_boundaryScan.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
     assert(ret >= 0);
     // put all complexities inside ThreeDiff
     ret = m_threeDiff.init(width, height);
     assert(ret >= 0);
+    // 3. bgResults
+    m_bgResults.binaryData.create(height, width, CV_8UC1);
+    // top bottom left right
+    m_bgResults.angles[0].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResults.angles[1].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResults.angles[0].resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResults.angles[1].resize((height - 2*skipTB)*scanSizeLR);    
     return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs
 int SegControl :: processFrame(const cv::Mat & in,
-                               vector<SegResults> & segResults,
-                               cv::Mat & bgResult)
-{   // we get psoBook's opinion
+                               vector<SegResults> & segResults)
+{   
     int ret = -1;
-    ret = m_segBg.processFrame(in, bgResult);
+    ret = m_segBg.processFrame(in, m_bgResult.binaryData, m_bgResult.angles);
     assert(ret >= 0);
     if (ret > 0) // got a frame
     {    
         // four directions
-        FourBorders possibleBoundaries(m_imgWidth, m_imgHeight);
-        m_boundaryScan.processFrame(bgResult, possibleBoundaries);
+        FourBorders possibleBorders(m_imgWidth-2*m_skipLR, m_scanSizeTB,
+                                       m_imgHeight-2*m_skipTB, m_scanSizeLR);
+        m_boundaryScan.processFrame(bgResult, possibleBorders);
         // update boundary or add new contourTrack
-        ret = m_threeDiff.processFrame(in, bgResult, possibleBoundaries, segResults);
+        ret = m_threeDiff.processFrame(in, bgResult, possibleBorders, segResults);
     }
     return ret;
 }

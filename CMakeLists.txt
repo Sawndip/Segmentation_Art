@@ -55,7 +55,7 @@ ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/segControl.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/boundaryScan.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/segMisc.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/segUtil.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/compressiveTracking/CompressiveTracker.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/opticalFlow/VarFlowWA.cpp 
                            ${CMAKE_CURRENT_SOURCE_DIR}/testThree.cpp)

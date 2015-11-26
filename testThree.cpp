@@ -10,7 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 // project
-#include "segMisc.h"
+#include "segUtil.h"
 #include "segControl.h"
 
 // namespaces
@@ -65,20 +65,26 @@ int main(int argc, char * argv[])
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
  
     SegControl seg;
-    seg.init(640, 480);    
+    //   int init(const int width, const int height,
+    //            const int skipTB, const int skipLR,
+    //            const int scanBorderSizeTB, const int scanBorderSizeLR);
+    seg.init(640, 480, 0, 0, 2, 2);
+    vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare
+        segResults.clear();
         Mat inFrame = imread(imgFilePathes[i]);
         Mat inFrameGray;
-        Mat binaryFrame(480, 640, CV_8UC1);
         cvtColor(inFrame, inFrameGray, CV_RGB2GRAY);        
         printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
                 i, imgFilePathes[i].c_str(), inFrame.type());
-        // 1. start process
-        vector<SegResults> segResults;    
-        if (seg.processFrame(inFrameGray, segResults, binaryFrame) > 0)
+        
+        // 1. start process:
+        // NOTE: the release app won't care 'binaryFrame', it is only for debugging.
+        if (seg.processFrame(inFrameGray, segResults) > 0)
         {
             //// Draw the detected objects
+            cv::Mat & binaryFrame = seg.getBinaryFrame();
             for (int k = 0; k < (int)segResults.size(); k++)
             {
                 putText(binaryFrame, intToString(segResults[k].m_objIdx),
@@ -101,7 +107,6 @@ int main(int argc, char * argv[])
         waitKey(1);
         inFrame.release();
         inFrameGray.release();
-        binaryFrame.release();
         //getchar();
     } 
 

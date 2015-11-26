@@ -45,7 +45,7 @@ args:
    lines: output result, the foreground lines that just in borders
 return:   
 ****************************************************************************/
-int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
+int BoundaryScan :: processFrame(const BgResult & bgResult, FourBorders & lines)
 {
     m_inputFrames++;
     // 0. prepare

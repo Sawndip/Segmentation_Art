@@ -11,7 +11,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segMisc.h"
+#include "segUtil.h"
 #include "vectorSpace.h"
 #include "threeDiff.h"
 #include "psoBook.h"
@@ -40,27 +40,29 @@ public:
     ~SegControl();
     int init(const int width, const int height,
              const int skipTB, const int skipLR,
-             const int scanBorderSizeTB, const int scanBorderSizeLR);
-    // read frame in and deliver to proper members
+             const int scanSizeTB, const int scanSizeLR);
+    // read frame in, deliver to proper members, and get the result.
     int processFrame(const cv::Mat & in,
-                     vector<SegResults> & segResults,
-                     cv::Mat & bgResult);
+                     vector<SegResults> & segResults);
+    cv::Mat & getBinaryFrame() {return m_bgResult.binaryData;}
     // when no new frames, we flush out cached frames
     int flushFrame(vector<SegResults> & segResults);
-
+ 
 private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
     int m_skipTB;
     int m_skipLR;
-    int m_scanBorderSizeTB;
-    int m_scanBorderSizeLR;
+    int m_scanSizeTB;
+    int m_scanSizeLR;
     
     // key members    
     ThreeDiff m_threeDiff;
     BoundaryScan m_boundaryScan;    
     VarFlowWA m_segBg;
+    // key internal 
+    BgResult m_bgResult;
 };
 
 }//namespace

@@ -61,7 +61,7 @@ int ThreeDiff :: init(const int width, const int height)
 //     < 0, process error;
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
-                              const cv::Mat & bgResult,
+                              const BgResult & bgResult,
                               FourBorders & curFourLines,
                               vector<SegResults> & segResults)
 {
@@ -69,7 +69,7 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     // 0. do preprocess: cache frames
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
-        bgResult.copyTo(m_bgResults[m_inputFrames-1]);
+        m_bgResults[m_inputFrames-1] = bgResult;
         m_crossLines[m_inputFrames-1] = curFourLines;        
         //copyLines(curFourLines, m_crossLines[m_inputFrames-1]);
         if (m_inputFrames > 1)
@@ -286,7 +286,7 @@ int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bg
     // diff, in, bgResult, crossLines
     m_curFrontIdx++;
     m_curFrontIdx = m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0 ? 0 : m_curFrontIdx;
-    bgResult.copyTo(m_bgResults[m_curFrontIdx]);
+    m_bgResults[m_curFrontIdx] = bgResult;
     m_crossLines[m_curFrontIdx] = lines3;
     return 0;
 }

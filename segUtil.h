@@ -1,5 +1,5 @@
-#ifndef _THREE_SEGMENT_MISC_H_
-#define _THREE_SEGMENT_MISC_H_
+#ifndef _THREE_SEGMENT_UTIL_H_
+#define _THREE_SEGMENT_UTIL_H_
 
 #include <tuple>
 #include <vector>
@@ -12,6 +12,8 @@ using :: std :: tuple;
 
 namespace Seg_Three
 {
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////    
 //// Log Macros: Minimal Log Facility
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
                                    __FILE__, __LINE__, ##__VA_ARGS__)
@@ -21,8 +23,23 @@ namespace Seg_Three
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogE(format, ...)  printf("[%-8s:%4d] [ERROR] " format, \
                                    __FILE__, __LINE__,  ##__VA_ARGS__)
-    
-//// Misc Basic Structures    
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+//// Enumeraions
+enum {BORDER_NUM = 4};
+enum DIRECTION
+{
+    TOP = 0, BOTTOM, RIGHT, LEFT, CENTER,
+    DIRECTION_NUM = 5, DIRECTION_UNKNOWN = 5
+};
+enum MOVING_STATUS
+{
+    MOVING_IN = 0, MOVING_OUT, MOVING_INSIDE, MOVING_STOP, 
+    MOVING_UNKNOWN = 4
+};
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+//// Basic Structures    
 struct SegResults
 {
     int m_objIdx;
@@ -30,11 +47,18 @@ struct SegResults
     cv::Rect m_curBox;
 };
 
-strutct BgResult
-{
-    cv::Mat * pMatData;
-    cv::Mat * pBorderMv;
-    
+struct BgResult
+{   // TODO: PXT: the four corner share the same mv? how do we deal with that?
+    cv::Mat binaryData;
+    vector<double> angles[BORDER_NUM];
+    // copy assignment
+    BgResult & operator=(const BgResult & result)
+    {
+        result.binaryData.copyTo(binaryData);
+        for (int k=0; k < BORDER_NUM; k++)
+            angles[k] = result.angles[k];
+        return *this;
+    }
 };
 
 struct TDPoint
@@ -45,11 +69,14 @@ struct TDPoint
     int y;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////
-// Not a normal Line, it is with moving direction & status that pass to CompressiveTrack
+// Not a normal Line,but with moving status
 struct TDLine
 {
-    TDLine() = default;
+    TDLine()
+    {
+        movingDirection = DIRECTION_UNKNOWN;
+        movingStatus = MOVING_UNKNOWN;
+    }
     TDLine(const TDPoint & _a, const TDPoint & _b)
         : a(_a), b(_b)
         , movingDirection(DIRECTION_UNKNOWN)
@@ -64,27 +91,22 @@ struct TDLine
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
 class FourBorders
 {
 public:
     FourBorders() = default;
-    FourBorders(const int imgWidth, const int imgHeight)
+    FourBorders(const int widthTB, const int widthLR)
     {
-        init(imgWidth, 2, imgHeight, 2, 0, 0, 0, 0);
+        init(widthTB, 2, widthLR, 2);
     }
-    FourBorders(const int widthTB, const int heightTB, const int widthLR, const int heightLR,
-                const int skipT, const int skipB, const int skipL, const int skipR)
+    FourBorders(const int widthTB, const int heightTB, const int widthLR, const int heightLR)
     {
-        init(widthTB, heightTB, widthLR, heightLR, skipT, skipB, skipL, skipR);
+        init(widthTB, heightTB, widthLR, heightLR);
     }
-    int init(const int widthTB, const int heightTB, const int widthLR, const int heightLR,
-             const int skipT, const int skipB, const int skipL, const int skipR)
+
+private:
+    int init(const int widthTB, const int heightTB, const int widthLR, const int heightLR)
     {
-        m_skipT = skipT;
-        m_skipB = skipB;
-        m_skipL = skipL;
-        m_skipR = skipR;        
         m_widthTB = widthTB;
         m_heightTB = heightTB;
         m_widthLR = widthLR;
@@ -93,10 +115,6 @@ public:
     }
     
 public:
-    int m_skipT; // Top Bottome Left Right skip pixels  
-    int m_skipB;
-    int m_skipL;
-    int m_skipR;
     int m_widthTB;
     int m_heightTB;
     int m_widthLR;
@@ -104,20 +122,9 @@ public:
     vector<TDLine> m_lines[4];
 };
 
-enum {BORDER_NUM = 4};
-
-enum DIRECTION
-{
-    TOP = 0, BOTTOM, RIGHT, LEFT, CENTER,
-    DIRECTION_NUM = 5, DIRECTION_UNKNOWN = 5
-};
-
-enum MOVING_STATUS
-{
-    MOVING_IN = 0, MOVING_OUT, MOVING_INSIDE, MOVING_STOP, 
-    MOVING_UNKNOWN = 4
-};
-
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+//// Util Functions
 extern bool isYContainedBy(const TDLine & small, const TDLine & large);
 extern bool isXContainedBy(const TDLine & small, const TDLine & large);
 }

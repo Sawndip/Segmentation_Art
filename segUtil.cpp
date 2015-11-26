@@ -1,4 +1,4 @@
-#include "segMisc.h"
+#include "segUtil.h"
 
 namespace Seg_Three
 {

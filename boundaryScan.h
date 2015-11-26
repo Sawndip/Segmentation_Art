@@ -9,7 +9,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segMisc.h"
+#include "segUtil.h"
 #include "vectorSpace.h"
 
 // namespace
@@ -26,7 +26,7 @@ class BoundaryScan
 public:
     BoundaryScan();
     ~BoundaryScan();
-    int init(const int width, const int height
+    int init(const int width, const int height,
              const int skipTB, const int skipLR,
              const int scanSizeTB, const int scanSizeLR);
     int processFrame(const BgResult & bgResult, FourBorders & lines);
@@ -52,10 +52,10 @@ private: // inner classes
             heightTB = _heightTB;                
             widthLR = _widthLR;
             heightLR = _heightLR;                
-            m_directions[0] = new unsigned char[widthTB * heightTB];
-            m_directions[1] = new unsigned char[widthTB * heightTB];
-            m_directions[2] = new unsigned char[widthLR * heightLR];
-            m_directions[3] = new unsigned char[widthLR * heightLR];
+            directions[0] = new unsigned char[widthTB * heightTB];
+            directions[1] = new unsigned char[widthTB * heightTB];
+            directions[2] = new unsigned char[widthLR * heightLR];
+            directions[3] = new unsigned char[widthLR * heightLR];
         }        
     public:
         int widthTB;
@@ -63,7 +63,7 @@ private: // inner classes
         int heightTB;
         int heightLR;
         // top bottom left right
-        unsigned char *m_directions[BORDER_NUM];        
+        unsigned char *directions[BORDER_NUM];        
     };
 
 private: // inner members

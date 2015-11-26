@@ -27,18 +27,14 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
 {
     assert(width > 0 && height > 0);
     // 1. calculate the size changing function.
-    // take as function: y = ax^2 + bx + c
-    // We know: x=0, y=1; x=20, y=0.5; x=m_imgWidth, y=0;
-    // so: 400a + 20b = -0.5
-    const int halfChangingValue = 20; // 20 pixel, then can change 10 pixels.
-    m_aw = (halfChangingValue- 0.5 * m_imgWidth) /
-                  (halfChangingValue * halfChangingValue * m_imgWidth -
-                   halfChangingValue * m_imgWidth * m_imgWidth);
-    m_bw = (-0.5 - halfChangingValue * halfChangingValue * m_aw) / halfChangingValue;
-    m_ah = (halfChangingValue - 0.5 * m_imgHeight) /
-            (halfChangingValue * halfChangingValue * m_imgHeight -
-             halfChangingValue * m_imgHeight * m_imgHeight);
-    m_bh = (-0.5 - halfChangingValue * halfChangingValue * m_ah) / halfChangingValue;
+    // take as function: y = a1x + b1 & y = a2x + b2,
+    // with x=0, y=1; x=20, y=0.5, x=imgWidth, y=0;
+    m_a1 = -0.5 / halfChangingValue;
+    m_b1 = 1.0;
+    m_a2w = 0.5 / (halfChangingValue - width);
+    m_a2w = -m_a2w * width;
+    m_a2h = 0.5 / (halfChangingValue - height);
+    m_a2h = -m_a2h * height;
     
     // 2. compressive tracker part.
     m_ctTracker = new CompressiveTracker();
@@ -242,8 +238,17 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
 // shrink or dilate
 int ContourTrack :: curMaxChangeSize(int & x, int & y)
 {
-    const double xRate = m_aw*m_lastBox.width*m_lastBox.width + m_bw*m_lastBox.width + m_c;
-    const double yRate = m_ah*m_lastBox.height*m_lastBox.height + m_bh*m_lastBox.height + m_c;
+    double xRate;
+    double yRate;
+    if (m_lastBox.width < m_halfChangingValue)
+        xRate = m_a1*m_lastBox.width + m_b1;
+    else
+        xRate = m_a2w*m_lastBox.width + m_b2w;
+    if (m_lastBox.height < m_halfChangingValue)
+        yRate = m_a1*m_lastBox.height + m_b1;
+    else
+        yRate = m_a2h*m_lastBox.height + m_b2h;
+
     x = (int)round(m_lastBox.width * xRate);
     y = (int)round(m_lastBox.height * yRate);
     assert(x >= 0 && y >= 0);

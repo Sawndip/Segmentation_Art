@@ -8,7 +8,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 // project
-#include "segMisc.h"
+#include "segUtil.h"
 #include "vectorSpace.h"
 #include "CompressiveTracker.h"
 
@@ -64,11 +64,13 @@ private:
     DIRECTION m_outDirection;
 
     // 4. size changing function
-    double m_aw; 
-    double m_bw;
-    double m_ah; 
-    double m_bh;
-    const static int m_c = 1; // y = ax^2 + bx + c
+    double m_a1; 
+    double m_b1;
+    double m_a2w; 
+    double m_b2w;
+    double m_a2h; 
+    double m_b2h;        
+    static const int m_halfChangingValue = 20;
 
 private: // inner helpers
     int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
