@@ -15,11 +15,21 @@ BoundaryScan :: ~BoundaryScan()
     return;        
 }
 
-int BoundaryScan :: init(const int width, const int height)
+int BoundaryScan :: init(const int width, const int height,
+                         const int skipTB, const int skipLR,
+                         const int scanSizeTB, const int scanSizeLR)
 {
     m_imgWidth = width;
     m_imgHeight = height;
     m_inputFrames = 0;
+    m_skipTB = skipTB;
+    m_skipLR = skipLR;
+    m_scanBordSizeTB = scanSizeTB;
+    m_scanBordSizeLR = scanSizeLR;
+    //normaly heightTB=heightLR=2, widthTB=imgWidth, widthLR=imgHeight
+    m_bordersMem.init(m_imgWidth - 2 * skipTB, scanSizeTB,
+                      m_imgHeight - 2 * skipLR, scanSizeLR);
+    
     return 0;    
 }
 
@@ -42,35 +52,34 @@ int BoundaryScan :: processFrame(const cv::Mat & bgResult, FourBorders & lines)
     assert(bgResult.channels() == 1);
     assert((int)bgResult.step[0] == m_imgWidth &&
            (int)bgResult.step[1] == (int)sizeof(unsigned char));
-    if (m_bordersMem.bInit == false)
+    assert(m_scanSizeTB == m_bordersMem.heightTB &&
+           m_scanSizeLR == m_bordersMem.heightLR )
+
+    // 1. first extract border data from bgResult
+    for (int k = 0; k < m_scanSizeTB; k++)
     {
-        //normaly heightTB=heightLR=2, widthTB=imgWidth, widthLR=imgHeight
-        m_bordersMem.init(lines.m_widthTB, lines.m_heightTB,
-                          lines.m_widthLR, lines.m_heightLR);
-        m_directions[0] = m_bordersMem.top;
-        m_directions[1] = m_bordersMem.bottom;
-        m_directions[2] = m_bordersMem.left;
-        m_directions[3] = m_bordersMem.right;    
-    }
-    // 1. first extract border data from bgResult    
-    memcpy(m_bordersMem.top,
-           bgResult.data + lines.m_skipT*lines.m_widthTB,
-           lines.m_widthTB * lines.m_heightTB);
-    memcpy(m_bordersMem.bottom,
-           bgResult.data + bgResult.step[0]*(m_imgHeight-lines.m_skipB-lines.m_widthTB),
-           lines.m_widthTB * lines.m_heightTB);
+        memcpy(m_bordersMem.directions[0] + k*m_bordersMem.widthTB,
+               bgResult.data + m_imgWidth * (k+m_skipTB) + m_skipLR, // note: using skipLR
+               m_imgWidth - 2*m_skipLR);
     
+        memcpy(m_bordersMem.directions[1] + k*m_bordersMem.widthTB,
+               bgResult.data + m_imgWidth * (m_imgHeight-m_skipBT-k) + m_skipLR,
+               m_imgWidth - 2*m_skipLR);
+    }
     // for left & right data
-    for (int k = 0; k < lines.m_heightLR; k+=2) //note +=2
+    for (int k = 0; k < m_scanSizeLR; k+=2) //note +=2, scanSize should be multiple of 2.
     {
-        for (int j = 0; j < lines.m_widthLR; j++)
-        {
-            m_bordersMem.left[k*lines.m_widthLR+j] = bgResult.at<uchar>(j, k);
-            m_bordersMem.left[(k+1)*lines.m_widthLR+j] = bgResult.at<uchar>(j, k+1);
-            m_bordersMem.right[k*lines.m_widthLR+j] =
-                bgResult.at<uchar>(j, m_imgWidth-k-1);
-            m_bordersMem.right[(k+1)*lines.m_widthLR+j] =
-                bgResult.at<uchar>(j, m_imgWidth-(k+1)-1);
+        for (int j = 0; j < m_bordersMem.widthLR; j++)
+        {   // left
+            m_bordersMem.directions[2][k*m_bordersMem.widthLR+j] =
+                bgResult.at<uchar>(j+m_scanSizeTB, k+m_scanSizeLR);
+            m_bordersMem.directions[2][(k+1)*bordersMem.widthLR+j]
+                = bgResult.at<uchar>(j+m_scanSizeTB, k+m_scanSizeLR+1);
+            // right
+            m_bordersMem.directions[3][k*m_bordersMem.widthLR+j] =
+                bgResult.at<uchar>(j+m_scanSizeTB, m_imgWidth-m_scanSizeLR-k-1);
+            m_bordersMem.directions[3][(k+1)*bordersMem.widthLR+j] =
+                bgResult.at<uchar>(j+m_scanSizeTB, m_imgWidth-m_scanSizeLR-(k+1)-1);
         }
     }
 
@@ -117,18 +126,18 @@ int BoundaryScan :: doErode()
         {
             for (int j = 0; j < width - 1; j++)
             {
-                m_directions[n][k*width + j] =
-                  m_directions[n][(k+1)*width + j] =
-                    m_directions[n][k*width + j]     &
-                    m_directions[n][(k+1)*width + j] &
-                    m_directions[n][k*width + j+1]   & 
-                    m_directions[n][(k+1)*width + j+1];
+                m_borderMem.directions[n][k*width + j] =
+                  m_borderMem.directions[n][(k+1)*width + j] =
+                    m_borderMem.directions[n][k*width + j]     &
+                    m_borderMem.directions[n][(k+1)*width + j] &
+                    m_borderMem.directions[n][k*width + j+1]   & 
+                    m_borderMem.directions[n][(k+1)*width + j+1];
                 if (j == width - M_ELEMENT_WIDTH)
-                    m_directions[n][k*width + j+1] =
-                        m_directions[n][(k+1)*width + j+1] =
-                            m_directions[n][k*width + j+1]   &
-                            m_directions[n][(k+1)*width + j+1];
-                //if (m_directions[n][k*width + j] == 0xFF)
+                    m_borderMem.directions[n][k*width + j+1] =
+                        m_borderMem.directions[n][(k+1)*width + j+1] =
+                            m_borderMem.directions[n][k*width + j+1]   &
+                            m_borderMem.directions[n][(k+1)*width + j+1];
+                //if (m_borderMem.directions[n][k*width + j] == 0xFF)
                 //    LogI("One point 255, x=%d, y=%d\n", j, k);
             }
         }
@@ -150,17 +159,17 @@ int BoundaryScan :: doDilate()
         {
             for (int j = 0; j < width - 1; j++)
             {
-                m_directions[n][k*width + j] =
-                  m_directions[n][(k+1)*width + j] =
-                    m_directions[n][k*width + j]     |
-                    m_directions[n][(k+1)*width + j] |
-                    m_directions[n][k*width + j+1]   | 
-                    m_directions[n][(k+1)*width + j+1];
+                m_borderMem.directions[n][k*width + j] =
+                  m_borderMem.directions[n][(k+1)*width + j] =
+                    m_borderMem.directions[n][k*width + j]     |
+                    m_borderMem.directions[n][(k+1)*width + j] |
+                    m_borderMem.directions[n][k*width + j+1]   | 
+                    m_borderMem.directions[n][(k+1)*width + j+1];
                 if (j == width - M_ELEMENT_WIDTH)
-                    m_directions[n][k*width + j+1] =
-                        m_directions[n][(k+1)*width + j+1] =
-                            m_directions[n][k*width + j+1]   |
-                            m_directions[n][(k+1)*width + j+1];
+                    m_borderMem.directions[n][k*width + j+1] =
+                        m_borderMem.directions[n][(k+1)*width + j+1] =
+                            m_borderMem.directions[n][k*width + j+1]   |
+                            m_borderMem.directions[n][(k+1)*width + j+1];
             }
         }
     }
@@ -181,13 +190,13 @@ int BoundaryScan :: scanBorders(FourBorders & lines)
         bool bStart = false;
         for (int k = 0; k < width; k++)
         {
-            if (bStart == false && m_directions[n][k] == 0xFF)
+            if (bStart == false && m_borderMem.directions[n][k] == 0xFF)
             {
                 bStart = true;
                 line.a.x = k;
                 line.a.y = 0;
             }
-            if (bStart == true && m_directions[n][k] != 0xFF)
+            if (bStart == true && m_borderMem.directions[n][k] != 0xFF)
             {
                 bStart = false;
                 line.b.x = k;

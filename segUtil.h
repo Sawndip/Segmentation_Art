@@ -12,7 +12,6 @@ using :: std :: tuple;
 
 namespace Seg_Three
 {
-
 //// Log Macros: Minimal Log Facility
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
                                    __FILE__, __LINE__, ##__VA_ARGS__)
@@ -31,6 +30,13 @@ struct SegResults
     cv::Rect m_curBox;
 };
 
+strutct BgResult
+{
+    cv::Mat * pMatData;
+    cv::Mat * pBorderMv;
+    
+};
+
 struct TDPoint
 {
     TDPoint() = default;
@@ -39,12 +45,22 @@ struct TDPoint
     int y;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////
+// Not a normal Line, it is with moving direction & status that pass to CompressiveTrack
 struct TDLine
 {
     TDLine() = default;
-    TDLine(const TDPoint & _a, const TDPoint & _b) : a(_a), b(_b) {}
+    TDLine(const TDPoint & _a, const TDPoint & _b)
+        : a(_a), b(_b)
+        , movingDirection(DIRECTION_UNKNOWN)
+        , movingStatus(MOVING_UNKNOWN)
+    {
+           
+    }
     TDPoint a;
     TDPoint b;
+    DIRECTION movingDirection;
+    MOVING_STATUS movingStatus;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -80,16 +96,27 @@ public:
     int m_skipT; // Top Bottome Left Right skip pixels  
     int m_skipB;
     int m_skipL;
-    int m_skipR;    
+    int m_skipR;
     int m_widthTB;
     int m_heightTB;
     int m_widthLR;
-    int m_heightLR;
+    int m_heightLR;    
     vector<TDLine> m_lines[4];
 };
 
-enum DIRECTION {TOP = 0, BOTTOM, RIGHT, LEFT, DIRECTION_NUM = 4, DIRECTION_UNKNOWN = 4};
-enum MOVING_STATUS {MOVING_IN = 0, MOVING_INSIDE, MOVING_STOP, MOVING_OUT, MOVING_UNKNOWN};
+enum {BORDER_NUM = 4};
+
+enum DIRECTION
+{
+    TOP = 0, BOTTOM, RIGHT, LEFT, CENTER,
+    DIRECTION_NUM = 5, DIRECTION_UNKNOWN = 5
+};
+
+enum MOVING_STATUS
+{
+    MOVING_IN = 0, MOVING_OUT, MOVING_INSIDE, MOVING_STOP, 
+    MOVING_UNKNOWN = 4
+};
 
 extern bool isYContainedBy(const TDLine & small, const TDLine & large);
 extern bool isXContainedBy(const TDLine & small, const TDLine & large);

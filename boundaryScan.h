@@ -26,55 +26,57 @@ class BoundaryScan
 public:
     BoundaryScan();
     ~BoundaryScan();
-    int init(const int width, const int height);
-    int processFrame(const cv::Mat & bgResult, FourBorders & lines);
+    int init(const int width, const int height
+             const int skipTB, const int skipLR,
+             const int scanSizeTB, const int scanSizeLR);
+    int processFrame(const BgResult & bgResult, FourBorders & lines);
 
 private: // inner classes
     class BordersMem
     {
     public:
-        BordersMem() : bInit(false), top(NULL), bottom(NULL), left(NULL),right(NULL) {};
+        BordersMem()
+        {
+            bzero(directions, sizeof(directions));
+        };
         ~BordersMem()
         {
-            if (top) delete [] top;
-            if (bottom) delete [] bottom;
-            if (left) delete [] left;
-            if (right) delete [] right;            
+            for (int k = 0; k < BORDER_NUM; k++)
+                if (directions[k])
+                    delete [] directions[k];
         }
         void init(const int _widthTB, const int _heightTB,
                   const int _widthLR, const int _heightLR)
         {
-            if (bInit == false)
-            {
-                widthTB = _widthTB;
-                heightTB = _heightTB;                
-                widthLR = _widthLR;
-                heightLR = _heightLR;                
-                top = new unsigned char[widthTB * heightTB];
-                bottom = new unsigned char[widthTB * heightTB];
-                left = new unsigned char[widthLR * heightLR];
-                right = new unsigned char[widthLR * heightLR];
-                bInit = true;
-            }
+            widthTB = _widthTB;
+            heightTB = _heightTB;                
+            widthLR = _widthLR;
+            heightLR = _heightLR;                
+            m_directions[0] = new unsigned char[widthTB * heightTB];
+            m_directions[1] = new unsigned char[widthTB * heightTB];
+            m_directions[2] = new unsigned char[widthLR * heightLR];
+            m_directions[3] = new unsigned char[widthLR * heightLR];
         }        
     public:
-        bool bInit;
         int widthTB;
         int widthLR;
         int heightTB;
-        int heightLR;        
-        unsigned char * top;
-        unsigned char * bottom;
-        unsigned char * left;        
-        unsigned char * right;
+        int heightLR;
+        // top bottom left right
+        unsigned char *m_directions[BORDER_NUM];        
     };
 
 private: // inner members
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
-    unsigned char *m_directions[DIRECTION_NUM];
+    int m_skipTB;
+    int m_skipLR;
+    int m_scanSizeTB;
+    int m_scanSizeLR;
+    
     BordersMem m_bordersMem;
+    int m_objIdx;
     static const int M_ELEMENT_WIDTH = 2;    
     static const int M_ELEMENT_HEIGHT = 2;
 

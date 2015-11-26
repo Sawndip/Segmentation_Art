@@ -38,7 +38,9 @@ class SegControl
 public:
     SegControl();
     ~SegControl();
-    int init(const int width, const int height);
+    int init(const int width, const int height,
+             const int skipTB, const int skipLR,
+             const int scanBorderSizeTB, const int scanBorderSizeLR);
     // read frame in and deliver to proper members
     int processFrame(const cv::Mat & in,
                      vector<SegResults> & segResults,
@@ -50,6 +52,11 @@ private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
+    int m_skipTB;
+    int m_skipLR;
+    int m_scanBorderSizeTB;
+    int m_scanBorderSizeLR;
+    
     // key members    
     ThreeDiff m_threeDiff;
     BoundaryScan m_boundaryScan;    
