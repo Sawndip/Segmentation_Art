@@ -89,7 +89,7 @@ int main(int argc, char * argv[])
             {
                 putText(binaryFrame, intToString(segResults[k].m_objIdx),
                         cvPoint(segResults[k].m_curBox.x, segResults[k].m_curBox.y),
-                        2, 1, CV_RGB(25,200,25));
+                        1, 1, CV_RGB(25,200,25));
                 rectangle(binaryFrame, segResults[k].m_curBox, Scalar(200,0,0), 2);
             }
 

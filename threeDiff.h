@@ -66,13 +66,13 @@ private:
 
 private: // inner helpers
     // 1. important ones
-    int doUpdateContourTracking(const cv::Mat in, const cv::Mat & bgResult,
+    int doUpdateContourTracking(const cv::Mat in, const BgResult & bgResult,
                                 FourBorders & curFourLines,
                                 vector<SegResults> & segResults);
-    int doCreateNewContourTrack(const cv::Mat & in, const cv::Mat & bgResult,
+    int doCreateNewContourTrack(const cv::Mat & in, const BgResult & bgResult,
                                 FourBorders & lines3,
                                 vector<SegResults> & segResults);
-    int updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
+    int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult,
                                    const FourBorders & lines3);
     int kickOverlapPoints(const cv::Rect & box,
                           FourBorders & curFourLines, const DIRECTION direction);

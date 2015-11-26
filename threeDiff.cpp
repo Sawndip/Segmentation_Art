@@ -30,7 +30,7 @@ int ThreeDiff :: init(const int width, const int height)
         // cache part
         m_curFrontIdx = 0;
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_bgResults[k].create(height, width, CV_8UC1); // gray
+            m_bgResults[k].binaryData.create(height, width, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
             m_diffAndResults[k].create(height, width, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
@@ -74,7 +74,8 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
         //copyLines(curFourLines, m_crossLines[m_inputFrames-1]);
         if (m_inputFrames > 1)
         {   
-            doBgDiff(m_bgResults[m_inputFrames-1], m_bgResults[m_inputFrames-2]);
+            doBgDiff(m_bgResults[m_inputFrames-1].binaryData,
+                     m_bgResults[m_inputFrames-2].binaryData);
             m_curFrontIdx++;
             if (m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0)
                 m_curFrontIdx = 0;
@@ -83,7 +84,7 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     }
     
     // 1. do diff in RGB for Contour's using.
-    doBgDiff(bgResult, m_bgResults[m_curFrontIdx]);
+    doBgDiff(bgResult.binaryData, m_bgResults[m_curFrontIdx].binaryData);
     // 2. fill the 'outs' with 'lines', 'diffResult', 'simplified optical flow' 
     doUpdateContourTracking(in, bgResult, curFourLines, segResults);   
     // 3. do boundary check for creating new Contour.
@@ -115,7 +116,7 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 //     >= 0, process ok;
 //     < 0, process error;
 // ***************************************************************************************
-int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const cv::Mat & bgResult,
+int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const BgResult & bgResult,
                                          FourBorders & curFourLines,
                                          vector<SegResults> & segResults)
 {
@@ -166,7 +167,7 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const cv::Mat & bgRes
 //     < 0, process error;
 // *****************************************************************************    
 int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
-                                         const cv::Mat & bgResult,
+                                         const BgResult & bgResult,
                                          FourBorders & lines3,
                                          vector<SegResults> & segResults)
 {
@@ -280,7 +281,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
     return 0;
 }
 
-int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const cv::Mat & bgResult,
+int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult,
                                             const FourBorders & lines3)
 { 
     // diff, in, bgResult, crossLines

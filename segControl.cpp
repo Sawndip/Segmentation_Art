@@ -37,12 +37,12 @@ int SegControl :: init(const int width, const int height,
     ret = m_threeDiff.init(width, height);
     assert(ret >= 0);
     // 3. bgResults
-    m_bgResults.binaryData.create(height, width, CV_8UC1);
+    m_bgResult.binaryData.create(height, width, CV_8UC1);
     // top bottom left right
-    m_bgResults.angles[0].resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResults.angles[1].resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResults.angles[0].resize((height - 2*skipTB)*scanSizeLR);
-    m_bgResults.angles[1].resize((height - 2*skipTB)*scanSizeLR);    
+    m_bgResult.angles[0].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.angles[1].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.angles[0].resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.angles[1].resize((height - 2*skipTB)*scanSizeLR);    
     return 0;
 }
 
@@ -59,9 +59,9 @@ int SegControl :: processFrame(const cv::Mat & in,
         // four directions
         FourBorders possibleBorders(m_imgWidth-2*m_skipLR, m_scanSizeTB,
                                        m_imgHeight-2*m_skipTB, m_scanSizeLR);
-        m_boundaryScan.processFrame(bgResult, possibleBorders);
+        m_boundaryScan.processFrame(m_bgResult, possibleBorders);
         // update boundary or add new contourTrack
-        ret = m_threeDiff.processFrame(in, bgResult, possibleBorders, segResults);
+        ret = m_threeDiff.processFrame(in, m_bgResult, possibleBorders, segResults);
     }
     return ret;
 }

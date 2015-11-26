@@ -31,7 +31,7 @@ public:
                  const int possibleWidth, const int possibleHeight);
     ~ContourTrack();
     // 1. important ones
-    int processFrame(const cv::Mat & in, const cv::Mat & bgResult,
+    int processFrame(const cv::Mat & in, const BgResult & bgResult,
                      const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int flushFrame();
     
@@ -73,7 +73,7 @@ private:
     static const int m_halfChangingValue = 20;
 
 private: // inner helpers
-    int updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
+    int updateTrackerUsingDiff(const cv::Mat & in, const BgResult & bgResult,
                                const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box);
     // trival ones

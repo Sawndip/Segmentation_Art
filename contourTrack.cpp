@@ -29,11 +29,11 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     // 1. calculate the size changing function.
     // take as function: y = a1x + b1 & y = a2x + b2,
     // with x=0, y=1; x=20, y=0.5, x=imgWidth, y=0;
-    m_a1 = -0.5 / halfChangingValue;
+    m_a1 = -0.5 / m_halfChangingValue;
     m_b1 = 1.0;
-    m_a2w = 0.5 / (halfChangingValue - width);
+    m_a2w = 0.5 / (m_halfChangingValue - width);
     m_a2w = -m_a2w * width;
-    m_a2h = 0.5 / (halfChangingValue - height);
+    m_a2h = 0.5 / (m_halfChangingValue - height);
     m_a2h = -m_a2h * height;
     
     // 2. compressive tracker part.
@@ -53,26 +53,30 @@ ContourTrack :: ~ContourTrack()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs    
-int ContourTrack :: processFrame(const cv::Mat & in, const cv::Mat & bgResult,
+int ContourTrack :: processFrame(const cv::Mat & in, const BgResult & bgResult,
                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
     // Process frame using compressive tracker.
     m_lastBox = m_curBox;
     int ret = m_ctTracker->processFrame(in, m_curBox);
     if (ret < 0)
+    {
         LogW("Compressive Tracker do warning a failing track.\n.");
+        // TODO: how to do update, left directons ?
+        return 1;
+    }
     else
     {
         // re-calculate the m_curBox area,
         // also update the inner status of the object, such as bAllIn, bAllOut
-        updateTrackerUsingDiff(in, bgResult, diffAnd, diffOr);
+        ret = updateTrackerUsingDiff(in, bgResult, diffAnd, diffOr);
         // TODO: PXT: fix following reallocateiong.
         // prepare for the next processFrame call.
         delete m_ctTracker;
         m_ctTracker = new CompressiveTracker();
         m_ctTracker->init(in, m_curBox);
     }
-    return 0;
+    return ret;
 }
     
 int ContourTrack :: flushFrame()
@@ -86,7 +90,7 @@ int ContourTrack :: flushFrame()
 
 // 1. when do re-calc the curBox, we tend to get it a little bigger.
 // 2. then we use diffOrResult & curMaxChangeSize to limit the expand of the box size.
-int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & bgResult,
+int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const BgResult & bgResult,
                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
 { 
     int ret = 0;
@@ -111,7 +115,7 @@ int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & b
     // a). shrink the max box using 'diffOr' to get the possible maxium box.
     doShrinkBoxUsingImage(diffOr, maxBox);
     // b). then shrink the max box using new bgResult
-    doShrinkBoxUsingImage(bgResult, maxBox);    
+    doShrinkBoxUsingImage(bgResult.binaryData, maxBox);    
     // c). calculate the minimal area that needed.
     cv::Rect minBox = calcOverlapArea(m_lastBox, m_curBox);
     // make the max box at least contain the min box.
@@ -129,25 +133,19 @@ int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const cv::Mat & b
     {
         if (m_curBox.x >= 2 && m_curBox.x + m_curBox.width < m_imgWidth &&
             m_curBox.y >= 2 && m_curBox.y + m_curBox.height < m_imgHeight )
-        {
             m_bAllIn = true;
-            m_bOutputRegion = true;
-        }
     }
-    else
+
+    // TODO: PXT: Bug here, could leave from topleft or topright, namely the corner, but
+    // we cannot deal with this situation, may fix it later after do some tests.
+    if (m_curBox.width <= 4 || m_curBox.height <= 4)
     {
-        m_bOutputRegion = false; // we have already output it at least once.
-        // TODO: PXT: Bug here, could leave from topleft or topright, namely the corner, but
-        // we cannot deal with this situation, may fix it later after do some tests.
-        if (m_curBox.width <= 4 || m_curBox.height <= 4)
-        {
-            m_bAllOut = true;
-            ret = 1;
-            if (m_curBox.x < 4) m_outDirection = LEFT;
-            if (m_imgWidth - m_curBox.x - m_curBox.width < 4) m_outDirection = RIGHT;
-            if (m_curBox.y < 4) m_outDirection = TOP;
-            if (m_imgHeight - m_curBox.y - m_curBox.height < 4) m_outDirection = BOTTOM;
-        }
+        m_bAllOut = true;
+        ret = 1;
+        if (m_curBox.x < 4) m_outDirection = LEFT;
+        if (m_imgWidth - m_curBox.x - m_curBox.width < 4) m_outDirection = RIGHT;
+        if (m_curBox.y < 4) m_outDirection = TOP;
+        if (m_imgHeight - m_curBox.y - m_curBox.height < 4) m_outDirection = BOTTOM;
     }
         
     return ret;
@@ -251,7 +249,8 @@ int ContourTrack :: curMaxChangeSize(int & x, int & y)
 
     x = (int)round(m_lastBox.width * xRate);
     y = (int)round(m_lastBox.height * yRate);
-    assert(x >= 0 && y >= 0);
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
     return 0;
 }
 

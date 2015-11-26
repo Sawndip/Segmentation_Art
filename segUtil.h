@@ -49,8 +49,10 @@ struct SegResults
 
 struct BgResult
 {   // TODO: PXT: the four corner share the same mv? how do we deal with that?
-    cv::Mat binaryData;
-    vector<double> angles[BORDER_NUM];
+    BgResult()
+    {
+        angles.resize(BORDER_NUM);
+    }
     // copy assignment
     BgResult & operator=(const BgResult & result)
     {
@@ -59,6 +61,10 @@ struct BgResult
             angles[k] = result.angles[k];
         return *this;
     }
+    // members
+    cv::Mat binaryData;
+    // top, bottom, left, right. each border's size should be initialized properly by user.
+    vector<vector<double> > angles;
 };
 
 struct TDPoint
