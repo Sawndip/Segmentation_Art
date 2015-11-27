@@ -39,10 +39,14 @@ int SegControl :: init(const int width, const int height,
     // 3. bgResults
     m_bgResult.binaryData.create(height, width, CV_8UC1);
     // top bottom left right
-    m_bgResult.angles[0].resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResult.angles[1].resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResult.angles[0].resize((height - 2*skipTB)*scanSizeLR);
-    m_bgResult.angles[1].resize((height - 2*skipTB)*scanSizeLR);    
+    m_bgResult.xMvs.resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.xMvs.resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.xMvs.resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.xMvs.resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.yMvs.resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.yMvs.resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.yMvs.resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.yMvs.resize((height - 2*skipTB)*scanSizeLR);    
     return 0;
 }
 
@@ -52,16 +56,16 @@ int SegControl :: processFrame(const cv::Mat & in,
                                vector<SegResults> & segResults)
 {   
     int ret = -1;
-    ret = m_segBg.processFrame(in, m_bgResult.binaryData, m_bgResult.angles);
+    // 1. fill the m_bgResult's binaryData/mvs by opticalFlow detection.
+    ret = m_segBg.processFrame(in, m_bgResult.binaryData,
+                               m_bgResult.xMvs, m_bgResult.yMvs);
     assert(ret >= 0);
     if (ret > 0) // got a frame
-    {    
-        // four directions
-        FourBorders possibleBorders(m_imgWidth-2*m_skipLR, m_scanSizeTB,
-                                       m_imgHeight-2*m_skipTB, m_scanSizeLR);
-        m_boundaryScan.processFrame(m_bgResult, possibleBorders);
-        // update boundary or add new contourTrack
-        ret = m_threeDiff.processFrame(in, m_bgResult, possibleBorders, segResults);
+    {   // 2. Fill the m_bgResult's four lines info by do simple erode & dilate on binaryData.
+        //    Do pre-merge short-lines that we are sure they are the same objects.
+        m_boundaryScan.processFrame(m_bgResult);
+        // 3. all other stuff are doing by this call. Details are described in ThreeDiff class.
+        ret = m_threeDiff.processFrame(in, m_bgResult, segResults);
     }
     return ret;
 }

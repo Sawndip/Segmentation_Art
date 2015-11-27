@@ -40,7 +40,6 @@ public:
     int init(const int width, const int height);
     int processFrame(const cv::Mat & in,
                      const BgResult & bgResult,
-                     FourBorders & curFourLines,
                      vector<SegResults> & segResults);    
     int flushFrame(vector<SegResults> & segResults);
     
@@ -58,7 +57,6 @@ private:
     cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];
     // background binary data & border mv angle
     BgResult m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
-    FourBorders m_crossLines[M_THREE_DIFF_CACHE_FRAMES];    
 
     // 3. contourTrack part (using compressiveTracker, then do postprocess with diffResults)
     int m_objIdx;
@@ -67,15 +65,11 @@ private:
 private: // inner helpers
     // 1. important ones
     int doUpdateContourTracking(const cv::Mat in, const BgResult & bgResult,
-                                FourBorders & curFourLines,
                                 vector<SegResults> & segResults);
     int doCreateNewContourTrack(const cv::Mat & in, const BgResult & bgResult,
-                                FourBorders & lines3,
                                 vector<SegResults> & segResults);
-    int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult,
-                                   const FourBorders & lines3);
-    int kickOverlapPoints(const cv::Rect & box,
-                          FourBorders & curFourLines, const DIRECTION direction);
+    int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);
+    int kickOverlapPoints(const cv::Rect & box, const DIRECTION direction);
     
     // 2. trival ones
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);

@@ -3,6 +3,7 @@
 
 #include <tuple>
 #include <vector>
+#include <math.h>
 // tools - just using Mat
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -47,26 +48,6 @@ struct SegResults
     cv::Rect m_curBox;
 };
 
-struct BgResult
-{   // TODO: PXT: the four corner share the same mv? how do we deal with that?
-    BgResult()
-    {
-        angles.resize(BORDER_NUM);
-    }
-    // copy assignment
-    BgResult & operator=(const BgResult & result)
-    {
-        result.binaryData.copyTo(binaryData);
-        for (int k=0; k < BORDER_NUM; k++)
-            angles[k] = result.angles[k];
-        return *this;
-    }
-    // members
-    cv::Mat binaryData;
-    // top, bottom, left, right. each border's size should be initialized properly by user.
-    vector<vector<double> > angles;
-};
-
 struct TDPoint
 {
     TDPoint() = default;
@@ -94,38 +75,43 @@ struct TDLine
     TDPoint b;
     DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
+    inline int getXLength() {return abs(a.x - b.x);}
+    inline int getYLength() {return abs(a.y - b.y);}
+    inline double getLength()
+    {
+        return sqrt(getXLength()*getXLength() + getYLength()*getYLength());
+    }
 };
 
-//////////////////////////////////////////////////////////////////////////////////////////
-class FourBorders
-{
-public:
-    FourBorders() = default;
-    FourBorders(const int widthTB, const int widthLR)
+// BgResult composes with two parts:
+// 1. optical flow will fill binaryData & angles(mv);
+// 2. boundary scan will fill lines(object cross the lines)
+struct BgResult
+{   // TODO: PXT: the four corner share the same mv? how do we deal with that?
+    BgResult()
     {
-        init(widthTB, 2, widthLR, 2);
+        xMvs.resize(BORDER_NUM);
+        yMvs.resize(BORDER_NUM);
     }
-    FourBorders(const int widthTB, const int heightTB, const int widthLR, const int heightLR)
+    // copy assignment
+    BgResult & operator=(const BgResult & result)
     {
-        init(widthTB, heightTB, widthLR, heightLR);
+        result.binaryData.copyTo(binaryData);
+        for (int k=0; k < BORDER_NUM; k++)
+        {
+            xMvs[k] = result.xMvs[k];
+            yMvs[k] = result.yMvs[k];
+            lines[k] = result.lines[k];            
+        }
+        return *this;
     }
-
-private:
-    int init(const int widthTB, const int heightTB, const int widthLR, const int heightLR)
-    {
-        m_widthTB = widthTB;
-        m_heightTB = heightTB;
-        m_widthLR = widthLR;
-        m_heightLR = heightLR;
-        return 0;
-    }
-    
-public:
-    int m_widthTB;
-    int m_heightTB;
-    int m_widthLR;
-    int m_heightLR;    
-    vector<TDLine> m_lines[4];
+    // members
+    cv::Mat binaryData;
+    // 1. top, bottom, left, right. each border's size should be initialized properly by user.
+    // 2. its size should be exactly the same as FourBorder's m_lines
+    vector<vector<double> > xMvs; // actually the same as lines, its size is BORDER_NUM=4.
+    vector<vector<double> > yMvs; 
+    vector<TDLine> lines[BORDER_NUM];
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////

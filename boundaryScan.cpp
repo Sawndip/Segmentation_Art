@@ -45,7 +45,7 @@ args:
    lines: output result, the foreground lines that just in borders
 return:   
 ****************************************************************************/
-int BoundaryScan :: processFrame(const BgResult & bgResult, FourBorders & lines)
+int BoundaryScan :: processFrame(const BgResult & bgResult)
 {
     m_inputFrames++;
     // 0. prepare
@@ -79,25 +79,17 @@ int BoundaryScan :: processFrame(const BgResult & bgResult, FourBorders & lines)
     }
 
     // 2. we do open / close: seems for simplified erode/dilate, just open is ok.    
-    for (int k = 0; k < 2; k++)
+    // for (int k = 0; k < 2; k++)
     {   // oepn: erode then dilate
         doErode();
         doDilate();            
         // close: dilate then erode
-        doDilate();
-        doErode();
-    }
-    // make the close enough part connected
-    for (int k = 0; k < 2; k++)
-    {   
-        doDilate();
-        doDilate();
-        doErode();
-        doErode();
+        doDilate(2);
+        doErode(2);
     }
     
-    // 3. scan the border, get the TDPoint of the lines
-    scanBorders(lines);
+    // 3. scan the border, get the TDPoint of the lines & merge short-lines
+    scanBorders(bgResult);
     return 0;
 }
 
@@ -105,75 +97,81 @@ int BoundaryScan :: processFrame(const BgResult & bgResult, FourBorders & lines)
 //// Internal Helpers
 
 //simplified Erode/dilate
-int BoundaryScan :: doErode()
+int BoundaryScan :: doErode(const int times)
 {
     // NOTE: following code just deal with 2x2 window! Be aware of it.
-    int width = m_bordersMem.widthTB, height = m_bordersMem.heightTB;
-    for (int n = 0; n < 4; n++)
-    {   // note k = k + M_ELEMENT_HEIGHT
-        if (n >= 2)
-        {
-            width = m_bordersMem.widthLR;            
-            height = m_bordersMem.heightLR;
-        }
-
-        for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
-        {
-            for (int j = 0; j < width - 1; j++)
+    for (int t = 0; t < times; t++)
+    {
+        int width = m_bordersMem.widthTB, height = m_bordersMem.heightTB;
+        for (int n = 0; n < 4; n++)
+        {   // note k = k + M_ELEMENT_HEIGHT
+            if (n >= 2)
             {
-                m_bordersMem.directions[n][k*width + j] =
-                  m_bordersMem.directions[n][(k+1)*width + j] =
-                    m_bordersMem.directions[n][k*width + j]     &
-                    m_bordersMem.directions[n][(k+1)*width + j] &
-                    m_bordersMem.directions[n][k*width + j+1]   & 
-                    m_bordersMem.directions[n][(k+1)*width + j+1];
-                if (j == width - M_ELEMENT_WIDTH)
-                    m_bordersMem.directions[n][k*width + j+1] =
-                        m_bordersMem.directions[n][(k+1)*width + j+1] =
-                            m_bordersMem.directions[n][k*width + j+1]   &
-                            m_bordersMem.directions[n][(k+1)*width + j+1];
-                //if (m_bordersMem.directions[n][k*width + j] == 0xFF)
-                //    LogI("One point 255, x=%d, y=%d\n", j, k);
+                width = m_bordersMem.widthLR;            
+                height = m_bordersMem.heightLR;
             }
-        }
-    }    
-    return 0;
-}
-
-int BoundaryScan :: doDilate()
-{
-    int width = m_bordersMem.widthTB, height = m_bordersMem.heightTB;
-    for (int n = 0; n < 4; n++)
-    {   // note k = k + M_ELEMENT_HEIGHT
-        if (n >= 2)
-        {
-            height = m_bordersMem.heightLR;
-            width = m_bordersMem.widthLR;
-        }
-        for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
-        {
-            for (int j = 0; j < width - 1; j++)
+         
+            for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
             {
-                m_bordersMem.directions[n][k*width + j] =
-                  m_bordersMem.directions[n][(k+1)*width + j] =
-                    m_bordersMem.directions[n][k*width + j]     |
-                    m_bordersMem.directions[n][(k+1)*width + j] |
-                    m_bordersMem.directions[n][k*width + j+1]   | 
-                    m_bordersMem.directions[n][(k+1)*width + j+1];
-                if (j == width - M_ELEMENT_WIDTH)
-                    m_bordersMem.directions[n][k*width + j+1] =
-                        m_bordersMem.directions[n][(k+1)*width + j+1] =
-                            m_bordersMem.directions[n][k*width + j+1]   |
-                            m_bordersMem.directions[n][(k+1)*width + j+1];
+                for (int j = 0; j < width - 1; j++)
+                {
+                    m_bordersMem.directions[n][k*width + j] =
+                      m_bordersMem.directions[n][(k+1)*width + j] =
+                        m_bordersMem.directions[n][k*width + j]     &
+                        m_bordersMem.directions[n][(k+1)*width + j] &
+                        m_bordersMem.directions[n][k*width + j+1]   & 
+                        m_bordersMem.directions[n][(k+1)*width + j+1];
+                    if (j == width - M_ELEMENT_WIDTH)
+                        m_bordersMem.directions[n][k*width + j+1] =
+                            m_bordersMem.directions[n][(k+1)*width + j+1] =
+                                m_bordersMem.directions[n][k*width + j+1]   &
+                                m_bordersMem.directions[n][(k+1)*width + j+1];
+                    //if (m_bordersMem.directions[n][k*width + j] == 0xFF)
+                    //    LogI("One point 255, x=%d, y=%d\n", j, k);
+                }
             }
         }
     }
     return 0;
 }
 
-int BoundaryScan :: scanBorders(FourBorders & lines)
+int BoundaryScan :: doDilate(const int times)
 {
-    // we get borders with erode/dilate, then we get the foreground lines.
+    for (int t = 0; t < times; t++)
+    {
+        int width = m_bordersMem.widthTB, height = m_bordersMem.heightTB;        
+        for (int n = 0; n < 4; n++)
+        {   // note k = k + M_ELEMENT_HEIGHT
+            if (n >= 2)
+            {
+                height = m_bordersMem.heightLR;
+                width = m_bordersMem.widthLR;
+            }
+            for (int k = 0; k < height; k+=M_ELEMENT_HEIGHT)
+            {
+                for (int j = 0; j < width - 1; j++)
+                {
+                    m_bordersMem.directions[n][k*width + j] =
+                      m_bordersMem.directions[n][(k+1)*width + j] =
+                        m_bordersMem.directions[n][k*width + j]     |
+                        m_bordersMem.directions[n][(k+1)*width + j] |
+                        m_bordersMem.directions[n][k*width + j+1]   | 
+                        m_bordersMem.directions[n][(k+1)*width + j+1];
+                    if (j == width - M_ELEMENT_WIDTH)
+                        m_bordersMem.directions[n][k*width + j+1] =
+                            m_bordersMem.directions[n][(k+1)*width + j+1] =
+                                m_bordersMem.directions[n][k*width + j+1]   |
+                                m_bordersMem.directions[n][(k+1)*width + j+1];
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+int BoundaryScan :: scanBorders(BgResult & bgResult)
+{
+    // we get borders with erode/dilate, then we get the foreground bgResult.lines.
     LogI("Scan the border.\n");
     int width = m_bordersMem.widthTB;
     for (int n = 0; n < 4; n++)
@@ -196,26 +194,70 @@ int BoundaryScan :: scanBorders(FourBorders & lines)
                 bStart = false;
                 line.b.x = k;
                 line.b.y = 0;
-                if (line.b.x - line.a.x >= 4)
-                    lines.m_lines[n].push_back(line);
+                bgResult.lines[n].push_back(line);
                 LogI("Get One Line: n-%d, %d to %d\n", n, line.a.x, line.b.x);
                 bStart = false;
             }
         }
-        // for these are close enough lines, we merge them. Big chance they are the same object.
-        // mergeLines(lines.m_lines[n]);
+        // for these are close enough bgResult.lines, we merge them.
+        // Big chance they are the same object.
+        premergeLines(bgResult, n);
     }
     return 0;
 }
 
-//int BoundaryScan :: mergeLines(vector<TDLine> & lines)
-//{
-//    for (auto it = lines.begin(); it != lines.end(); /*No Increse Here*/)
-//    {
-//        
-// 
-//    }
-//    return 0;
-//}
+// 1. merge short-lines that we can be sure they are parts of the same objects.
+// 2. For lines we process here are lines with no overlap, namely, l1.b.x < l2.a.x.
+//    So we can make use of this property. 
+int BoundaryScan :: premergeLines(BgResult & bgResult, const int index)
+{
+    vector<TDLine> & lines = bgResult.lines[index];
+    if (lines.size() < 2) // no need merging
+        return 0;
+
+    vector<double> & xMvs = bgResult.xMvs[index];
+    vector<double> & yMvs = bgResult.yMvs[index];    
+    
+    for (auto it = lines.begin(); it != lines.end(); /*No increment*/)
+    {
+        auto nextIt = it + 1;
+        if (nextIt == line.end())
+            break;
+        else
+        {
+            if (canLinesBeMerged(*it, *nextIt, xMvs, yMvs) == true)
+            {
+                nextIt->a = it->a;
+                lines.erase(it);
+            }
+            else
+                it++;
+        }
+    }
+    return 0;
+}
+
+// using mvs & also the line's x direction distance    
+// if 1. xDistance is less than 2% of the imgWidth + imgHeight
+//    2. xDistance is less than 20% of the 'line1's length + line2's length'
+//    3. mvs are quit close (angle less than 10 degree): weight 60;
+// then we can merge this two lines.    
+bool BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2,
+                                      const vector<double> & xMvs,
+                                      const vector<double> & yMvs)
+{
+    assert(l1.b.x < l2.a.x); // end's point < start's point.
+    const int xDistance = l2.a.x - l1.b.x;
+    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.02)
+        return false;
+    const int line1len = l1.b.x - l1.a.x;
+    const int line2len = l2.b.x - l2.a.x;    
+    if (1.0 * xDistance / (line1len + line2len) > 0.2)
+        return false;
+    
+    if ()
+    
+    return true;
+}
     
 } // namespace Seg_Three

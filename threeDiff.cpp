@@ -62,7 +62,6 @@ int ThreeDiff :: init(const int width, const int height)
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
                               const BgResult & bgResult,
-                              FourBorders & curFourLines,
                               vector<SegResults> & segResults)
 {
     m_inputFrames++;
@@ -117,7 +116,6 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 //     < 0, process error;
 // ***************************************************************************************
 int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const BgResult & bgResult,
-                                         FourBorders & curFourLines,
                                          vector<SegResults> & segResults)
 {
     if (m_trackers.size() == 0)
@@ -168,7 +166,6 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const BgResult & bgRe
 // *****************************************************************************    
 int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
                                          const BgResult & bgResult,
-                                         FourBorders & lines3,
                                          vector<SegResults> & segResults)
 {
     // check the three lines, do 'AND' operation
@@ -281,8 +278,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
     return 0;
 }
 
-int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult,
-                                            const FourBorders & lines3)
+int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult)
 { 
     // diff, in, bgResult, crossLines
     m_curFrontIdx++;
@@ -310,8 +306,7 @@ int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
 
 // if an object is just entering the border, we should kick out boundary scan's points
 // that inside object's area.
-int ThreeDiff :: kickOverlapPoints(const cv::Rect & box,
-                                   FourBorders & curFourLines, const DIRECTION direction)
+int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const DIRECTION direction)
 {
     TDPoint start;
     TDPoint end;

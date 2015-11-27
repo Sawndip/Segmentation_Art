@@ -29,7 +29,7 @@ public:
     int init(const int width, const int height,
              const int skipTB, const int skipLR,
              const int scanSizeTB, const int scanSizeLR);
-    int processFrame(const BgResult & bgResult, FourBorders & lines);
+    int processFrame(const BgResult & bgResult);
 
 private: // inner classes
     class BordersMem
@@ -81,9 +81,10 @@ private: // inner members
     static const int M_ELEMENT_HEIGHT = 2;
 
 private: // inner helpers
-    int doErode();
-    int doDilate();
-    int scanBorders(FourBorders & lines);
+    int doErode(const int times = 1);
+    int doDilate(const int times = 1);
+    int scanBorders(BgResult & bgResult);
+    int premergeLines(BgResult & bgResult, const int index);
 };
 
 } // namespace Seg_Three
