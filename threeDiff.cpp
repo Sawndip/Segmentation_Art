@@ -1,4 +1,5 @@
 #include <algorithm> // std::sort
+#include <tuple> 
 #include "threeDiff.h"
 
 using namespace cv;
@@ -162,29 +163,86 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
 //     >= 0, process ok;
 //     < 0, process error;
 // *****************************************************************************    
-int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
-                                         BgResult & bgResult,
+int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                          vector<SegResults> & segResults)
 {
     const int oldIdx = (m_curFrontIdx - 1) < 0 ?
-                          M_THREE_DIFF_CACHE_FRAMES - 1 : m_curFrontIdx - 1;
-
+                        M_THREE_DIFF_CACHE_FRAMES - 1 : m_curFrontIdx - 1;
     // 1. some inLine already be marked as bTrace, so we should first get those Lines out.
-    vector<vector<int> > skipIdxs(BORDER_NUM);
-    for (int idx=0; idx < BORDER_NUM; idx++)
+    vector<tuple<int, int> > creates; // the (bdNum, index) tuple
+    for (int bdNum=0; bdNum < BORDER_NUM; bdNum++)
+        for (int k = 0; k < (int)bgResult.lines[bdNum].size(); k++)
+            if (bgResult.lines[bdNum][k].bTraced == false)
+                if (markCloseLine(bgResult.lines[bdNum][k],
+                                  m_bgResults[oldIdx].lines[bdNum],
+                                  m_bgResults[m_curFrontIdx].lines[bdNum]) > 0)
+                    creates.push_back(std::make_tuple(bdNum, k));
+
+    // 2. now we get the cross lines stand fro new objects, so we just create them.
+    for (int k=0; k < (int)creates.size(); k++)
     {
-        for (int k = 0; k < (int) bgResult.lines[idx].size(); k++)
+        const int borderDirection = std::get<0>(creates[k]);
+        assert(borderDirection >= 0 && borderDirection < 4);
+        const int lineIdx = std::get<1>(creates[k]);
+        TDLine & theLine = bgResult.lines[borderDirection][lineIdx];
+        
+        // 1). we calculate the lux/luy, possible width/height
+        int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
+        switch(borderDirection)
         {
-            if (bgResult.lines[n][k].bTraced == false)
-                markCloseLine(bgResult.lines[n][k],
-                              m_bgResults[oldIdx].lines[idx],
-                              m_bgResults[m_curFrontIdx].lines[idx]);
+        case 0: // top: enlarge width 4 pixels, each side with 2.
+            lux = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
+            luy = 0;
+            possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
+                                        m_imgWidth : theLine.b.x + 2 - lux;
+            possibleHeight = 8; // make it 8 pixels for all newly created Rect
+            break;                    
+        case 1: // bottom
+            possibleHeight = 8; 
+            lux = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
+            luy = m_imgHeight - possibleHeight;
+            possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
+                                        m_imgWidth : theLine.b.x + 2 - lux;
+            break;                    
+        case 2: // left
+            lux = 0;
+            luy = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
+            possibleWidth = 8;
+            possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
+                                        m_imgHeight : theLine.b.x + 2 - luy;
+            break;                    
+        case 3: // right
+            possibleWidth = 8;            
+            lux = m_imgWidth - possibleWidth;
+            luy = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
+            possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
+                                         m_imgHeight : theLine.b.x + 2 - luy;
+            break;
+        default:
+            LogE("impossible to happen, border direction: %d.\n", borderDirection);
+            break;
         }
+        // 2). now we create the tracker.
+        ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
+                                                m_imgWidth, m_imgHeight,
+                                                k, lux, luy,
+                                                possibleWidth, possibleHeight);
+        m_trackers.push_back(pTrack);
+        // 3). we ouptput the newly created Segmentation. 
+        SegResults sr;
+        sr.m_objIdx = m_objIdx;
+        sr.m_bOutForRecognize = false;
+        sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
+        m_objIdx++;
+        segResults.push_back(sr);
     }
+    
+    return 0;
 }
 
 int ThreeDiff :: markCloseLine(TDLine & inLine,
-                               vector<TDLine> & cacheLines1, vector<TDLine> & cacheLines2)
+                               vector<TDLine> & cacheLines1,
+                               vector<TDLine> & cacheLines2)
 {
     // 1) very close of start/end points   ---\ then take as close lines.
     // 2) they are movingAngle is similar  ---/
@@ -195,11 +253,12 @@ int ThreeDiff :: markCloseLine(TDLine & inLine,
 
     if (pClose1 != NULL && pClose2 != NULL)
     {   // may find new, still need to check their scores.
-        if ((score1 + score2) / 2 > 60.0)
+        if ((score1 + score2) / 2 > 60.0) // || score2 > 85) // score1 is the oldest line
         {
             pClose1->bTraced = true;
             pClose2->bTraced = true;
             inLine.bTraced = true;
+            return 1; // NOTE: return here.
         }
     }
     return 0;
@@ -225,7 +284,7 @@ double ThreeDiff :: calcCloseLineScore(TDLine & inLine,
             distance = abs(cacheLines[k].b.x - inLine.b.x);
             score += distance > 100 ? -10 : ((-0.25) * distance + 25);
             // moving angle: y = (-100/PI)x + 50 & y = (100/PI)x - 150
-            const double diffAngle = fabs(cacheLines[k] - inLine.movingAngle);
+            const double diffAngle = fabs(cacheLines[k].movingAngle - inLine.movingAngle);
             if (diffAngle <= M_PI)
                 score += (-100.0 / M_PI) * diffAngle + 50;
             else
@@ -237,115 +296,13 @@ double ThreeDiff :: calcCloseLineScore(TDLine & inLine,
             }
         }
     }
+
     return maxScore;
-}
-
-    for (int k=0; k < BORDER_NUM; k++)
-    {
-        // 1. first we kick out unlikely Points in lines1
-        vector<int> starts;
-        vector<int> ends;
-        for (int j = 0; j < (int)lines1.m_lines[k].size(); j++)
-        {
-            starts.push_back(lines1.m_lines[k][j].a.x);
-            ends.push_back(lines1.m_lines[k][j].b.x);            
-        }           
-        for (int j = 0; j < (int)lines2.m_lines[k].size(); j++)
-        {
-            starts.push_back(lines2.m_lines[k][j].a.x);
-            ends.push_back(lines2.m_lines[k][j].b.x);            
-        }           
-        for (int j = 0; j < (int)lines3.m_lines[k].size(); j++)
-        {
-            starts.push_back(lines3.m_lines[k][j].a.x);
-            ends.push_back(lines3.m_lines[k][j].b.x);            
-        }           
-
-        std::sort(starts.begin(), starts.end());
-        std::sort(ends.begin(), ends.end());
-        auto it1 = std::unique(starts.begin(), starts.end());
-        starts.erase(it1, starts.end());
-        auto it2 = std::unique(ends.begin(), ends.end());
-        ends.erase(it2, ends.end());
-        
-        vector<TDLine> newEnters;
-        int startBegin = 1;
-        for (int i = 0; i < (int)ends.size(); i++)
-        {
-            TDPoint start, end;
-            for (int j = startBegin; j < (int)starts.size(); j++)
-            {
-                if (starts[j] >= ends[i] && starts[j-1] < ends[i])
-                {
-                    startBegin = j;
-                    start.x = starts[j-1];
-                    start.y = 0;
-                    end.x = ends[i];
-                    end.y = 0;
-                    newEnters.push_back(TDLine(start, end));
-                    break;
-                }
-            }
-            
-            // we get possible newEnters, so just create new objects.
-            for (int m = 0; m < (int)newEnters.size(); m++)
-            {
-                int h = 0;
-                for (h = 0; h < (int)lines1.m_lines[k].size(); h++)
-                {   // newEnters[m] is part of lines1[h]
-                    if (isXContainedBy(newEnters[m], lines1.m_lines[k][h]) == true)
-                        break;
-                }
-                if (h == (int)lines1.m_lines[k].size()) // not part of lines1
-                    continue;
-                    
-                // we calculate the lux/luy, possible width/height
-                int lux = 0, luy = 0, possibleWidth = 0;
-                // fixed value, 8 pixels when first craeted, a little bigger than actual 6.
-                const int possibleHeight = 8; 
-                switch(k)
-                {
-                case 0: // top
-                    lux = newEnters[m].a.x; // start point
-                    luy = 0;
-                    possibleWidth = newEnters[m].b.x - lux;
-                    break;                    
-                case 1: // bottom
-                    lux = newEnters[m].a.x;
-                    luy = m_imgHeight - possibleHeight;
-                    possibleWidth = newEnters[m].b.x - lux;
-                    break;                    
-                case 2: // left
-                    lux = 0;
-                    luy = newEnters[m].a.x;
-                    possibleWidth = newEnters[m].b.x - luy;
-                    break;                    
-                case 3: // right
-                    lux = m_imgWidth - possibleHeight;
-                    luy = newEnters[m].a.x;;
-                    possibleWidth = newEnters[m].b.x - luy;                    
-                    break;
-                }
-                ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
-                                                        m_imgWidth, m_imgHeight,
-                                                        k, lux, luy,
-                                                        possibleWidth, possibleHeight);
-                m_trackers.push_back(pTrack);
-                SegResults sr;
-                sr.m_objIdx = m_objIdx;
-                sr.m_bOutForRecognize = false;
-                sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
-                m_objIdx++;
-                segResults.push_back(sr);
-            }
-        }
-    }
-    return 0;
 }
 
 // if an object is just entering the border, we should kick out boundary scan's points
 // that inside object's area.
-int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const DIRECTION direction)
+int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction)
 {
     TDPoint start;
     TDPoint end;
@@ -368,37 +325,6 @@ int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const DIRECTION directi
     default:
         LogW("We don't know the direction, cannot kick out points.");        
         return -1;
-    }
-
-    // now, change or kick out the points between [start, end]
-    vector<TDLine> & oneBorder = curFourLines.m_lines[direction];
-    for (auto it = oneBorder.begin(); it != oneBorder.end(); /*it++ no increment*/)
-    {
-        if ((*it).b.x < start.x || (*it).a.x >= end.x)
-            it++;
-        else
-            oneBorder.erase(it);
-        //else if ((*it).a.x < start.x && (*it).b.x > end.x)
-        //{
-        //    TDPoint end0 = start;
-        //    TDPoint start1 = end;
-        //    oneBorder.insert(it, TDLine((*it).a, end0));
-        //    oneBorder.insert(it, TDLine(start1, (*it).b));
-        //    oneBorder.erase(it); // insert two, remove one.
-        //    // no need it++, for we already do erase.
-        //}
-        //else if ((*it).a.x < start.x) // change it.
-        //{
-        //    (*it).b = start; // end point as the start.
-        //    it++;
-        //}
-        //else if ((*it).b.x > end.x) // change it.
-        //{
-        //    (*it).a = end; // end point as the start.
-        //    it++;
-        //}
-        //else // inside [start, end]
-        //    oneBorder.erase(it);
     }
 
     return 0;

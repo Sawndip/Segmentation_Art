@@ -38,8 +38,7 @@ public:
     ThreeDiff();
     ~ThreeDiff();    
     int init(const int width, const int height);
-    int processFrame(const cv::Mat & in,
-                     const BgResult & bgResult,
+    int processFrame(const cv::Mat & in, BgResult & bgResult,
                      vector<SegResults> & segResults);    
     int flushFrame(vector<SegResults> & segResults);
     
@@ -68,12 +67,11 @@ private: // inner helpers
                                 vector<SegResults> & segResults);
     int doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                 vector<SegResults> & segResults);
-    int updateAfterOneFrameProcess(const cv::Mat in, BgResult & bgResult);
-    int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);
-    int markCloseLine(TDLine & inLine,
-                      vector<TDLine> & cacheLine1, vector<TDLine> & cacheLine2);
-    
+    int markCloseLine(TDLine & inLine, vector<TDLine> & line1, vector<TDLine> & line2);
+    double calcCloseLineScore(TDLine & inLine, vector<TDLine> & cacheLines, TDLine *pClose);    
+    int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);    
     // 2. trival ones
+    int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);    
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);
 };
 
