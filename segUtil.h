@@ -35,7 +35,7 @@ enum MOVING_DIRECTION
 };
 enum MOVING_STATUS
 {
-    MOVING_IN = 0, MOVING_OUT, MOVING_INSIDE, MOVING_STOP, 
+    MOVING_CROSS_IN = 0, MOVING_CROSS_OUT, MOVING_INSIDE, MOVING_STOP, 
     MOVING_UNKNOWN = 4
 };
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -63,12 +63,14 @@ struct TDLine
     {
         movingDirection = DIRECTION_UNKNOWN;
         movingStatus = MOVING_UNKNOWN;
+        bTraced = false;
     }
     TDLine(const TDPoint & _a, const TDPoint & _b)
         : a(_a), b(_b)
         , movingAngle(0.0)      
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
+        , bTraced(false)
     {
            
     }
@@ -77,6 +79,7 @@ struct TDLine
     double movingAngle;
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
+    bool bTraced;
     inline int getXLength() {return abs(a.x - b.x);}
     inline int getYLength() {return abs(a.y - b.y);}
     inline double getLength()

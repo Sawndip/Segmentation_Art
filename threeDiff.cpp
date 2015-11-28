@@ -7,7 +7,7 @@ namespace Seg_Three
 {
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-//// constructor / destructor / init
+//// 1. constructor / destructor / init
 ThreeDiff :: ThreeDiff()
 {
     m_bInit = false;
@@ -44,7 +44,7 @@ int ThreeDiff :: init(const int width, const int height)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//// APIs
+//// 2. APIs
 // |><| ************************************************************************
 // processFrame:
 //     1. Do diff(OR operation) of two frames, store the 'diffResults';
@@ -60,7 +60,7 @@ int ThreeDiff :: init(const int width, const int height)
 //     < 0, process error;
 // *****************************************************************************
 int ThreeDiff :: processFrame(const cv::Mat & in,
-                              const BgResult & bgResult,
+                              BgResult & bgResult,
                               vector<SegResults> & segResults)
 {
     m_inputFrames++;
@@ -98,8 +98,9 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
     return 0;
 }
     
+//////////////////////////////////////////////////////////////////////////////////////////    
 //////////////////////////////////////////////////////////////////////////////////////////
-//// Internal Helpers
+//// 3. Important Inner helpers
 
 // |><| **********************************************************************************
 // doUpdateContourTracking:
@@ -112,7 +113,7 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 //     >= 0, process ok;
 //     < 0, process error;
 // ***************************************************************************************
-int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const BgResult & bgResult,
+int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
                                          vector<SegResults> & segResults)
 {
     if (m_trackers.size() == 0)
@@ -162,17 +163,84 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const BgResult & bgRe
 //     < 0, process error;
 // *****************************************************************************    
 int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
-                                         const BgResult & bgResult,
+                                         BgResult & bgResult,
                                          vector<SegResults> & segResults)
 {
-    // check the three lines, do 'AND' operation
     const int oldIdx = (m_curFrontIdx - 1) < 0 ?
                           M_THREE_DIFF_CACHE_FRAMES - 1 : m_curFrontIdx - 1;
-    FourBorders & lines1 = m_crossLines[oldIdx];
-    FourBorders & lines2 = m_crossLines[m_curFrontIdx];
-    
-    assert(lines1.m_widthTB == lines2.m_widthTB && lines2.m_widthTB == lines3.m_widthTB);
-    for (int k=0; k < 4; k++)
+
+    // 1. some inLine already be marked as bTrace, so we should first get those Lines out.
+    vector<vector<int> > skipIdxs(BORDER_NUM);
+    for (int idx=0; idx < BORDER_NUM; idx++)
+    {
+        for (int k = 0; k < (int) bgResult.lines[idx].size(); k++)
+        {
+            if (bgResult.lines[n][k].bTraced == false)
+                markCloseLine(bgResult.lines[n][k],
+                              m_bgResults[oldIdx].lines[idx],
+                              m_bgResults[m_curFrontIdx].lines[idx]);
+        }
+    }
+}
+
+int ThreeDiff :: markCloseLine(TDLine & inLine,
+                               vector<TDLine> & cacheLines1, vector<TDLine> & cacheLines2)
+{
+    // 1) very close of start/end points   ---\ then take as close lines.
+    // 2) they are movingAngle is similar  ---/
+    TDLine * pClose1 = NULL;
+    TDLine * pClose2 = NULL;    
+    const double score1 = calcCloseLineScore(inLine, cacheLines1, pClose1);
+    const double score2 = calcCloseLineScore(inLine, cacheLines2, pClose2);
+
+    if (pClose1 != NULL && pClose2 != NULL)
+    {   // may find new, still need to check their scores.
+        if ((score1 + score2) / 2 > 60.0)
+        {
+            pClose1->bTraced = true;
+            pClose2->bTraced = true;
+            inLine.bTraced = true;
+        }
+    }
+    return 0;
+}
+
+// TODO: PXT: to elaborate the score criterion.    
+// using score as the close judge criterion:
+// 1. moving angle take 50 points.
+// 2. start & end TDPoints take 25 points each.
+// 3. distance of 0-100 pixels: 25-0 points, others -10 points
+double ThreeDiff :: calcCloseLineScore(TDLine & inLine,
+                                       vector<TDLine> & cacheLines, TDLine *pClose)
+{
+    double maxScore = 0.0;
+    for (int k = 0; k < (int)cacheLines.size(); k++)
+    {   // we only check untraced cross boundary lines.
+        if (cacheLines[k].bTraced == false)
+        {   // y = -0.25x + 25
+            // start point
+            int distance = abs(cacheLines[k].a.x - inLine.a.x);
+            double score = distance > 100 ? -10 : ((-0.25) * distance + 25);
+            // end point
+            distance = abs(cacheLines[k].b.x - inLine.b.x);
+            score += distance > 100 ? -10 : ((-0.25) * distance + 25);
+            // moving angle: y = (-100/PI)x + 50 & y = (100/PI)x - 150
+            const double diffAngle = fabs(cacheLines[k] - inLine.movingAngle);
+            if (diffAngle <= M_PI)
+                score += (-100.0 / M_PI) * diffAngle + 50;
+            else
+                score += (100.0 / M_PI) * diffAngle - 150;
+            if (score > maxScore)
+            {
+                maxScore = score;
+                pClose = &cacheLines[k];
+            }
+        }
+    }
+    return maxScore;
+}
+
+    for (int k=0; k < BORDER_NUM; k++)
     {
         // 1. first we kick out unlikely Points in lines1
         vector<int> starts;
@@ -275,31 +343,6 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in,
     return 0;
 }
 
-int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult)
-{ 
-    // diff, in, bgResult, crossLines
-    m_curFrontIdx++;
-    m_curFrontIdx = m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0 ? 0 : m_curFrontIdx;
-    m_bgResults[m_curFrontIdx] = bgResult;
-    return 0;
-}
-
-//// other helpers
-int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
-{
-    for (int k = 0; k < m_imgHeight; k++)
-    {
-        for (int j = 0; j < m_imgWidth; j++)
-        {
-            m_diffAndResults[m_curFrontIdx].at<uchar>(k, j) =
-                first.at<uchar>(k, j) & second.at<uchar>(k, j);
-            m_diffOrResults[m_curFrontIdx].at<uchar>(k, j) =
-                first.at<uchar>(k, j) | second.at<uchar>(k, j);
-        }
-    }    
-    return 0;
-}
-
 // if an object is just entering the border, we should kick out boundary scan's points
 // that inside object's area.
 int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const DIRECTION direction)
@@ -361,5 +404,32 @@ int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const DIRECTION directi
     return 0;
 }
     
+//////////////////////////////////////////////////////////////////////////////////////////    
+//////////////////////////////////////////////////////////////////////////////////////////
+//// 4. trival helpers
+int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
+{
+    for (int k = 0; k < m_imgHeight; k++)
+    {
+        for (int j = 0; j < m_imgWidth; j++)
+        {
+            m_diffAndResults[m_curFrontIdx].at<uchar>(k, j) =
+                first.at<uchar>(k, j) & second.at<uchar>(k, j);
+            m_diffOrResults[m_curFrontIdx].at<uchar>(k, j) =
+                first.at<uchar>(k, j) | second.at<uchar>(k, j);
+        }
+    }    
+    return 0;
+}
+
+int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult)
+{ 
+    // diff, in, bgResult, crossLines
+    m_curFrontIdx++;
+    m_curFrontIdx = m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0 ? 0 : m_curFrontIdx;
+    m_bgResults[m_curFrontIdx] = bgResult;
+    return 0;
+}    
+   
 } // namespace Seg_Three    
 ////////////////////////////// End of File //////////////////////////////////////////

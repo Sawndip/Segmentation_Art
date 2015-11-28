@@ -314,16 +314,16 @@ int BoundaryScan :: calcLineMovingStatus(const double angle, const int index, TD
     switch(index) // tend to moving in
     {
     case 0: // top
-        line.movingStatus = angle > 0 ?  MOVING_OUT : MOVING_IN;
+        line.movingStatus = angle > 0 ?  MOVING_CROSS_OUT : MOVING_CROSS_IN;
         break;
     case 1: // bottom
-        line.movingStatus = angle >= 0 ?  MOVING_IN : MOVING_OUT;
+        line.movingStatus = angle >= 0 ?  MOVING_CROSS_IN : MOVING_CROSS_OUT;
         break;
     case 2: // left
-        line.movingStatus = fabs(angle) <= (M_PI / 2) ? MOVING_IN : MOVING_OUT;
+        line.movingStatus = fabs(angle) <= (M_PI / 2) ? MOVING_CROSS_IN : MOVING_CROSS_OUT;
         break;
     case 3: // right
-        line.movingStatus = fabs(angle) < (M_PI / 2) ? MOVING_OUT : MOVING_IN;
+        line.movingStatus = fabs(angle) < (M_PI / 2) ? MOVING_CROSS_OUT : MOVING_CROSS_IN;
         break;
     default:
         LogE("Impossible Direction n=%d.", index);

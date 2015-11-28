@@ -64,12 +64,14 @@ private:
 
 private: // inner helpers
     // 1. important ones
-    int doUpdateContourTracking(const cv::Mat in, const BgResult & bgResult,
+    int doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
                                 vector<SegResults> & segResults);
-    int doCreateNewContourTrack(const cv::Mat & in, const BgResult & bgResult,
+    int doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                 vector<SegResults> & segResults);
-    int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);
+    int updateAfterOneFrameProcess(const cv::Mat in, BgResult & bgResult);
     int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);
+    int markCloseLine(TDLine & inLine,
+                      vector<TDLine> & cacheLine1, vector<TDLine> & cacheLine2);
     
     // 2. trival ones
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);
