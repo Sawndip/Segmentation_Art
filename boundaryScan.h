@@ -29,7 +29,7 @@ public:
     int init(const int width, const int height,
              const int skipTB, const int skipLR,
              const int scanSizeTB, const int scanSizeLR);
-    int processFrame(const BgResult & bgResult);
+    int processFrame(BgResult & bgResult);
 
 private: // inner classes
     class BordersMem
@@ -85,6 +85,12 @@ private: // inner helpers
     int doDilate(const int times = 1);
     int scanBorders(BgResult & bgResult);
     int premergeLines(BgResult & bgResult, const int index);
+    int updateLineMovingStatus(BgResult & bgResult, const int index);
+    bool canLinesBeMerged(const TDLine & l1, const TDLine & l2,
+                          const vector<double> & xMvs,const vector<double> & yMvs);
+    double getLineMoveAngle(const TDLine & l1,
+                            const vector<double> & xMvs, const vector<double> & yMvs);
+    int calcLineMovingStatus(const double angle, const int index, TDLine & line);
 };
 
 } // namespace Seg_Three

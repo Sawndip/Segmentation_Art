@@ -53,8 +53,7 @@ int ThreeDiff :: init(const int width, const int height)
 //     4. using existing 'contourTrack' with 'diffResults' to update contourTrack;
 // args:
 //     outs: output each contourTrack's object rectangle;
-//     bgResult: psoBg's result of background/foreground;
-//     lines: possible new objects cross boundary lines got from 'BoundaryScan';
+//     bgResult: psoBg's result of background/foreground, xMvs, yMvs;
 // return:
 //     = 0, won't output frames;
 //     > 0, output one frame;
@@ -69,8 +68,6 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
         m_bgResults[m_inputFrames-1] = bgResult;
-        m_crossLines[m_inputFrames-1] = curFourLines;        
-        //copyLines(curFourLines, m_crossLines[m_inputFrames-1]);
         if (m_inputFrames > 1)
         {   
             doBgDiff(m_bgResults[m_inputFrames-1].binaryData,
@@ -85,11 +82,11 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     // 1. do diff in RGB for Contour's using.
     doBgDiff(bgResult.binaryData, m_bgResults[m_curFrontIdx].binaryData);
     // 2. fill the 'outs' with 'lines', 'diffResult', 'simplified optical flow' 
-    doUpdateContourTracking(in, bgResult, curFourLines, segResults);   
+    doUpdateContourTracking(in, bgResult, segResults);   
     // 3. do boundary check for creating new Contour.
-    doCreateNewContourTrack(in, bgResult, curFourLines, segResults);
+    doCreateNewContourTrack(in, bgResult, segResults);
     // 4. do update internal cache/status
-    updateAfterOneFrameProcess(in, bgResult, curFourLines);
+    updateAfterOneFrameProcess(in, bgResult);
     
     // output 1 frame
     return 1;
@@ -145,7 +142,7 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, const BgResult & bgRe
             sr.m_curBox = (*it)->getCurBox();
             // kick the points
             if ((*it)->isAllIn() == false)
-                kickOverlapPoints(sr.m_curBox, curFourLines, (*it)->getInDirection());
+                kickOverlapPoints(sr.m_curBox, (*it)->getInDirection());
             it++; // increse here.
         }
         segResults.push_back(sr);
@@ -284,7 +281,6 @@ int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & b
     m_curFrontIdx++;
     m_curFrontIdx = m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0 ? 0 : m_curFrontIdx;
     m_bgResults[m_curFrontIdx] = bgResult;
-    m_crossLines[m_curFrontIdx] = lines3;
     return 0;
 }
 

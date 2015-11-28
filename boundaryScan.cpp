@@ -45,7 +45,7 @@ args:
    lines: output result, the foreground lines that just in borders
 return:   
 ****************************************************************************/
-int BoundaryScan :: processFrame(const BgResult & bgResult)
+int BoundaryScan :: processFrame(BgResult & bgResult)
 {
     m_inputFrames++;
     // 0. prepare
@@ -202,13 +202,15 @@ int BoundaryScan :: scanBorders(BgResult & bgResult)
         // for these are close enough bgResult.lines, we merge them.
         // Big chance they are the same object.
         premergeLines(bgResult, n);
+        updateLineMovingStatus(bgResult, n);
     }
     return 0;
 }
 
 // 1. merge short-lines that we can be sure they are parts of the same objects.
 // 2. For lines we process here are lines with no overlap, namely, l1.b.x < l2.a.x.
-//    So we can make use of this property. 
+//    So we can make use of this property.
+// 3. update lines' moving status in this call    
 int BoundaryScan :: premergeLines(BgResult & bgResult, const int index)
 {
     vector<TDLine> & lines = bgResult.lines[index];
@@ -221,10 +223,10 @@ int BoundaryScan :: premergeLines(BgResult & bgResult, const int index)
     for (auto it = lines.begin(); it != lines.end(); /*No increment*/)
     {
         auto nextIt = it + 1;
-        if (nextIt == line.end())
+        if (nextIt == lines.end())
             break;
         else
-        {
+        {            
             if (canLinesBeMerged(*it, *nextIt, xMvs, yMvs) == true)
             {
                 nextIt->a = it->a;
@@ -234,30 +236,99 @@ int BoundaryScan :: premergeLines(BgResult & bgResult, const int index)
                 it++;
         }
     }
+
     return 0;
 }
-
+    
+//////////////////////////////////////////////////////////////////////////////////////////
 // using mvs & also the line's x direction distance    
 // if 1. xDistance is less than 2% of the imgWidth + imgHeight
 //    2. xDistance is less than 20% of the 'line1's length + line2's length'
-//    3. mvs are quit close (angle less than 10 degree): weight 60;
+//    3. mvs are quit close (angle less than 20 degree(pi/180*20 arc)): weight 60;
 // then we can merge this two lines.    
 bool BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2,
                                       const vector<double> & xMvs,
                                       const vector<double> & yMvs)
 {
+    static const double arcThreshold = M_PI / 180 * 20;
     assert(l1.b.x < l2.a.x); // end's point < start's point.
     const int xDistance = l2.a.x - l1.b.x;
-    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.02)
-        return false;
     const int line1len = l1.b.x - l1.a.x;
-    const int line2len = l2.b.x - l2.a.x;    
-    if (1.0 * xDistance / (line1len + line2len) > 0.2)
+    const int line2len = l2.b.x - l2.a.x;        
+    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.02)
+    {
+        LogD("Testing Params: xDis:%d, line1:%d, line2:%d imgW:%d, imgHeight:%d.\n",
+            xDistance, line1len, line2len, m_imgWidth, m_imgHeight);
         return false;
+    }        
+    if (1.0 * xDistance / (line1len + line2len) > 0.2)
+    {
+        LogD("xDis:%d, line1:%d, line2:%d.\n", xDistance, line1len, line2len);
+        return false;
+    }
+    // check whether the line have the same angle of movement.
+    const double angle1 = getLineMoveAngle(l1, xMvs, yMvs);
+    const double angle2 = getLineMoveAngle(l2, xMvs, yMvs);    
+    const double diff = fabs(angle1 - angle2);
+    if (diff < arcThreshold || (2 * M_PI - diff < arcThreshold))
+        return true;
+    return false;
+}
+
+// return [-pi, pi]
+double BoundaryScan :: getLineMoveAngle(const TDLine & l1,
+                                        const vector<double> & xMvs,
+                                        const vector<double> & yMvs)
+{
+    double xMv = 0.0, yMv = 0.0;
+    for (int k = l1.a.x; k <= l1.b.x; k++)
+    {
+        xMv += xMvs[k];
+        yMv += yMvs[k];
+    }
+    return atan2(yMv, xMv);
+}
+
+int BoundaryScan :: updateLineMovingStatus(BgResult & bgResult, const int index)
+{   // prepare
+    vector<TDLine> & lines = bgResult.lines[index];
+    if (lines.size() == 0)
+        return 0;
+    // start update
+    vector<double> & xMvs = bgResult.xMvs[index];
+    vector<double> & yMvs = bgResult.yMvs[index];    
     
-    if ()
+    for (int k = 0; k < (int)lines.size(); k++)
+    {   // in arc: [-pi, pi]
+        const double angle = getLineMoveAngle(lines[k], xMvs, yMvs);
+        calcLineMovingStatus(angle, index, lines[k]);
+    }
+
+    return 0;
+}
     
-    return true;
+int BoundaryScan :: calcLineMovingStatus(const double angle, const int index, TDLine & line)
+{      
+    line.movingAngle = angle;
+    line.movingDirection = (MOVING_DIRECTION)index;
+    switch(index) // tend to moving in
+    {
+    case 0: // top
+        line.movingStatus = angle > 0 ?  MOVING_OUT : MOVING_IN;
+        break;
+    case 1: // bottom
+        line.movingStatus = angle >= 0 ?  MOVING_IN : MOVING_OUT;
+        break;
+    case 2: // left
+        line.movingStatus = fabs(angle) <= (M_PI / 2) ? MOVING_IN : MOVING_OUT;
+        break;
+    case 3: // right
+        line.movingStatus = fabs(angle) < (M_PI / 2) ? MOVING_OUT : MOVING_IN;
+        break;
+    default:
+        LogE("Impossible Direction n=%d.", index);
+    }
+    return 0;
 }
     
 } // namespace Seg_Three

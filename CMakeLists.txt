@@ -51,11 +51,11 @@ LINK_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR})
 
 SET(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS} "-g -O2 -Wall -std=c++0x")
 ADD_EXECUTABLE(${segthree} ${CMAKE_CURRENT_SOURCE_DIR}/segControl.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/threeDiff.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/boundaryScan.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
-                           ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/segUtil.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/psoBook.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/boundaryScan.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/contourTrack.cpp
+                           ${CMAKE_CURRENT_SOURCE_DIR}/threeDiff.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/compressiveTracking/CompressiveTracker.cpp
                            ${CMAKE_CURRENT_SOURCE_DIR}/../pontus/vpcore/tools/opticalFlow/VarFlowWA.cpp 
                            ${CMAKE_CURRENT_SOURCE_DIR}/testThree.cpp)

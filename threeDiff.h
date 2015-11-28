@@ -69,7 +69,7 @@ private: // inner helpers
     int doCreateNewContourTrack(const cv::Mat & in, const BgResult & bgResult,
                                 vector<SegResults> & segResults);
     int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);
-    int kickOverlapPoints(const cv::Rect & box, const DIRECTION direction);
+    int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);
     
     // 2. trival ones
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);

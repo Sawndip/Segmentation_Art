@@ -22,7 +22,7 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     , m_curBox(m_lastBox)
     , m_largestWidth(possibleWidth)
     , m_largestHeight(possibleHeight)
-    , m_inDirection((DIRECTION)directionIn)
+    , m_inDirection((MOVING_DIRECTION)directionIn)
     , m_outDirection(DIRECTION_UNKNOWN)      
 {
     assert(width > 0 && height > 0);

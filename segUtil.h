@@ -28,9 +28,9 @@ namespace Seg_Three
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Enumeraions
 enum {BORDER_NUM = 4};
-enum DIRECTION
+enum MOVING_DIRECTION
 {
-    TOP = 0, BOTTOM, RIGHT, LEFT, CENTER,
+    TOP = 0, BOTTOM, RIGHT, LEFT, CENTER = 4,
     DIRECTION_NUM = 5, DIRECTION_UNKNOWN = 5
 };
 enum MOVING_STATUS
@@ -66,6 +66,7 @@ struct TDLine
     }
     TDLine(const TDPoint & _a, const TDPoint & _b)
         : a(_a), b(_b)
+        , movingAngle(0.0)      
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
     {
@@ -73,7 +74,8 @@ struct TDLine
     }
     TDPoint a;
     TDPoint b;
-    DIRECTION movingDirection;
+    double movingAngle;
+    MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
     inline int getXLength() {return abs(a.x - b.x);}
     inline int getYLength() {return abs(a.y - b.y);}

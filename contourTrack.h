@@ -22,7 +22,7 @@ namespace Seg_Three
 {
     
 class ContourTrack
-{    
+{   
 public:
     ContourTrack(const int idx, const cv::Mat & in,
                  const int width, const int height, // image width/height
@@ -41,7 +41,7 @@ public:
     cv::Rect & getCurBox() {return m_curBox;}
     cv::Rect & getLastBox() {return m_lastBox;}    
     bool canOutputRegion() {return m_bOutputRegion;}
-    DIRECTION getInDirection(){return m_inDirection;}
+    MOVING_DIRECTION getInDirection(){return m_inDirection;}
     
 private:
     const int m_idx;
@@ -60,8 +60,8 @@ private:
     int m_largestWidth;
     int m_largestHeight;
     
-    DIRECTION m_inDirection;
-    DIRECTION m_outDirection;
+    MOVING_DIRECTION m_inDirection;
+    MOVING_DIRECTION m_outDirection;
 
     // 4. size changing function
     double m_a1; 
