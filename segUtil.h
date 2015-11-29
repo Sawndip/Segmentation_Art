@@ -38,6 +38,9 @@ enum MOVING_STATUS
     MOVING_CROSS_IN = 0, MOVING_CROSS_OUT, MOVING_INSIDE, MOVING_STOP, 
     MOVING_UNKNOWN = 4
 };
+char * getMovingDirectionStr(const MOVING_DIRECTION direction);
+char * getMovingStatusStr(const MOVING_STATUS status);
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Basic Structures    
@@ -109,6 +112,11 @@ struct BgResult
             lines[k] = result.lines[k];            
         }
         return *this;
+    }
+    void reset()
+    {
+        for (int k=0; k < BORDER_NUM; k++)
+            lines[k].clear();
     }
     // members
     cv::Mat binaryData;

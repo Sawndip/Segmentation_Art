@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
     //   int init(const int width, const int height,
     //            const int skipTB, const int skipLR,
     //            const int scanBorderSizeTB, const int scanBorderSizeLR);
-    seg.init(640, 480, 0, 0, 2, 2);
+    seg.init(640, 480, 4, 4, 4, 4);
     vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare

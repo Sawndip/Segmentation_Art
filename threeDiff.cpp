@@ -20,7 +20,9 @@ ThreeDiff :: ~ThreeDiff()
     return;        
 }
 
-int ThreeDiff :: init(const int width, const int height)
+int ThreeDiff :: init(const int width, const int height,
+                      const int skipTB, const int skipLR,
+                      const int scanSizeTB, const int scanSizeLR)
 {
     if (m_bInit == false)
     {
@@ -28,6 +30,11 @@ int ThreeDiff :: init(const int width, const int height)
         m_imgWidth = width;
         m_imgHeight = height;
         m_inputFrames = 0;
+        m_skipTB = skipTB;
+        m_skipLR = skipLR;
+        m_scanSizeTB = scanSizeTB;
+        m_scanSizeLR = scanSizeLR;
+        
         // cache part
         m_curFrontIdx = 0;
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
@@ -188,33 +195,34 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
         
         // 1). we calculate the lux/luy, possible width/height
         int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
+        // TODO: should make 2 & 8 param in future.
         switch(borderDirection)
         {
         case 0: // top: enlarge width 4 pixels, each side with 2.
-            lux = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
-            luy = 0;
+            lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
+            luy = 0; // TODO?? what value should be taken?
             possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
                                         m_imgWidth : theLine.b.x + 2 - lux;
-            possibleHeight = 8; // make it 8 pixels for all newly created Rect
+            possibleHeight = m_skipTB + 8; // make it 8 pixels for all newly created Rect
             break;                    
         case 1: // bottom
-            possibleHeight = 8; 
-            lux = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
+            possibleHeight = m_skipTB + 8;
+            lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
             luy = m_imgHeight - possibleHeight;
             possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
                                         m_imgWidth : theLine.b.x + 2 - lux;
             break;                    
         case 2: // left
             lux = 0;
-            luy = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
-            possibleWidth = 8;
+            luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB ;
+            possibleWidth = m_skipLR + 8;
             possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
                                         m_imgHeight : theLine.b.x + 2 - luy;
             break;                    
         case 3: // right
-            possibleWidth = 8;            
+            possibleWidth = m_skipLR + 8;
             lux = m_imgWidth - possibleWidth;
-            luy = theLine.a.x - 2 < 0 ? 0 : theLine.a.x - 2;
+            luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB;
             possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
                                          m_imgHeight : theLine.b.x + 2 - luy;
             break;
@@ -263,7 +271,7 @@ int ThreeDiff :: markCloseLine(TDLine & inLine,
     }
     return 0;
 }
-
+    
 // TODO: PXT: to elaborate the score criterion.    
 // using score as the close judge criterion:
 // 1. moving angle take 50 points.

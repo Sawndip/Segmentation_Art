@@ -34,7 +34,7 @@ int SegControl :: init(const int width, const int height,
     ret = m_boundaryScan.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
     assert(ret >= 0);
     // put all complexities inside ThreeDiff
-    ret = m_threeDiff.init(width, height);
+    ret = m_threeDiff.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
     assert(ret >= 0);
     // 3. bgResults
     m_bgResult.binaryData.create(height, width, CV_8UC1);
@@ -52,8 +52,7 @@ int SegControl :: init(const int width, const int height,
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs
-int SegControl :: processFrame(const cv::Mat & in,
-                               vector<SegResults> & segResults)
+int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResults)
 {   
     int ret = -1;
     // 1. fill the m_bgResult's binaryData/mvs by opticalFlow detection.
@@ -66,6 +65,7 @@ int SegControl :: processFrame(const cv::Mat & in,
         m_boundaryScan.processFrame(m_bgResult);
         // 3. all other stuff are doing by this call. Details are described in ThreeDiff class.
         ret = m_threeDiff.processFrame(in, m_bgResult, segResults);
+        m_bgResult.reset(); // reset lines.
     }
     return ret;
 }

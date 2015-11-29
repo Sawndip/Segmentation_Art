@@ -79,7 +79,7 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
     }
 
     // 2. we do open / close: seems for simplified erode/dilate, just open is ok.    
-    // for (int k = 0; k < 2; k++)
+    for (int k = 0; k < 2; k++)
     {   // oepn: erode then dilate
         doErode();
         doDilate();            
@@ -229,7 +229,10 @@ int BoundaryScan :: premergeLines(BgResult & bgResult, const int index)
         {            
             if (canLinesBeMerged(*it, *nextIt, xMvs, yMvs) == true)
             {
+                LogI("Merge border %d lines: %d-%d & %d-%d.\n",
+                     index, it->a.x, it->b.x, nextIt->a.x, nextIt->b.x);                
                 nextIt->a = it->a;
+                LogI("New Line  %d-%d.\n", nextIt->a.x , nextIt->b.x);
                 lines.erase(it);
             }
             else
@@ -250,27 +253,28 @@ bool BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2,
                                       const vector<double> & xMvs,
                                       const vector<double> & yMvs)
 {
-    static const double arcThreshold = M_PI / 180 * 20;
+    static const double arcThreshold = M_PI * 1.0 / 180 * 95;
     assert(l1.b.x < l2.a.x); // end's point < start's point.
     const int xDistance = l2.a.x - l1.b.x;
     const int line1len = l1.b.x - l1.a.x;
     const int line2len = l2.b.x - l2.a.x;        
-    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.02)
+    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.05)
     {
-        LogD("Testing Params: xDis:%d, line1:%d, line2:%d imgW:%d, imgHeight:%d.\n",
+        LogD("Testing Merge1: xDis:%d, line1:%d, line2:%d imgW:%d, imgHeight:%d.\n",
             xDistance, line1len, line2len, m_imgWidth, m_imgHeight);
-        return false;
+        //return false;
     }        
-    if (1.0 * xDistance / (line1len + line2len) > 0.2)
+    if (1.0 * xDistance / (line1len + line2len) > 0.5)
     {
-        LogD("xDis:%d, line1:%d, line2:%d.\n", xDistance, line1len, line2len);
-        return false;
+        LogD("TestMerge2: xDis:%d, line1:%d, line2:%d.\n", xDistance, line1len, line2len);
+        //return false;
     }
     // check whether the line have the same angle of movement.
     const double angle1 = getLineMoveAngle(l1, xMvs, yMvs);
     const double angle2 = getLineMoveAngle(l2, xMvs, yMvs);    
     const double diff = fabs(angle1 - angle2);
-    if (diff < arcThreshold || (2 * M_PI - diff < arcThreshold))
+    LogI("TestMerge3: angle1 %.2f, angel2: %.2f.\n", angle1, angle2);
+    if (diff < arcThreshold || (fabs(2*M_PI - diff) < arcThreshold))
         return true;
     return false;
 }
@@ -297,16 +301,20 @@ int BoundaryScan :: updateLineMovingStatus(BgResult & bgResult, const int index)
     // start update
     vector<double> & xMvs = bgResult.xMvs[index];
     vector<double> & yMvs = bgResult.yMvs[index];    
-    
+
+    LogI("=== Boundary Info Of This Frame ====\n");
     for (int k = 0; k < (int)lines.size(); k++)
     {   // in arc: [-pi, pi]
         const double angle = getLineMoveAngle(lines[k], xMvs, yMvs);
         calcLineMovingStatus(angle, index, lines[k]);
+        LogD("BorderNum: %d. Start: %d, End: %d, angle:%.2f, direction:%s.\n",
+             k, lines[k].a.x, lines[k].b.x, lines[k].movingAngle,
+             getMovingDirectionStr(lines[k].movingDirection));
     }
 
     return 0;
 }
-    
+
 int BoundaryScan :: calcLineMovingStatus(const double angle, const int index, TDLine & line)
 {      
     line.movingAngle = angle;

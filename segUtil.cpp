@@ -10,4 +10,23 @@ namespace Seg_Three
     {
         return small.a.y >= large.a.y && small.b.y <= large.b.y;
     }
+    // Enum to String
+    static const char *MovingDirections[] =
+    {
+        "Top", "Bottom", "Left", "Right", "Center", "Unknown"
+    };
+    static const char *MovingStatus[] =
+    {
+        "CrossIn", "CrossOut", "Inside", "Stop", "Unknown"
+    };
+    
+    char * getMovingDirectionStr(const MOVING_DIRECTION direction)
+    {
+        return (char *)MovingDirections[(int)direction];
+    }
+    char * getMovingStatusStr(const MOVING_STATUS status)
+    {
+        return (char *)MovingStatus[(int)status];
+    }
+
 } // namespace

@@ -37,7 +37,10 @@ class ThreeDiff // San Fen
 public:
     ThreeDiff();
     ~ThreeDiff();    
-    int init(const int width, const int height);
+    int init(const int width, const int height,
+             const int skipTB, const int skipLR,
+             const int scanSizeTB, const int scanSizeLR);
+
     int processFrame(const cv::Mat & in, BgResult & bgResult,
                      vector<SegResults> & segResults);    
     int flushFrame(vector<SegResults> & segResults);
@@ -48,6 +51,10 @@ private:
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
+    int m_skipTB;
+    int m_skipLR;
+    int m_scanSizeTB;
+    int m_scanSizeLR;
     
     // 2. cache related
     static const int M_THREE_DIFF_CACHE_FRAMES = 2;
