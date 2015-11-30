@@ -108,6 +108,7 @@ struct BgResult
     {
         xMvs.resize(BORDER_NUM);
         yMvs.resize(BORDER_NUM);
+        lines.resize(BORDER_NUM);
     }
     // copy assignment
     BgResult & operator=(const BgResult & result)
@@ -123,8 +124,12 @@ struct BgResult
     }
     void reset()
     {
-        for (int k=0; k < BORDER_NUM; k++)
-            lines[k].clear();
+        xMvs.clear();
+        yMvs.clear();
+        lines.clear();
+        xMvs.resize(BORDER_NUM);
+        yMvs.resize(BORDER_NUM);
+        lines.resize(BORDER_NUM);
     }
     // members
     cv::Mat binaryData;
@@ -132,7 +137,7 @@ struct BgResult
     // 2. its size should be exactly the same as FourBorder's m_lines
     vector<vector<double> > xMvs; // actually the same as lines, its size is BORDER_NUM=4.
     vector<vector<double> > yMvs; 
-    vector<TDLine> lines[BORDER_NUM];
+    vector<vector<TDLine> > lines;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////

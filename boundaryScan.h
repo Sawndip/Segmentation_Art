@@ -76,24 +76,26 @@ private: // inner members
     int m_scanSizeLR;
     // for cross boundary analyse
     BordersMem m_bordersMem;
-    vector<TDLine> m_lastLines[BORDER_NUM];
+    static const int M_BOUNDARY_SCAN_CACHE_LINES = 3;
+    int m_curFrontIdx;
+    vector<vector<TDLine> > m_cacheLines[M_BOUNDARY_SCAN_CACHE_LINES];
     
     // for simple erode/dilate
     static const int M_ELEMENT_WIDTH = 2;    
     static const int M_ELEMENT_HEIGHT = 2;
 
 private: // important inner helpers
-    int scanBoundaryLines(BgResult & bgResult);
-    int premergeLines(BgResult & bgResult);
-    int updateLineMovingStatus(BgResult & bgResult, const int index);
+    int scanBoundaryLines(const BgResult & bgResult);
+    int premergeLines(const BgResult & bgResult);
     int canLinesBeMerged(const TDLine & l1, const TDLine & l2, const TDLine & l3);
-    int calcLineMovingStatus(const double angle, const int index, TDLine & line);
+    int outputLineAnalyseResult(BgResult & bgResult, const int index);    
 
 private: // trival inner helpers
     int doErode(const int times = 1);
-    int doDilate(const int times = 1);    
+    int doDilate(const int times = 1);
     double getLineMoveAngle(const TDLine & l1,
-                            const vector<double> & xMvs, const vector<double> & yMvs);    
+                            const vector<double> & xMvs, const vector<double> & yMvs);
+    int updateLineMovingStatus(const double angle, const int index, TDLine & line);
     inline bool isLineCloseEnough(const double diffAngle)
     {   // TODO: between 0 to 90? degree is taken as the similar
         static const double arcThreshold = M_PI * 1.0 / 180 * 90;
@@ -101,7 +103,6 @@ private: // trival inner helpers
             return true;
         return false;
     }
-        
 };
 
 } // namespace Seg_Three

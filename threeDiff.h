@@ -57,7 +57,6 @@ private:
     int m_scanSizeLR;
     
     // 2. cache related
-    static const int M_THREE_DIFF_CACHE_FRAMES = 2;
     int m_curFrontIdx;
     cv::Mat m_diffAndResults[M_THREE_DIFF_CACHE_FRAMES];
     cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];
