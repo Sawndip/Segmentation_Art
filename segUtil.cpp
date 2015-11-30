@@ -13,7 +13,7 @@ namespace Seg_Three
     // Enum to String
     static const char *MovingDirections[] =
     {
-        "Top", "Bottom", "Left", "Right", "Center", "Unknown"
+        "TOP", "BOTTOM", "LEFT", "RIGHT", "CENTER", "UNKNOWN"
     };
     static const char *MovingStatus[] =
     {

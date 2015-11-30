@@ -62,7 +62,8 @@ private:
     
     MOVING_DIRECTION m_inDirection;
     MOVING_DIRECTION m_outDirection;
-
+    MOVING_STATUS m_movingStatus;
+    
     // 4. size changing function
     double m_a1; 
     double m_b1;

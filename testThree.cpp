@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
     //   int init(const int width, const int height,
     //            const int skipTB, const int skipLR,
     //            const int scanBorderSizeTB, const int scanBorderSizeLR);
-    seg.init(640, 480, 4, 4, 4, 4);
+    seg.init(640, 480, 4, 4, 2, 2);
     vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare
@@ -76,8 +76,8 @@ int main(int argc, char * argv[])
         Mat inFrame = imread(imgFilePathes[i]);
         Mat inFrameGray;
         cvtColor(inFrame, inFrameGray, CV_RGB2GRAY);        
-        printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
-                i, imgFilePathes[i].c_str(), inFrame.type());
+        //printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
+        //        i, imgFilePathes[i].c_str(), inFrame.type());
         
         // 1. start process:
         // NOTE: the release app won't care 'binaryFrame', it is only for debugging.

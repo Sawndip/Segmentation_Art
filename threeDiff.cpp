@@ -149,10 +149,10 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
             sr.m_objIdx = (*it)->getIdx();
             sr.m_bOutForRecognize = (*it)->canOutputRegion();
             sr.m_curBox = (*it)->getCurBox();
-            // kick the points
-            if ((*it)->isAllIn() == false)
-                kickOverlapPoints(sr.m_curBox, (*it)->getInDirection());
-            it++; // increse here.
+            //// kick the points
+            //if ((*it)->isAllIn() == false)
+            //    kickOverlapPoints(sr.m_curBox, (*it)->getInDirection());
+            //it++; // increse here.
         }
         segResults.push_back(sr);
     }
@@ -176,6 +176,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
     const int oldIdx = (m_curFrontIdx - 1) < 0 ?
                         M_THREE_DIFF_CACHE_FRAMES - 1 : m_curFrontIdx - 1;
     // 1. some inLine already be marked as bTrace, so we should first get those Lines out.
+    // 1. untraced ones & MOVING_CROSS_OUT ones won't be created.
     vector<tuple<int, int> > creates; // the (bdNum, index) tuple
     for (int bdNum=0; bdNum < BORDER_NUM; bdNum++)
         for (int k = 0; k < (int)bgResult.lines[bdNum].size(); k++)
@@ -306,36 +307,6 @@ double ThreeDiff :: calcCloseLineScore(TDLine & inLine,
     }
 
     return maxScore;
-}
-
-// if an object is just entering the border, we should kick out boundary scan's points
-// that inside object's area.
-int ThreeDiff :: kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction)
-{
-    TDPoint start;
-    TDPoint end;
-    switch(direction)
-    {
-    case TOP:
-    case BOTTOM:        
-        start.x = box.x;
-        start.y = 0;
-        end.x = box.x + box.width;
-        end.y = 0;        
-        break;
-    case LEFT:
-    case RIGHT:        
-        start.x = box.y;
-        start.y = 0;
-        end.x = box.y + box.height;
-        end.y = 0;
-        break;
-    default:
-        LogW("We don't know the direction, cannot kick out points.");        
-        return -1;
-    }
-
-    return 0;
 }
     
 //////////////////////////////////////////////////////////////////////////////////////////    

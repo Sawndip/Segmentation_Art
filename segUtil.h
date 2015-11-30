@@ -47,6 +47,8 @@ char * getMovingStatusStr(const MOVING_STATUS status);
 struct SegResults
 {
     int m_objIdx;
+    MOVING_DIRECTION inDirection;
+    MOVING_DIRECTION outDirection;    
     bool m_bOutForRecognize;
     cv::Rect m_curBox;
 };
@@ -67,6 +69,7 @@ struct TDLine
         movingDirection = DIRECTION_UNKNOWN;
         movingStatus = MOVING_UNKNOWN;
         bTraced = false;
+        mayPreviousLine = NULL;
     }
     TDLine(const TDPoint & _a, const TDPoint & _b)
         : a(_a), b(_b)
@@ -74,6 +77,7 @@ struct TDLine
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
         , bTraced(false)
+        , mayPreviousLine(NULL)
     {
            
     }
@@ -83,6 +87,10 @@ struct TDLine
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
     bool bTraced;
+    // BoundaryScan help ThreeDiff to mark the previous boundary line.
+    // ThreeDiff uses this info to do MovingIn/Out Rect updating.
+    // Namely: ((previous->a.x - current->a.x) + (p->b.x - c->b.x)) / 2 
+    TDLine *mayPreviousLine; 
     inline int getXLength() {return abs(a.x - b.x);}
     inline int getYLength() {return abs(a.y - b.y);}
     inline double getLength()
