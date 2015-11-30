@@ -17,9 +17,9 @@ namespace Seg_Three
 //////////////////////////////////////////////////////////////////////////////////////////    
 //// Log Macros: Minimal Log Facility
 #define LogD(format, ...)  printf("[%-8s:%4d] [DEBUG] " format, \
-                                   __FILE__, __LINE__, ##__VA_ARGS__)
+                                   __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define LogI(format, ...)  printf("[%-8s:%4d] [INFO] " format, \
-                                   __FILE__, __LINE__, ##__VA_ARGS__)
+                                   __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define LogW(format, ...)  printf("[%-8s:%4d] [WARN] " format, \
                                    __FILE__, __LINE__, ##__VA_ARGS__)
 #define LogE(format, ...)  printf("[%-8s:%4d] [ERROR] " format, \

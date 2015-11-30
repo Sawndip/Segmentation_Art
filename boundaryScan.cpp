@@ -103,11 +103,12 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
 int BoundaryScan :: scanBoundaryLines(BgResult & bgResult)
 {
     // we get borders with erode/dilate, then we get the foreground bgResult.lines.
-    LogI(" ******************************************************** ");    
     LogI(" **** Scan the border %d times.\n", m_inputFrames);
     int width = m_bordersMem.widthTB;
     for (int index = 0; index < BORDER_NUM; index++)
     {
+        vector<double> & xMvs = bgResult.xMvs[index];
+        vector<double> & yMvs = bgResult.yMvs[index];        
         if (index >= 2) // for left/right borders
             width = m_bordersMem.widthLR;
 
@@ -126,10 +127,8 @@ int BoundaryScan :: scanBoundaryLines(BgResult & bgResult)
                 bStart = false;
                 line.b.x = k;
                 line.b.y = 0;
-                bgResult.lines[index].push_back(line);
-                vector<double> & xMvs = bgResult.xMvs[index];
-                vector<double> & yMvs = bgResult.yMvs[index];
                 line.movingAngle = getLineMoveAngle(line, xMvs, yMvs);
+                bgResult.lines[index].push_back(line);
                 LogD("Get One '%s' Line, %d-%d(%.2f).\n",
                      getMovingDirectionStr((MOVING_DIRECTION)index),
                      line.a.x, line.b.x, line.movingAngle);
@@ -224,29 +223,29 @@ int BoundaryScan :: premergeLines(BgResult & bgResult)
 // Note: lines' angle would be calculated and assign in this call.    
 int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const TDLine & l3)
 {
-    assert(l1.b.x < l2.a.x); // end's point < start's point.
-    
+    assert(l1.b.x < l2.a.x); // end's point < start's point.    
     // 1. gaps between two lines should be relatively small
     const int xDistance = l2.a.x - l1.b.x;
     const int line1len = l1.b.x - l1.a.x;
     const int line2len = l2.b.x - l2.a.x;        
     if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.05)
     {
-        LogD("Testing Merge Fail for large distance: "
+        LogD("TestingMerge1 Fail for large distance: "
              "xDis:%d, line1:%d, line2:%d imgW:%d, imgHeight:%d.\n",
             xDistance, line1len, line2len, m_imgWidth, m_imgHeight);
         return 0;
     }        
     if (1.0 * xDistance / (line1len + line2len) > 0.5)
     {
-        LogD("TestMerge2: xDis:%d, line1:%d, line2:%d.\n", xDistance, line1len, line2len);
+        LogD("TestMerge2 Fail: big gap. "
+             "xDis:%d, line1:%d, line2:%d.\n", xDistance, line1len, line2len);
         return 0;
     }
     // 2. check whether the line have the same angle of movement.
-    const double diff = fabs(l1.movingAngle - l2.movingAngle);
     LogD("TestMerge3: angle1 %.2f, angel2: %.2f.\n", l1.movingAngle, l2.movingAngle);
-    if (isLineCloseEnough(diff) == true)
+    if (isLineCloseEnough(fabs(l1.movingAngle - l2.movingAngle)) == true)
         return 1;
+
     // 3. disturbing short line merging: l3 is only used here
     if (l2.a.x == l3.a.x) // l2, l3 are the same, we hit the end.
         return 0;

@@ -95,8 +95,8 @@ private: // trival inner helpers
     double getLineMoveAngle(const TDLine & l1,
                             const vector<double> & xMvs, const vector<double> & yMvs);    
     inline bool isLineCloseEnough(const double diffAngle)
-    {   // TODO: between 0 to 100? degree is taken as the similar
-        static const double arcThreshold = M_PI * 1.0 / 180 * 100;    
+    {   // TODO: between 0 to 90? degree is taken as the similar
+        static const double arcThreshold = M_PI * 1.0 / 180 * 90;
         if (diffAngle < arcThreshold || (fabs(2*M_PI - diffAngle) < arcThreshold))
             return true;
         return false;
