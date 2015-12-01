@@ -120,9 +120,16 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
     if (m_trackers.size() == 0)
         return 0;
 
-    // 1. for traced lines kicking
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
     {
+        // 1. MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking
+        if ((*it)->getMovingStatus() == MOVING_INSIDE)
+        {
+            cv::Rect curBox = (*it)->getCurBox();
+            // check box's possible moving out direction.
+            
+
+        }
         SegResults sr;
         // re-calc the curBox, calculate the boundary cross part.
         int ret = (*it)->processFrame(in, bgResult, m_diffAndResults[m_curFrontIdx],

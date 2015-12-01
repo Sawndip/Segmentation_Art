@@ -42,8 +42,11 @@ public:
     cv::Rect & getLastBox() {return m_lastBox;}    
     bool canOutputRegion() {return m_bOutputRegion;}
     MOVING_DIRECTION getInDirection(){return m_inDirection;}
+    TDLine & getLastBoudanryLine() {return m_lastBoundaryLine;}
     void setLastBoudanryLine(const TDLine & theLine) {m_lastBoundaryLine = theLine;}
-    
+    MOVING_STATUS getMovingStatus() {return m_movingStatus;}
+    void setMovingStatus(MOVING_STATUS newMS) {m_movingStatus = newMS;}
+        
 private:
     const int m_idx;
     int m_imgWidth;
