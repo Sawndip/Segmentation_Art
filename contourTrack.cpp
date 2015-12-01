@@ -8,7 +8,7 @@ namespace Seg_Three
 //// constructor / destructor / init
 ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
                              const int width, const int height,
-                             const int directionIn,
+                             const int directionIn, const TDLine & theLine,
                              const int lux, const int luy,                         
                              const int possibleWidth, const int possibleHeight)
     : m_idx(idx)
@@ -23,7 +23,9 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     , m_largestWidth(possibleWidth)
     , m_largestHeight(possibleHeight)
     , m_inDirection((MOVING_DIRECTION)directionIn)
-    , m_outDirection(DIRECTION_UNKNOWN)      
+    , m_outDirection(DIRECTION_UNKNOWN)
+    , m_movingStatus(MOVING_CROSS_IN)
+    , m_lastBoundaryLine(theLine)
 {
     assert(width > 0 && height > 0);
     // 1. calculate the size changing function.

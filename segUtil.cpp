@@ -29,4 +29,12 @@ namespace Seg_Three
         return (char *)MovingStatus[(int)status];
     }
 
+    int loopIndex(const int index, const int maxIdx)
+    {
+        const int nextIdx = index + 1;
+        if (nextIdx >= maxIdx)
+            return 0;
+        return nextIdx;
+    }
+
 } // namespace

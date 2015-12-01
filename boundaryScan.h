@@ -20,7 +20,13 @@ using namespace Vector_Space;
 
 namespace Seg_Three
 {
-//////////////////////////////////////////////////////////////////////////////////////////    
+//////////////////////////////////////////////////////////////////////////////////////////
+//// BoundaryScan only deal with line level process.
+// 1. to get boundary line info, 'scanLineBoundary' is called, and it won't do any analyse.
+// 2. to merge close and similar lines, 'premergeLines' is called, it will do one frame level
+//    analyse, to merge proper lines that belongs to one bigger line.
+// 3. to further merge lines and get stabel result (avoid unnormal lines got from OpticalFlow)
+//        
 class BoundaryScan
 {
 public:
@@ -77,6 +83,8 @@ private: // inner members
     // for cross boundary analyse
     BordersMem m_bordersMem;
     static const int M_BOUNDARY_SCAN_CACHE_LINES = 3;
+    static const int M_BOUNDARY_MAX_VARIANCE = 32; // 32 pixels
+    #define M_ARC_THRESHOLD (M_PI * 1.0 / 180 * 90)
     int m_curFrontIdx;
     vector<vector<TDLine> > m_cacheLines[M_BOUNDARY_SCAN_CACHE_LINES];
     
@@ -88,18 +96,18 @@ private: // important inner helpers
     int scanBoundaryLines(const BgResult & bgResult);
     int premergeLines(const BgResult & bgResult);
     int canLinesBeMerged(const TDLine & l1, const TDLine & l2, const TDLine & l3);
-    int outputLineAnalyseResult(BgResult & bgResult, const int index);    
+    int stableAnalyseAndMarkLineStatus();
+    int outputLineAnalyseResultAndUpdate(BgResult & bgResult);
 
 private: // trival inner helpers
     int doErode(const int times = 1);
     int doDilate(const int times = 1);
     double getLineMoveAngle(const TDLine & l1,
                             const vector<double> & xMvs, const vector<double> & yMvs);
-    int updateLineMovingStatus(const double angle, const int index, TDLine & line);
+    int calcLineMovingStatus(const double angle, const int index, TDLine & line);
     inline bool isLineCloseEnough(const double diffAngle)
     {   // TODO: between 0 to 90? degree is taken as the similar
-        static const double arcThreshold = M_PI * 1.0 / 180 * 90;
-        if (diffAngle < arcThreshold || (fabs(2*M_PI - diffAngle) < arcThreshold))
+        if (diffAngle < M_ARC_THRESHOLD || (fabs(2*M_PI - diffAngle) < M_ARC_THRESHOLD))
             return true;
         return false;
     }

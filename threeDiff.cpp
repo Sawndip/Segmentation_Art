@@ -75,21 +75,19 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     // 0. do preprocess: cache frames
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
-        m_bgResults[m_inputFrames-1] = bgResult;
-        if (m_inputFrames > 1)
+        m_bgResults[m_curFrontIdx] = bgResult;
+        if (m_inputFrames > 1) // M_THREE_DIFF_CACHE_FRAMES may not be 2 in future.
         {   
             doBgDiff(m_bgResults[m_inputFrames-1].binaryData,
                      m_bgResults[m_inputFrames-2].binaryData);
-            m_curFrontIdx++;
-            if (m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0)
-                m_curFrontIdx = 0;
+            m_curFrontIdx = loopIndex(m_curFrontIdx, M_THREE_DIFF_CACHE_FRAMES);
         }
         return 0;
     }
     
     // 1. do diff in RGB for Contour's using.
     doBgDiff(bgResult.binaryData, m_bgResults[m_curFrontIdx].binaryData);
-    // 2. fill the 'outs' with 'lines', 'diffResult', 'simplified optical flow' 
+    // 2. update the trackers status, also dealing with MOVING_CROSS_OUT part.
     doUpdateContourTracking(in, bgResult, segResults);   
     // 3. do boundary check for creating new Contour.
     doCreateNewContourTrack(in, bgResult, segResults);
@@ -112,11 +110,6 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 
 // |><| **********************************************************************************
 // doUpdateContourTracking:
-//     1. Using m_crossLines to check new coming in objects
-//     2. line1's(oldest line) TDPoints can be removed in this call
-// args:
-//     outs: output new contourTrack's object rectangle;
-//     curFourLines: this frames ?? 
 // return:
 //     >= 0, process ok;
 //     < 0, process error;
@@ -126,10 +119,8 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
 {
     if (m_trackers.size() == 0)
         return 0;
-    // 1. leaving boundary check
-    // 2. new curBox amendment.
-    // 3. do boundary points kicking
-    // TODO: how to merge TRACKERS that track the same object.
+
+    // 1. for traced lines kicking
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
     {
         SegResults sr;
@@ -173,140 +164,70 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
 int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                          vector<SegResults> & segResults)
 {
-    const int oldIdx = (m_curFrontIdx - 1) < 0 ?
-                        M_THREE_DIFF_CACHE_FRAMES - 1 : m_curFrontIdx - 1;
-    // 1. some inLine already be marked as bTrace, so we should first get those Lines out.
-    // 1. untraced ones & MOVING_CROSS_OUT ones won't be created.
     vector<tuple<int, int> > creates; // the (bdNum, index) tuple
     for (int bdNum=0; bdNum < BORDER_NUM; bdNum++)
-        for (int k = 0; k < (int)bgResult.lines[bdNum].size(); k++)
-            if (bgResult.lines[bdNum][k].bTraced == false)
-                if (markCloseLine(bgResult.lines[bdNum][k],
-                                  m_bgResults[oldIdx].lines[bdNum],
-                                  m_bgResults[m_curFrontIdx].lines[bdNum]) > 0)
-                    creates.push_back(std::make_tuple(bdNum, k));
-
-    // 2. now we get the cross lines stand fro new objects, so we just create them.
-    for (int k=0; k < (int)creates.size(); k++)
     {
-        const int borderDirection = std::get<0>(creates[k]);
-        assert(borderDirection >= 0 && borderDirection < 4);
-        const int lineIdx = std::get<1>(creates[k]);
-        TDLine & theLine = bgResult.lines[borderDirection][lineIdx];
-        
-        // 1). we calculate the lux/luy, possible width/height
-        int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
-        // TODO: should make 2 & 8 param in future.
-        switch(borderDirection)
-        {
-        case 0: // top: enlarge width 4 pixels, each side with 2.
-            lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
-            luy = 0; // TODO?? what value should be taken?
-            possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
-                                        m_imgWidth : theLine.b.x + 2 - lux;
-            possibleHeight = m_skipTB + 8; // make it 8 pixels for all newly created Rect
-            break;                    
-        case 1: // bottom
-            possibleHeight = m_skipTB + 8;
-            lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
-            luy = m_imgHeight - possibleHeight;
-            possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
-                                        m_imgWidth : theLine.b.x + 2 - lux;
-            break;                    
-        case 2: // left
-            lux = 0;
-            luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB ;
-            possibleWidth = m_skipLR + 8;
-            possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
-                                        m_imgHeight : theLine.b.x + 2 - luy;
-            break;                    
-        case 3: // right
-            possibleWidth = m_skipLR + 8;
-            lux = m_imgWidth - possibleWidth;
-            luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB;
-            possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
-                                         m_imgHeight : theLine.b.x + 2 - luy;
-            break;
-        default:
-            LogE("impossible to happen, border direction: %d.\n", borderDirection);
-            break;
-        }
-        // 2). now we create the tracker.
-        ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
-                                                m_imgWidth, m_imgHeight,
-                                                k, lux, luy,
-                                                possibleWidth, possibleHeight);
-        m_trackers.push_back(pTrack);
-        // 3). we ouptput the newly created Segmentation. 
-        SegResults sr;
-        sr.m_objIdx = m_objIdx;
-        sr.m_bOutForRecognize = false;
-        sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
-        m_objIdx++;
-        segResults.push_back(sr);
-    }
-    
-    return 0;
-}
-
-int ThreeDiff :: markCloseLine(TDLine & inLine,
-                               vector<TDLine> & cacheLines1,
-                               vector<TDLine> & cacheLines2)
-{
-    // 1) very close of start/end points   ---\ then take as close lines.
-    // 2) they are movingAngle is similar  ---/
-    TDLine * pClose1 = NULL;
-    TDLine * pClose2 = NULL;    
-    const double score1 = calcCloseLineScore(inLine, cacheLines1, pClose1);
-    const double score2 = calcCloseLineScore(inLine, cacheLines2, pClose2);
-
-    if (pClose1 != NULL && pClose2 != NULL)
-    {   // may find new, still need to check their scores.
-        if ((score1 + score2) / 2 > 60.0) // || score2 > 85) // score1 is the oldest line
-        {
-            pClose1->bTraced = true;
-            pClose2->bTraced = true;
-            inLine.bTraced = true;
-            return 1; // NOTE: return here.
-        }
-    }
-    return 0;
-}
-    
-// TODO: PXT: to elaborate the score criterion.    
-// using score as the close judge criterion:
-// 1. moving angle take 50 points.
-// 2. start & end TDPoints take 25 points each.
-// 3. distance of 0-100 pixels: 25-0 points, others -10 points
-double ThreeDiff :: calcCloseLineScore(TDLine & inLine,
-                                       vector<TDLine> & cacheLines, TDLine *pClose)
-{
-    double maxScore = 0.0;
-    for (int k = 0; k < (int)cacheLines.size(); k++)
-    {   // we only check untraced cross boundary lines.
-        if (cacheLines[k].bTraced == false)
-        {   // y = -0.25x + 25
-            // start point
-            int distance = abs(cacheLines[k].a.x - inLine.a.x);
-            double score = distance > 100 ? -10 : ((-0.25) * distance + 25);
-            // end point
-            distance = abs(cacheLines[k].b.x - inLine.b.x);
-            score += distance > 100 ? -10 : ((-0.25) * distance + 25);
-            // moving angle: y = (-100/PI)x + 50 & y = (100/PI)x - 150
-            const double diffAngle = fabs(cacheLines[k].movingAngle - inLine.movingAngle);
-            if (diffAngle <= M_PI)
-                score += (-100.0 / M_PI) * diffAngle + 50;
-            else
-                score += (100.0 / M_PI) * diffAngle - 150;
-            if (score > maxScore)
+        for (int k = 0; k < (int)bgResult.resultLines[bdNum].size(); k++)
+        {   // untraced ones & MOVING_CROSS_IN ones will be created.
+            if (bgResult.resultLines[bdNum][k].bTraced == false &&
+                bgResult.resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
             {
-                maxScore = score;
-                pClose = &cacheLines[k];
+                // 2. now we get the cross lines stand fro new objects, so we just create them.
+                // 1). we calculate the lux/luy, possible width/height
+                int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
+                // TODO: should make 2 & 8 param in future.
+                switch(bdNum)
+                {
+                case 0: // top: enlarge width 4 pixels, each side with 2.
+                    lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
+                    luy = 0; // TODO?? what value should be taken?
+                    possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
+                        m_imgWidth : theLine.b.x + 2 - lux;
+                    // make it 8 pixels for all newly created Rect
+                    possibleHeight = m_skipTB + 8; 
+                    break;                    
+                case 1: // bottom
+                    possibleHeight = m_skipTB + 8;
+                    lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
+                    luy = m_imgHeight - possibleHeight;
+                    possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
+                        m_imgWidth : theLine.b.x + 2 - lux;
+                    break;                    
+                case 2: // left
+                    lux = 0;
+                    luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB ;
+                    possibleWidth = m_skipLR + 8;
+                    possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
+                        m_imgHeight : theLine.b.x + 2 - luy;
+                    break;                    
+                case 3: // right
+                    possibleWidth = m_skipLR + 8;
+                    lux = m_imgWidth - possibleWidth;
+                    luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB;
+                    possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
+                        m_imgHeight : theLine.b.x + 2 - luy;
+                    break;
+                default:
+                    LogE("impossible to happen, border direction: %d.\n", borderDirection);
+                    break;
+                }
+                // 2). now we create the tracker.
+                ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
+                                                        m_imgWidth, m_imgHeight, theLine,
+                                                        k, lux, luy,
+                                                        possibleWidth, possibleHeight);
+                m_trackers.push_back(pTrack);
+                // 3). we ouptput the newly created Segmentation. 
+                SegResults sr;
+                sr.m_objIdx = m_objIdx;
+                sr.m_bOutForRecognize = false;
+                sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
+                m_objIdx++;
+                segResults.push_back(sr);
             }
         }
-    }
-
-    return maxScore;
+    }        
+    return 0;
 }
     
 //////////////////////////////////////////////////////////////////////////////////////////    
@@ -329,9 +250,7 @@ int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
 
 int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult)
 { 
-    // diff, in, bgResult, crossLines
-    m_curFrontIdx++;
-    m_curFrontIdx = m_curFrontIdx % M_THREE_DIFF_CACHE_FRAMES == 0 ? 0 : m_curFrontIdx;
+    m_curFrontIdx = loopIndex(m_curFrontIdx, M_THREE_DIFF_CACHE_FRAMES);
     m_bgResults[m_curFrontIdx] = bgResult;
     return 0;
 }    

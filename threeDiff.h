@@ -58,6 +58,7 @@ private:
     
     // 2. cache related
     int m_curFrontIdx;
+    static const int M_THREE_DIFF_CACHE_FRAMES = 2;
     cv::Mat m_diffAndResults[M_THREE_DIFF_CACHE_FRAMES];
     cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];
     // background binary data & border mv angle
@@ -73,8 +74,6 @@ private: // inner helpers
                                 vector<SegResults> & segResults);
     int doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                 vector<SegResults> & segResults);
-    int markCloseLine(TDLine & inLine, vector<TDLine> & line1, vector<TDLine> & line2);
-    double calcCloseLineScore(TDLine & inLine, vector<TDLine> & cacheLines, TDLine *pClose);    
     int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);    
     // 2. trival ones
     int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);    

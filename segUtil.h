@@ -31,7 +31,8 @@ enum {BORDER_NUM = 4};
 enum MOVING_DIRECTION
 {
     TOP = 0, BOTTOM, RIGHT, LEFT, CENTER = 4,
-    DIRECTION_NUM = 5, DIRECTION_UNKNOWN = 5
+    TOPLEFT, BOTTOMLEFT, TOPRIGHT, BOTTOMRIGHT = 8,
+    DIRECTION_NUM = 9, DIRECTION_UNKNOWN = 9
 };
 enum MOVING_STATUS
 {
@@ -108,17 +109,17 @@ struct BgResult
     {
         xMvs.resize(BORDER_NUM);
         yMvs.resize(BORDER_NUM);
-        lines.resize(BORDER_NUM);
+        resultLines.resize(BORDER_NUM);
     }
     // copy assignment
-    BgResult & operator=(const BgResult & result)
+    BgResult & operator=(const BgResult & another)
     {
-        result.binaryData.copyTo(binaryData);
+        another.binaryData.copyTo(binaryData);
         for (int k=0; k < BORDER_NUM; k++)
         {
-            xMvs[k] = result.xMvs[k];
-            yMvs[k] = result.yMvs[k];
-            lines[k] = result.lines[k];            
+            xMvs[k] = another.xMvs[k];
+            yMvs[k] = another.yMvs[k];
+            resultLines[k] = another.resultLines[k];
         }
         return *this;
     }
@@ -126,10 +127,10 @@ struct BgResult
     {
         xMvs.clear();
         yMvs.clear();
-        lines.clear();
+        resultLines.clear();
         xMvs.resize(BORDER_NUM);
         yMvs.resize(BORDER_NUM);
-        lines.resize(BORDER_NUM);
+        resultLines.resize(BORDER_NUM);
     }
     // members
     cv::Mat binaryData;
@@ -137,7 +138,7 @@ struct BgResult
     // 2. its size should be exactly the same as FourBorder's m_lines
     vector<vector<double> > xMvs; // actually the same as lines, its size is BORDER_NUM=4.
     vector<vector<double> > yMvs; 
-    vector<vector<TDLine> > lines;
+    vector<vector<TDLine> > resultLines;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -145,6 +146,7 @@ struct BgResult
 //// Util Functions
 extern bool isYContainedBy(const TDLine & small, const TDLine & large);
 extern bool isXContainedBy(const TDLine & small, const TDLine & large);
+extern int loopIndex(const int index, const int maxIdx);
 }
 
 #endif ////

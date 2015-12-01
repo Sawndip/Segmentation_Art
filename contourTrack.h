@@ -26,7 +26,7 @@ class ContourTrack
 public:
     ContourTrack(const int idx, const cv::Mat & in,
                  const int width, const int height, // image width/height
-                 const int directionIn,        
+                 const int directionIn, const TDLine & theLine, 
                  const int lux, const int luy, // first appear coordinate
                  const int possibleWidth, const int possibleHeight);
     ~ContourTrack();
@@ -42,6 +42,7 @@ public:
     cv::Rect & getLastBox() {return m_lastBox;}    
     bool canOutputRegion() {return m_bOutputRegion;}
     MOVING_DIRECTION getInDirection(){return m_inDirection;}
+    void setLastBoudanryLine(const TDLine & theLine) {m_lastBoundaryLine = theLine;}
     
 private:
     const int m_idx;
@@ -63,7 +64,7 @@ private:
     MOVING_DIRECTION m_inDirection;
     MOVING_DIRECTION m_outDirection;
     MOVING_STATUS m_movingStatus;
-    
+    TDLine m_lastBoundaryLine;
     // 4. size changing function
     double m_a1; 
     double m_b1;
