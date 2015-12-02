@@ -23,6 +23,7 @@ int SegControl :: init(const int width, const int height,
     int ret = -1;
     m_imgWidth = width;
     m_imgHeight = height;
+    m_inputFrames = 0;
     m_skipTB = skipTB;
     m_skipLR = skipLR;
     m_scanSizeTB = scanSizeTB;
@@ -55,6 +56,7 @@ int SegControl :: init(const int width, const int height,
 int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResults)
 {   
     int ret = -1;
+    m_inputFrames++;
     // 1. fill the m_bgResult's binaryData/mvs by opticalFlow detection.
     ret = m_segBg.processFrame(in, m_bgResult.binaryData,
                                m_bgResult.xMvs, m_bgResult.yMvs);
@@ -66,7 +68,7 @@ int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResul
         // 3. all other stuff are doing by this call. Details are described in ThreeDiff class.
         ret = m_threeDiff.processFrame(in, m_bgResult, segResults);
         m_bgResult.reset(); // reset lines.
-        LogI("SegResults size: %d.\n", (int)segResults.size());
+        LogI("Frame %d: SegResults size: %d.\n", m_inputFrames, (int)segResults.size());
     }
     return ret;
 }

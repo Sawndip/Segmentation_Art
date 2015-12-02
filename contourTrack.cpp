@@ -222,11 +222,12 @@ int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
 
     maxBox.x = (maxBox.x + m_lastBox.x + xShift) / 2;
     maxBox.y = (maxBox.y + m_lastBox.y + xShift) / 2;
-    maxBox.width = maxBox.width + m_lastBox.width / 2; // take it as no width changing
-    maxBox.height = maxBox.height + m_lastBox.height / 2; // take it as no height changing
+    maxBox.width = (maxBox.width + m_lastBox.width) / 2; // take it as no width changing
+    maxBox.height = (maxBox.height + m_lastBox.height) / 2; // take it as no height changing
     
     // 4. make the max box at least contain the min box.
     enlargeBoxByMinBox(maxBox, minBox);
+    enlargeBoxByMinBox(maxBox, cv::Rect(maxBox.x, maxBox.y, 16, 16));    
     
     /* 5. Until Now, we get the next box */
     m_curBox = maxBox;
