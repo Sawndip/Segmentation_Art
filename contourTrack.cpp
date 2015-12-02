@@ -10,23 +10,30 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
                              const int width, const int height,
                              const int directionIn, const TDLine & theLine,
                              const int lux, const int luy,                         
-                             const int possibleWidth, const int possibleHeight)
+                             const int possibleWidth, const int possibleHeight,
+                             const int firstAppearFrameCount)
     : m_idx(idx)
     , m_imgWidth(width)
     , m_imgHeight(height)
     , m_inputFrames(0)
+    , m_firstAppearFrameCount(firstAppearFrameCount)
     , m_bAllIn(false)
     , m_bAllOut(false)
     , m_bOutputRegion(false)
     , m_lastBox(lux, luy, possibleWidth, possibleHeight)
     , m_curBox(m_lastBox)
+    , m_ctTracker(NULL)
     , m_largestWidth(possibleWidth)
     , m_largestHeight(possibleHeight)
     , m_inDirection((MOVING_DIRECTION)directionIn)
     , m_outDirection(DIRECTION_UNKNOWN)
     , m_movingStatus(MOVING_CROSS_IN)
-    , m_lastBoundaryLine(theLine)
+    , m_bMovingStop(false)
 {
+    // TODO: may need further polishing.
+    m_lastBoundaryLines.clear();
+    m_lastBoundaryLines.push_back(theLine);
+    
     assert(width > 0 && height > 0);
     // 1. calculate the size changing function.
     // take as function: y = a1x + b1 & y = a2x + b2,
@@ -39,8 +46,9 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     m_a2h = -m_a2h * height;
     
     // 2. compressive tracker part.
-    m_ctTracker = new CompressiveTracker();
-    m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);
+    // won't init until bAllIn is set, namely MOVING_STATUS changes from CROSS_IN to INSIDE.
+    // m_ctTracker = new CompressiveTracker();
+    // m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);
     
     LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
          "possibleHeight:%d. \n", m_idx, 
@@ -55,30 +63,68 @@ ContourTrack :: ~ContourTrack()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// APIs    
-int ContourTrack :: processFrame(const cv::Mat & in, const BgResult & bgResult,
+int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
     // Process frame using compressive tracker.
-    m_lastBox = m_curBox;
-    int ret = m_ctTracker->processFrame(in, m_curBox);
-    if (ret < 0)
+    m_inputFrames++;
+    vector<vector<TDLine> > & resultLines = bgResult.resultLines;
+    // if the box is close to boudary, the tracker may moving out.
+    vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
+    
+    // BE AWARE: 1) tracer has moving status(in out inside).
+    //           2) each boundary line also has moving status.
+    bool bCTTracking = false;
+    switch(m_movingStatus)
     {
-        LogW("Compressive Tracker do warning a failing track.\n.");
-        // TODO: how to do update, left directons ?
-        return 1;
+    // 1. MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking            
+    case MOVING_INSIDE: 
+        // TODO: magic number subsitution needed. 10frames * 10pixel = 100 pixles
+        if (m_inputFrames >= 10 && directions.size() > 0)
+        {   // line's movingDirection should be MOVING_CROSS_OUT
+            markAcrossOut(directions, resultLines);
+            // change moving status of the tracker
+        }
+        else // do normal tracking.
+            bCTTracking = true;   
+        break;
+    case MOVING_CROSS_OUT:
+    //  use boundary info to track, won't use compressive tracker
+        if (markAcrossOut(directions, resultLines) < 0)
+        {  // if all out, we tell the called to terminal the whole tracking.
+            return 1; // 1 means terminal the tracking.
+        }
+        break;
+    case MOVING_CROSS_IN:
+        if (markAcrossIn(directions, resultLines) < 0)
+        {  // if all in, use normal tracking.
+            bCTTracking = true;
+        }
+        break;
+    // case MOVING_STOP: this is not a valid status for track's moving status.
+    default:
+        LogE("Not valid moving status.\n");
+        break;
     }
-    else
+
+    //// normal tracking
+    if (bCTTracking == true)
     {
-        // re-calculate the m_curBox area,
-        // also update the inner status of the object, such as bAllIn, bAllOut
-        ret = updateTrackerUsingDiff(in, bgResult, diffAnd, diffOr);
-        // TODO: PXT: fix following reallocateiong.
-        // prepare for the next processFrame call.
-        delete m_ctTracker;
-        m_ctTracker = new CompressiveTracker();
-        m_ctTracker->init(in, m_curBox);
+        if (m_ctTracker == NULL)
+        {
+            m_ctTracker = new CompressiveTracker();
+            m_ctTracker->init(in, m_curBox);
+        }
+        assert(m_ctTracker != NULL);
+        if (m_ctTracker->processFrame(in, m_curBox) < 0)
+        {
+            LogW("Compressive Tracker do warning a failing track.\n.");
+            // TODO: how to do update ? just terminate the tracking right now.
+            return 1;
+        }
     }
-    return ret;
+    
+    return 0;
 }
     
 int ContourTrack :: flushFrame()
@@ -231,6 +277,21 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
 
     return 0;
 }
+
+int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
+                                  vector<vector<TDLine> > & resultLines)
+{
+
+    return 0;
+}
+
+int ContourTrack ::  markAcrossOut(const vector<MOVING_DIRECTION> & directions,
+                                   vector<vector<TDLine> > & resultLines)
+{
+
+    return 0;
+}
+    
     
 //////////////////////////////////////////////////////////////////////////////////////////
 // trival ones
@@ -291,6 +352,14 @@ void ContourTrack :: boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox
     if (maxBox.y + maxBox.height < minBox.y + minBox.height)
         maxBox.height = minBox.y + minBox.height - maxBox.y;    
     return;
+}
+
+// check box close to which boundary (should take skipTB,LR into account)    
+vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::Rect & rect)
+{
+    vector<MOVING_DIRECTION> directions;
+    
+    return directions;
 }
     
 } // namespace Seg_Three

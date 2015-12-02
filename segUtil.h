@@ -35,7 +35,7 @@ enum MOVING_DIRECTION
     DIRECTION_NUM = 9, DIRECTION_UNKNOWN = 9
 };
 enum MOVING_STATUS
-{
+{   //moving stop is an assist status, along with other three status.
     MOVING_CROSS_IN = 0, MOVING_CROSS_OUT, MOVING_INSIDE, MOVING_STOP, 
     MOVING_UNKNOWN = 4
 };
@@ -47,10 +47,21 @@ char * getMovingStatusStr(const MOVING_STATUS status);
 //// Basic Structures    
 struct SegResults
 {
+    SegResults()
+    : m_objIdx(-1)
+    , m_inDirection(DIRECTION_UNKNOWN)
+    , m_outDirection(DIRECTION_UNKNOWN)        
+    , m_bOutForRecognize(false)
+    , m_bTerminate(false)
+    , m_curBox(0,0,0,0)
+    {
+        
+    }
     int m_objIdx;
-    MOVING_DIRECTION inDirection;
-    MOVING_DIRECTION outDirection;    
+    MOVING_DIRECTION m_inDirection;
+    MOVING_DIRECTION m_outDirection;    
     bool m_bOutForRecognize;
+    bool m_bTerminate;
     cv::Rect m_curBox;
 };
 
@@ -69,7 +80,6 @@ struct TDLine
     {
         movingDirection = DIRECTION_UNKNOWN;
         movingStatus = MOVING_UNKNOWN;
-        bTraced = false;
         mayPreviousLine = NULL;
     }
     TDLine(const TDPoint & _a, const TDPoint & _b)
@@ -77,7 +87,6 @@ struct TDLine
         , movingAngle(0.0)      
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
-        , bTraced(false)
         , mayPreviousLine(NULL)
     {
            
@@ -87,7 +96,6 @@ struct TDLine
     double movingAngle;
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
-    bool bTraced;
     // BoundaryScan help ThreeDiff to mark the previous boundary line.
     // ThreeDiff uses this info to do MovingIn/Out Rect updating.
     // Namely: ((previous->a.x - current->a.x) + (p->b.x - c->b.x)) / 2 
@@ -147,6 +155,7 @@ struct BgResult
 extern bool isYContainedBy(const TDLine & small, const TDLine & large);
 extern bool isXContainedBy(const TDLine & small, const TDLine & large);
 extern int loopIndex(const int index, const int maxIdx);
+
 }
 
 #endif ////

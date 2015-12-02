@@ -70,8 +70,8 @@ private:
 
 private: // inner helpers
     // 1. important ones
-    int doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
-                                vector<SegResults> & segResults);
+    int contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResult,
+                                    vector<SegResults> & segResults);
     int doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                 vector<SegResults> & segResults);
     int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);    

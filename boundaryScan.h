@@ -116,3 +116,16 @@ private: // trival inner helpers
 } // namespace Seg_Three
 
 #endif // _BOUNDARY_SCAN_H_
+
+/************************************************************************
+BoundaryScan Model:
+
+line1.  ----- ---     -------
+line2.    ---------      --
+line3.       --------             ----
+
+so, line3 will be an output line with previousLine = NULL, but internally
+in cacheLines it will be marked previousLine = &line2 to indicate it is 
+traced hereafter.
+
+************************************************************************/

@@ -103,7 +103,7 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
         return 0;
     }
     
-    // 6. do further merge using cacheLines and mark 'bTraced' & 'previousLine' of
+    // 6. do further merge using cacheLines and mark 'mayPreviousLine' of
     //    consecutive lines (three frames level)
     stableAnalyseAndMarkLineStatus();    
     
@@ -267,10 +267,15 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
     if (isLineCloseEnough(fabs(l1.movingAngle - l2.movingAngle)) == true)
         return 1;
 
-    // 3. disturbing short line merging: l3 is only used here
+    // 3. for quit small lines & small gaps, we merge them
+    if (line1len <= 16 && xDistance <= 16) // one block
+        return 1;
+    
+    // 4. disturbing short line merging: l3 is only used here
     if (l2.a.x == l3.a.x) // l2, l3 are the same, we hit the end.
         return 0;
     bool bClose = isLineCloseEnough(fabs(l1.movingAngle - l3.movingAngle));
+    // TODO: magic number here
     if (bClose && l2.b.x - l1.a.x <= 32) // 
         return 2; // l2 is a distrubing line
     return 0;
@@ -299,112 +304,110 @@ int BoundaryScan :: stableAnalyseAndMarkLineStatus()
         for (auto it = curLines[index].begin(); it != curLines[index].end(); it++)
         {
             TDLine * pPredecessor = NULL;
-            findPredecessors(*it, oldLines[index],
-                             middleLines[index], index, pPredecessor);
-            if (pPredecessor != NULL)
-            {   // mark them
-                it->previousLine = pPredecessor;
-                if (pPredecessor->bTraced == true)
-                    it->bTraced = true;
-                continue;
-            }
+            //findPredecessors(*it, oldLines[index],
+            //                 middleLines[index], index, pPredecessor);
+            //if (pPredecessor != NULL)
+            //{   // mark them
+            //    it->mayPreviousLine = pPredecessor;
+            //    continue;
+            //}
             // cannot find direct predecessor, we try oneCurLine with twoOrMore previousLine
-            if (findComposedPredecessor
+            //if (findComposedPredecessor
         }
     }
     return 0;
 }
 
 // pPredecessor points to middleLines[n]
-int BoundaryScan :: findDirectPredecessor(const TDLine & curLine,
-                                          const vector<TDLine> & oldLines,
-                                          const vector<TDLine> & middleLines,
-                                          const int direction, TDLine *pPredecessor)
-{   // TODO: evry shallow algorithm, should be elaborated
-    // traverse the oldLines to find the direct predecessor
-    for (int k = 0; k < (int)oldLines.size(); k++)
-    {
-        if (abs(oldLines[k].a.x - curLines.a.x) <= M_BOUNDARY_MAX_VARIANCE &&
-            abs(oldLines[k].b.x - curLines.b.x) <= M_BOUNDARY_MAX_VARIANCE &&
-            fabs(oldLines[k].movingAngle - curLines.movingAngle <= M_ARC_THRESHOLD))
-        {
-            pPredecessor = oldLines[k];
-            return 0;
-        }
-    }
-    for (int k = 0; k < (int)middleLines.size(); k++)
-    {
-        if (abs(middleLines[k].a.x - curLines.a.x) <= M_BOUNDARY_MAX_VARIANCE &&
-            abs(middleLines[k].b.x - curLines.b.x) <= M_BOUNDARY_MAX_VARIANCE &&
-            fabs(middleLines[k].movingAngle - curLines.movingAngle <= M_ARC_THRESHMIDDLE))
-        {
-            pPredecessor = middleLines[k];
-            return 0;
-        }
-    }
+//int BoundaryScan :: findDirectPredecessor(const TDLine & curLine,
+//                                          const vector<TDLine> & oldLines,
+//                                          const vector<TDLine> & middleLines,
+//                                          const int direction, TDLine *pPredecessor)
+//{   // TODO: evry shallow algorithm, should be elaborated
+//    // traverse the oldLines to find the direct predecessor
+//    for (int k = 0; k < (int)oldLines.size(); k++)
+//    {
+//        if (abs(oldLines[k].a.x - curLines.a.x) <= M_BOUNDARY_MAX_VARIANCE &&
+//            abs(oldLines[k].b.x - curLines.b.x) <= M_BOUNDARY_MAX_VARIANCE &&
+//            fabs(oldLines[k].movingAngle - curLines.movingAngle <= M_ARC_THRESHOLD))
+//        {
+//            pPredecessor = oldLines[k];
+//            return 0;
+//        }
+//    }
+//    for (int k = 0; k < (int)middleLines.size(); k++)
+//    {
+//        if (abs(middleLines[k].a.x - curLines.a.x) <= M_BOUNDARY_MAX_VARIANCE &&
+//            abs(middleLines[k].b.x - curLines.b.x) <= M_BOUNDARY_MAX_VARIANCE &&
+//            fabs(middleLines[k].movingAngle - curLines.movingAngle <= M_ARC_THRESHMIDDLE))
+//        {
+//            pPredecessor = middleLines[k];
+//            return 0;
+//        }
+//    }
+// 
+//    return 0;
+//}
 
-    return 0;
-}
-
-int BoundaryScan :: markCloseLine(TDLine & inLine,
-                                  vector<TDLine> & cacheLines1,
-                                  vector<TDLine> & cacheLines2)
-{
-    // 1) very close of start/end points   ---\ then take as close lines.
-    // 2) they are movingAngle is similar  ---/
-    TDLine * pClose1 = NULL;
-    TDLine * pClose2 = NULL;    
-    const double score1 = calcCloseLineScore(inLine, cacheLines1, pClose1);
-    const double score2 = calcCloseLineScore(inLine, cacheLines2, pClose2);
-
-    if (pClose1 != NULL && pClose2 != NULL)
-    {   // may find new, still need to check their scores.
-        if ((score1 + score2) / 2 > 60.0) // || score2 > 85) // score1 is the oldest line
-        {
-            pClose1->bTraced = true;
-            pClose2->bTraced = true;
-            inLine.bTraced = true;
-            return 1; // NOTE: return here.
-        }
-    }
-    return 0;
-}
-    
-// TODO: PXT: to elaborate the score criterion.    
-// using score as the close judge criterion:
-// 1. moving angle take 50 points.
-// 2. start & end TDPoints take 25 points each.
-// 3. distance of 0-100 pixels: 25-0 points, others -10 points
-double BoundaryScan :: calcCloseLineScore(TDLine & inLine,
-                                          vector<TDLine> & cacheLines, TDLine *pClose)
-{
-    double maxScore = 0.0;
-    for (int k = 0; k < (int)cacheLines.size(); k++)
-    {   // we only check untraced cross boundary lines.
-        if (cacheLines[k].bTraced == false)
-        {   // y = -0.25x + 25
-            // start point
-            int distance = abs(cacheLines[k].a.x - inLine.a.x);
-            double score = distance > 100 ? -10 : ((-0.25) * distance + 25);
-            // end point
-            distance = abs(cacheLines[k].b.x - inLine.b.x);
-            score += distance > 100 ? -10 : ((-0.25) * distance + 25);
-            // moving angle: y = (-100/PI)x + 50 & y = (100/PI)x - 150
-            const double diffAngle = fabs(cacheLines[k].movingAngle - inLine.movingAngle);
-            if (diffAngle <= M_PI)
-                score += (-100.0 / M_PI) * diffAngle + 50;
-            else
-                score += (100.0 / M_PI) * diffAngle - 150;
-            if (score > maxScore)
-            {
-                maxScore = score;
-                pClose = &cacheLines[k];
-            }
-        }
-    }
-
-    return maxScore;
-}
+//int BoundaryScan :: markCloseLine(TDLine & inLine,
+//                                  vector<TDLine> & cacheLines1,
+//                                  vector<TDLine> & cacheLines2)
+//{
+//    // 1) very close of start/end points   ---\ then take as close lines.
+//    // 2) they are movingAngle is similar  ---/
+//    TDLine * pClose1 = NULL;
+//    TDLine * pClose2 = NULL;    
+//    const double score1 = calcCloseLineScore(inLine, cacheLines1, pClose1);
+//    const double score2 = calcCloseLineScore(inLine, cacheLines2, pClose2);
+// 
+//    if (pClose1 != NULL && pClose2 != NULL)
+//    {   // may find new, still need to check their scores.
+//        if ((score1 + score2) / 2 > 60.0) // || score2 > 85) // score1 is the oldest line
+//        {
+//            pClose1->bTraced = true;
+//            pClose2->bTraced = true;
+//            inLine.bTraced = true;
+//            return 1; // NOTE: return here.
+//        }
+//    }
+//    return 0;
+//}
+//    
+//// TODO: PXT: to elaborate the score criterion.    
+//// using score as the close judge criterion:
+//// 1. moving angle take 50 points.
+//// 2. start & end TDPoints take 25 points each.
+//// 3. distance of 0-100 pixels: 25-0 points, others -10 points
+//double BoundaryScan :: calcCloseLineScore(TDLine & inLine,
+//                                          vector<TDLine> & cacheLines, TDLine *pClose)
+//{
+//    double maxScore = 0.0;
+//    for (int k = 0; k < (int)cacheLines.size(); k++)
+//    {   // we only check untraced cross boundary lines.
+//        if (cacheLines[k].bTraced == false)
+//        {   // y = -0.25x + 25
+//            // start point
+//            int distance = abs(cacheLines[k].a.x - inLine.a.x);
+//            double score = distance > 100 ? -10 : ((-0.25) * distance + 25);
+//            // end point
+//            distance = abs(cacheLines[k].b.x - inLine.b.x);
+//            score += distance > 100 ? -10 : ((-0.25) * distance + 25);
+//            // moving angle: y = (-100/PI)x + 50 & y = (100/PI)x - 150
+//            const double diffAngle = fabs(cacheLines[k].movingAngle - inLine.movingAngle);
+//            if (diffAngle <= M_PI)
+//                score += (-100.0 / M_PI) * diffAngle + 50;
+//            else
+//                score += (100.0 / M_PI) * diffAngle - 150;
+//            if (score > maxScore)
+//            {
+//                maxScore = score;
+//                pClose = &cacheLines[k];
+//            }
+//        }
+//    }
+// 
+//    return maxScore;
+//}
     
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////

@@ -88,7 +88,7 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     // 1. do diff in RGB for Contour's using.
     doBgDiff(bgResult.binaryData, m_bgResults[m_curFrontIdx].binaryData);
     // 2. update the trackers status, also dealing with MOVING_CROSS_OUT part.
-    doUpdateContourTracking(in, bgResult, segResults);   
+    contourTrackingProcessFrame(in, bgResult, segResults);   
     // 3. do boundary check for creating new Contour.
     doCreateNewContourTrack(in, bgResult, segResults);
     // 4. do update internal cache/status
@@ -109,55 +109,54 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 //// 3. Important Inner helpers
 
 // |><| **********************************************************************************
-// doUpdateContourTracking:
+// contourTrackingProcessFrame: each tracker do processFrame according to ResultLines &
+//                              it is internal status.
 // return:
 //     >= 0, process ok;
 //     < 0, process error;
 // ***************************************************************************************
-int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
-                                         vector<SegResults> & segResults)
+int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResult,
+                                             vector<SegResults> & segResults)
 {
     if (m_trackers.size() == 0)
         return 0;
 
+    // 1. first we check where there are leaving out objects and are crossing out the boundary.
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
-    {
-        // 1. MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking
-        if ((*it)->getMovingStatus() == MOVING_INSIDE)
-        {
-            cv::Rect curBox = (*it)->getCurBox();
-            // check box's possible moving out direction.
-            
-
-        }
+    {        
         SegResults sr;
         // re-calc the curBox, calculate the boundary cross part.
         int ret = (*it)->processFrame(in, bgResult, m_diffAndResults[m_curFrontIdx],
                                       m_diffOrResults[m_curFrontIdx]);
         if (ret < 0)
-            LogW("Process failed.\n");
+        {
+            LogW("Tracker %d Process failed.\n", (*it)->getIdx());
+            it++;
+        }
         else if (ret == 1) // all out
         {
-            // TODO: other updates??
+            // Tell the caller one object tracking is finished.
+            sr.m_objIdx = (*it)->getIdx();
+            sr.m_bTerminate = true;
+            segResults.push_back(sr);            
             delete *it; // delete this ContourTrack
             m_trackers.erase(it); // erase it from the vector.
         }
         else // ok, just do post update
-        {
+        {   
             sr.m_objIdx = (*it)->getIdx();
+            sr.m_bTerminate = false;
             sr.m_bOutForRecognize = (*it)->canOutputRegion();
             sr.m_curBox = (*it)->getCurBox();
-            //// kick the points
-            //if ((*it)->isAllIn() == false)
-            //    kickOverlapPoints(sr.m_curBox, (*it)->getInDirection());
-            //it++; // increse here.
+            segResults.push_back(sr);
+            it++; // increse here.
         }
-        segResults.push_back(sr);
-    }
         
+    }
+    
     return 0;
 }
-    
+
 // |><| ************************************************************************
 // doCreateNewContourTrack:
 //     1. Using m_crossLines to check new coming in objects
@@ -171,15 +170,15 @@ int ThreeDiff :: doUpdateContourTracking(const cv::Mat in, BgResult & bgResult,
 int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                          vector<SegResults> & segResults)
 {
-    vector<tuple<int, int> > creates; // the (bdNum, index) tuple
     for (int bdNum=0; bdNum < BORDER_NUM; bdNum++)
     {
         for (int k = 0; k < (int)bgResult.resultLines[bdNum].size(); k++)
-        {   // untraced ones & MOVING_CROSS_IN ones will be created.
-            if (bgResult.resultLines[bdNum][k].bTraced == false &&
+        {   // 1. untraced ones & MOVING_CROSS_IN ones will be created.
+            const TDLine & theLine = bgResult.resultLines[bdNum][k];
+            if (bgResult.resultLines[bdNum][k].mayPreviousLine == NULL &&
                 bgResult.resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
             {
-                // 2. now we get the cross lines stand fro new objects, so we just create them.
+                // 2. now we get the cross lines stand for new objects, so we just create them.
                 // 1). we calculate the lux/luy, possible width/height
                 int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
                 // TODO: should make 2 & 8 param in future.
@@ -215,25 +214,26 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                         m_imgHeight : theLine.b.x + 2 - luy;
                     break;
                 default:
-                    LogE("impossible to happen, border direction: %d.\n", borderDirection);
+                    LogE("impossible to happen, border direction: %d.\n", bdNum);
                     break;
                 }
                 // 2). now we create the tracker.
                 ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
-                                                        m_imgWidth, m_imgHeight, theLine,
-                                                        k, lux, luy,
-                                                        possibleWidth, possibleHeight);
+                                                        m_imgWidth, m_imgHeight, 
+                                                        bdNum, theLine, lux, luy,
+                                                        possibleWidth, possibleHeight,
+                                                        m_inputFrames);
                 m_trackers.push_back(pTrack);
                 // 3). we ouptput the newly created Segmentation. 
                 SegResults sr;
                 sr.m_objIdx = m_objIdx;
-                sr.m_bOutForRecognize = false;
+                sr.m_inDirection = (MOVING_DIRECTION)bdNum;
                 sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
-                m_objIdx++;
                 segResults.push_back(sr);
+                m_objIdx++;                
             }
         }
-    }        
+    }
     return 0;
 }
     

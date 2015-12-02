@@ -51,7 +51,7 @@ int SegControl :: init(const int width, const int height,
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//// APIs
+//// Lib's APIs
 int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResults)
 {   
     int ret = -1;
@@ -66,6 +66,7 @@ int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResul
         // 3. all other stuff are doing by this call. Details are described in ThreeDiff class.
         ret = m_threeDiff.processFrame(in, m_bgResult, segResults);
         m_bgResult.reset(); // reset lines.
+        LogI("SegResults size: %d.\n", (int)segResults.size());
     }
     return ret;
 }
