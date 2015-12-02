@@ -31,7 +31,7 @@ enum {BORDER_NUM = 4};
 enum MOVING_DIRECTION
 {
     TOP = 0, BOTTOM, RIGHT, LEFT, CENTER = 4,
-    TOPLEFT, BOTTOMLEFT, TOPRIGHT, BOTTOMRIGHT = 8,
+    TOP_LEFT, BOTTOM_LEFT, TOP_RIGHT, BOTTOM_RIGHT = 8,
     DIRECTION_NUM = 9, DIRECTION_UNKNOWN = 9
 };
 enum MOVING_STATUS
@@ -39,8 +39,6 @@ enum MOVING_STATUS
     MOVING_CROSS_IN = 0, MOVING_CROSS_OUT, MOVING_INSIDE, MOVING_STOP, 
     MOVING_UNKNOWN = 4
 };
-char * getMovingDirectionStr(const MOVING_DIRECTION direction);
-char * getMovingStatusStr(const MOVING_STATUS status);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -54,6 +52,7 @@ struct SegResults
     , m_bOutForRecognize(false)
     , m_bTerminate(false)
     , m_curBox(0,0,0,0)
+    , m_colorBox(0,0,0,0)
     {
         
     }
@@ -63,6 +62,7 @@ struct SegResults
     bool m_bOutForRecognize;
     bool m_bTerminate;
     cv::Rect m_curBox;
+    cv::Rect m_colorBox;
 };
 
 struct TDPoint
@@ -77,17 +77,21 @@ struct TDPoint
 struct TDLine
 {
     TDLine()
+        : a(-1, -1) // indicate an empty line (invalid)
+        , b(-1, -1)
+        , movingDirection(DIRECTION_UNKNOWN)
+        , movingStatus(MOVING_UNKNOWN)
+        , mayPreviousLineStart(-1, -1)
+        , mayPreviousLineEnd(-1, -1)        
     {
-        movingDirection = DIRECTION_UNKNOWN;
-        movingStatus = MOVING_UNKNOWN;
-        mayPreviousLine = NULL;
     }
     TDLine(const TDPoint & _a, const TDPoint & _b)
         : a(_a), b(_b)
         , movingAngle(0.0)      
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
-        , mayPreviousLine(NULL)
+        , mayPreviousLineStart(-1, -1)
+        , mayPreviousLineEnd(-1, -1)        
     {
            
     }
@@ -96,10 +100,9 @@ struct TDLine
     double movingAngle;
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
-    // BoundaryScan help ThreeDiff to mark the previous boundary line.
-    // ThreeDiff uses this info to do MovingIn/Out Rect updating.
-    // Namely: ((previous->a.x - current->a.x) + (p->b.x - c->b.x)) / 2 
-    TDLine *mayPreviousLine; 
+    // previous line's points.
+    TDPoint mayPreviousLineStart;
+    TDPoint mayPreviousLineEnd;    
     inline int getXLength() {return abs(a.x - b.x);}
     inline int getYLength() {return abs(a.y - b.y);}
     inline double getLength()
@@ -152,9 +155,15 @@ struct BgResult
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 //// Util Functions
+extern char * getMovingDirectionStr(const MOVING_DIRECTION direction);
+extern char * getMovingStatusStr(const MOVING_STATUS status);
 extern bool isYContainedBy(const TDLine & small, const TDLine & large);
 extern bool isXContainedBy(const TDLine & small, const TDLine & large);
 extern int loopIndex(const int index, const int maxIdx);
+extern MOVING_DIRECTION getPossibleMovingInDirection(const int lux, const int luy,
+                                                     const int rectWidth,
+                                                     const int rectHeight,
+                                                     const int imgWidth, const int imgHeight);
 
 }
 

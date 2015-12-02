@@ -32,6 +32,7 @@ public:
     // 4. different phrases can be told by MOVING_STATUS: CrossIn, Inside, CrossOut
     ContourTrack(const int idx, const cv::Mat & in,
                  const int width, const int height, // image width/height
+                 const int skipTB, const int skipLR,
                  const int directionIn, const TDLine & theLine, 
                  const int lux, const int luy, // first appear coordinate
                  const int possibleWidth, const int possibleHeight,
@@ -50,7 +51,7 @@ public:
     bool canOutputRegion() {return m_bOutputRegion;}
     int getFirstAppearFrameCount() {return m_firstAppearFrameCount;}
     MOVING_DIRECTION getInDirection(){return m_inDirection;}
-    vector<TDLine> & getLastBoudanryLines() {return m_lastBoundaryLines;}
+    MOVING_DIRECTION getOutDirection(){return m_outDirection;}
     MOVING_STATUS getMovingStatus() {return m_movingStatus;}
     void setMovingStatus(MOVING_STATUS newMS) {m_movingStatus = newMS;}
     
@@ -58,9 +59,11 @@ private:
     const int m_idx;
     int m_imgWidth;
     int m_imgHeight;
-    int m_inputFrames;
-    
+    int m_skipTB;
+    int m_skipLR;
+    int m_inputFrames;    
     const int m_firstAppearFrameCount;
+    
     bool m_bAllIn; // some objects may not always in.
     bool m_bAllOut;
     bool m_bOutputRegion;
@@ -76,7 +79,7 @@ private:
     MOVING_DIRECTION m_outDirection;
     MOVING_STATUS m_movingStatus;
     bool m_bMovingStop; // MOVING_STOP is an assist status, along with other three.
-    vector<TDLine> m_lastBoundaryLines; // may have one or two boundary lines simultaneously
+    TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
     
     // 4. size changing function
     double m_a1; 
@@ -89,14 +92,19 @@ private:
 
 private: // inner helpers
     // important ones
-    int updateTrackerUsingDiff(const cv::Mat & in, const BgResult & bgResult,
-                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int updateCrossBoxUsingDiff(const cv::Mat & in, const BgResult & bgResult,
+                                const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box);
-    int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
-                     vector<vector<TDLine> > & resultLines);    
-    int markAcrossOut(const vector<MOVING_DIRECTION> & directions,
-                      vector<vector<TDLine> >& resultLines);
     
+    int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
+                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int markAcrossOut(const vector<MOVING_DIRECTION> & directions,
+                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int updateCrossInBox(const int bdNum, TDLine & updateLine, BgResult & bgResult,
+                         const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int updateCrossOutBox(const int bdNum, TDLine & updateLine, BgResult & bgResult,
+                          const cv::Mat & diffAnd, const cv::Mat & diffOr);
+
     // trival ones
     int curMaxChangeSize(int & x, int & y);
     double calcOverlapRate(cv::Rect & a, cv::Rect & b);

@@ -104,7 +104,7 @@ private: // trival inner helpers
     int doDilate(const int times = 1);
     double getLineMoveAngle(const TDLine & l1,
                             const vector<double> & xMvs, const vector<double> & yMvs);
-    int calcLineMovingStatus(const double angle, const int index, TDLine & line);
+    int calcLineMovingStatus(const int bdBum, TDLine & line);
     inline bool isLineCloseEnough(const double diffAngle)
     {   // TODO: between 0 to 90? degree is taken as the similar
         if (diffAngle < M_ARC_THRESHOLD || (fabs(2*M_PI - diffAngle) < M_ARC_THRESHOLD))

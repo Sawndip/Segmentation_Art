@@ -428,19 +428,22 @@ double BoundaryScan :: getLineMoveAngle(const TDLine & l1, const vector<double> 
 int BoundaryScan :: outputLineAnalyseResultAndUpdate(BgResult & bgResult)
 {   
     // Output curFrontIdx's frame lines as the output result.
-    // Update curFronIdx after this call.
-    for (int index = 0; index < (int)m_cacheLines[m_curFrontIdx].size(); index++)
-        bgResult.resultLines[index] = m_cacheLines[m_curFrontIdx][index];
+        
+    for (int bdNum = 0; bdNum < (int)m_cacheLines[m_curFrontIdx].size(); bdNum++)
+    {
+        for (int k = 0; k < (int)m_cacheLines[m_curFrontIdx][bdNum].size(); k++)
+            calcLineMovingStatus(bdNum, m_cacheLines[m_curFrontIdx][bdNum][k]);
+        bgResult.resultLines[bdNum] = m_cacheLines[m_curFrontIdx][bdNum];
+    }
     m_curFrontIdx = loopIndex(m_curFrontIdx, M_BOUNDARY_SCAN_CACHE_LINES);
     return 0;
 }
 
-int BoundaryScan :: calcLineMovingStatus(const double angle,
-                                         const int index, TDLine & line)
+int BoundaryScan :: calcLineMovingStatus(const int bdNum, TDLine & line)
 {      
-    line.movingAngle = angle;
-    line.movingDirection = (MOVING_DIRECTION)index;
-    switch(index) // tend to moving in
+    const double angle = line.movingAngle;
+    line.movingDirection = (MOVING_DIRECTION)bdNum;
+    switch(bdNum) // tend to moving in
     {
     case 0: // top
         line.movingStatus = angle > 0 ?  MOVING_CROSS_OUT : MOVING_CROSS_IN;
@@ -455,7 +458,7 @@ int BoundaryScan :: calcLineMovingStatus(const double angle,
         line.movingStatus = fabs(angle) < (M_PI / 2) ? MOVING_CROSS_OUT : MOVING_CROSS_IN;
         break;
     default:
-        LogE("Impossible Direction n=%d.", index);
+        LogE("Impossible Direction n=%d.\n", bdNum);
     }
     return 0;
 }

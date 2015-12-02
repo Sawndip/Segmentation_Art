@@ -138,6 +138,9 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
             // Tell the caller one object tracking is finished.
             sr.m_objIdx = (*it)->getIdx();
             sr.m_bTerminate = true;
+            sr.m_inDirection = (*it)->getInDirection();
+            sr.m_outDirection = (*it)->getOutDirection();
+            sr.m_curBox = (*it)->getCurBox(); // last box
             segResults.push_back(sr);            
             delete *it; // delete this ContourTrack
             m_trackers.erase(it); // erase it from the vector.
@@ -218,9 +221,14 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     break;
                 }
                 // 2). now we create the tracker.
+                MOVING_DIRECTION md =
+                    getPossibleMovingInDirection(lux, luy, possibleWidth, possibleHeight,
+                                                 m_imgWidth, m_imgHeight);
+                assert((int)theLine.movingDirection == bdNum);
                 ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
-                                                        m_imgWidth, m_imgHeight, 
-                                                        bdNum, theLine, lux, luy,
+                                                        m_imgWidth, m_imgHeight,
+                                                        m_skipTB, m_skipLR,
+                                                        md, bdNum, theLine, lux, luy,
                                                         possibleWidth, possibleHeight,
                                                         m_inputFrames);
                 m_trackers.push_back(pTrack);
@@ -261,6 +269,7 @@ int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & b
     m_bgResults[m_curFrontIdx] = bgResult;
     return 0;
 }    
-   
+
+    
 } // namespace Seg_Three    
 ////////////////////////////// End of File //////////////////////////////////////////

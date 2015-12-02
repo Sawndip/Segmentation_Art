@@ -1,4 +1,5 @@
-#include "math.h"
+#include <algorithm>
+#include <math.h>
 #include "contourTrack.h"
 
 namespace Seg_Three
@@ -8,6 +9,7 @@ namespace Seg_Three
 //// constructor / destructor / init
 ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
                              const int width, const int height,
+                             const int skipTB, const int skipLR,
                              const int directionIn, const TDLine & theLine,
                              const int lux, const int luy,                         
                              const int possibleWidth, const int possibleHeight,
@@ -15,24 +17,26 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     : m_idx(idx)
     , m_imgWidth(width)
     , m_imgHeight(height)
+    , m_skipTB(skipTB)
+    , m_skipLR(skipLR)      
     , m_inputFrames(0)
     , m_firstAppearFrameCount(firstAppearFrameCount)
-    , m_bAllIn(false)
-    , m_bAllOut(false)
-    , m_bOutputRegion(false)
+    , m_bAllIn(false) // may not be used
+    , m_bAllOut(false) // may not be used
+    , m_bOutputRegion(false) // may not be used
     , m_lastBox(lux, luy, possibleWidth, possibleHeight)
     , m_curBox(m_lastBox)
     , m_ctTracker(NULL)
-    , m_largestWidth(possibleWidth)
-    , m_largestHeight(possibleHeight)
+    , m_largestWidth(possibleWidth) // may not be used
+    , m_largestHeight(possibleHeight) // may not be used
     , m_inDirection((MOVING_DIRECTION)directionIn)
     , m_outDirection(DIRECTION_UNKNOWN)
     , m_movingStatus(MOVING_CROSS_IN)
-    , m_bMovingStop(false)
+    , m_bMovingStop(false) // may not be used
 {
-    // TODO: may need further polishing.
-    m_lastBoundaryLines.clear();
-    m_lastBoundaryLines.push_back(theLine);
+    // line's direction is not quit the same as the tracker's moving direction
+    assert(theLine.movingDirection < 4);
+    m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;
     
     assert(width > 0 && height > 0);
     // 1. calculate the size changing function.
@@ -49,29 +53,30 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     // won't init until bAllIn is set, namely MOVING_STATUS changes from CROSS_IN to INSIDE.
     // m_ctTracker = new CompressiveTracker();
     // m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);
-    
-    LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, possibleWidth:%d, "
-         "possibleHeight:%d. \n", m_idx, 
+        
+    LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, initWidth:%d, "
+         "initHeight:%d. \n", m_idx, 
          directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
     return;
 }
 
 ContourTrack :: ~ContourTrack()
-{    
+{   
     return;        
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-//// APIs    
+//// APIs
+    
+//// Process frame using compressive tracker or Boundary Info    
 int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-    // Process frame using compressive tracker.
+    
     m_inputFrames++;
-    vector<vector<TDLine> > & resultLines = bgResult.resultLines;
     // if the box is close to boudary, the tracker may moving out.
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
-    
+    m_lastBox = m_curBox;    
     // BE AWARE: 1) tracer has moving status(in out inside).
     //           2) each boundary line also has moving status.
     bool bCTTracking = false;
@@ -81,25 +86,21 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     case MOVING_INSIDE: 
         // TODO: magic number subsitution needed. 10frames * 10pixel = 100 pixles
         if (m_inputFrames >= 10 && directions.size() > 0)
-        {   // line's movingDirection should be MOVING_CROSS_OUT
-            markAcrossOut(directions, resultLines);
-            // change moving status of the tracker
-        }
+            // line's movingDirection should be MOVING_CROSS_OUT            
+            markAcrossOut(directions, bgResult, diffAnd, diffOr); 
         else // do normal tracking.
             bCTTracking = true;   
         break;
     case MOVING_CROSS_OUT:
     //  use boundary info to track, won't use compressive tracker
-        if (markAcrossOut(directions, resultLines) < 0)
-        {  // if all out, we tell the called to terminal the whole tracking.
+        if (markAcrossOut(directions, resultLines, diffAnd, diffOr) < 0)
+            // if all out, we tell the called to terminal the whole tracking.
             return 1; // 1 means terminal the tracking.
-        }
         break;
     case MOVING_CROSS_IN:
-        if (markAcrossIn(directions, resultLines) < 0)
-        {  // if all in, use normal tracking.
+        if (markAcrossIn(directions, resultLines, diffAnd, diffOr) < 0)
+            // if all in, use normal tracking.
             bCTTracking = true;
-        }
         break;
     // case MOVING_STOP: this is not a valid status for track's moving status.
     default:
@@ -132,14 +133,90 @@ int ContourTrack :: flushFrame()
     
     return 0;
 }; 
-    
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers: important ones
+int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
+                                  BgResult & bgResult,
+                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
+{
+    assert(directions.size() <= 2);
+    vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
+    bool bStillCrossing = false;
+    // how to make the object moving in & we update the rectBox gradully?    
+    for (int bdNum = 0; bdNum < BORDER_NUM; bdNum++)
+    {
+        auto it = std::find(directions.begin(), directions.end(), bdNum);
+        if (it != directions.end())
+        {
+            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
+            {
+                if (resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
+                {   
+                    if (resultLines[bdNum][k].mayPreviousLineStart.x != -1 &&
+                        resultLines[bdNum][k].mayPreviousLineEnd.x != -1)
+                    {   // have previous line
+                        if (resultLines[bdNum][k].mayPreviousLineStart.x ==
+                                m_lastBoundaryLines[bdNum].a.x &&
+                            resultLines[bdNum][k].mayPreviousLineEnd.x ==
+                                m_lastBoundaryLines[bdNum].b.x)
+                        {   // the predecessor is found, so update curBox using the line
+                            bStillCrossing = true;
+                            updateCrossInBox(bdNum, resultLines[bdNum][k]);
+                        }
+                    }
+                    else
+                    {
+
+                    }
+                }
+            }
+        }
+    }
+    // all in
+    if (bStillCrossing == false)
+    {
+        m_movingStatus = MOVING_INSIDE;
+        return -1;
+    }
+    return 0;
+}
+
+int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
+                                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+{
+    vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
+    // 1. first we use lastBox & diffResult to get the max & min possible box
+    cv::Rect maxBox, minBox;
+    updateCrossBoxUsingDiff(maxBox, minBox, diffAnd, diffOr);
+    // 2. then we use updateLine & lastBox's angle to modify the possible box we got
+    TDLine & lastLine = m_lastBoundaryLines[bdNum];
+    switch(bdNum)
+    {
+    case 0:
+        break;
+
+    }
+    
+    
+    const int xDiff = abs(lastLine.a.x - updateLine.a.x);
+    const int yDiff = (int)fabs(round(tan(lastLine.movingAngle) * xDiff));
+    
+    return 0;
+}    
+    
+int ContourTrack ::  markAcrossOut(const vector<MOVING_DIRECTION> & directions,
+                                   BgResult & bgResult)
+{
+    
+    return 0;
+}
 
 // 1. when do re-calc the curBox, we tend to get it a little bigger.
 // 2. then we use diffOrResult & curMaxChangeSize to limit the expand of the box size.
-int ContourTrack :: updateTrackerUsingDiff(const cv::Mat & in, const BgResult & bgResult,
-                                           const cv::Mat & diffAnd, const cv::Mat & diffOr)
+int ContourTrack :: updateCrossBoxUsingDiff(cv::Rect & max, cv::Rect & min,
+                                            BgResult & bgResult,
+                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
 { 
     int ret = 0;
     // 1. we use this dx dy and diffOr to get the possible maxium box
@@ -274,29 +351,12 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
             break;
     }
     box.width -= k;
-
     return 0;
 }
-
-int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
-                                  vector<vector<TDLine> > & resultLines)
-{
-
-    return 0;
-}
-
-int ContourTrack ::  markAcrossOut(const vector<MOVING_DIRECTION> & directions,
-                                   vector<vector<TDLine> > & resultLines)
-{
-
-    return 0;
-}
-    
     
 //////////////////////////////////////////////////////////////////////////////////////////
 // trival ones
-
-// shrink or dilate
+// shrink or dilate, just estimation, may not be used.
 int ContourTrack :: curMaxChangeSize(int & x, int & y)
 {
     double xRate;
@@ -358,7 +418,17 @@ void ContourTrack :: boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox
 vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::Rect & rect)
 {
     vector<MOVING_DIRECTION> directions;
-    
+    // TODO: magic number should be eliminated
+    if (rect.x <= m_skipLR + 16)
+        directions.push_back(LEFT);
+    if (rect.x + rect.width >= m_imgWidth - m_skipLR - 16)
+        directions.push_back(RIGHT);
+    if (rect.y <= m_skipTB + 16)
+        directions.push_back(TOP);
+    if (rect.y + rect.height >= m_imgHeight - m_skipTB - 16)
+        directions.push_back(RIGHT);
+
+    assert(directions.size() <= 2);
     return directions;
 }
     

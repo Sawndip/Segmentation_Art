@@ -37,4 +37,29 @@ namespace Seg_Three
         return nextIdx;
     }
 
+    MOVING_DIRECTION getPossibleMovingInDirection(const int lux, const int luy,
+                                                  const int rectWidth,
+                                                  const int rectHeight,
+                                                  const int imgWidth, const int imgHeight)
+    {
+        const int rightGap = imgWidth - lux - rectWidth;        
+        const int bottomGap = imgHeight - luy - rectHeight;
+        if (lux <= 2 && luy <= 2)
+            return TOP_LEFT;
+        else if (lux <= 2 && bottomGap <= 2)
+            return BOTTOM_LEFT;
+        else if (luy <= 2 && rightGap <= 2)
+            return TOP_RIGHT;
+        else if (rightGap <= 2 && bottomGap <= 2)
+            return BOTTOM_RIGHT;
+        else if (lux <= 2)
+            return LEFT;
+        else if (luy <= 2)
+            return TOP;
+        else if (rightGap <= 2)
+            return RIGHT;
+        else if (bottomGap <= 2)
+            return BOTTOM;
+        return DIRECTION_UNKNOWN;
+    }
 } // namespace
