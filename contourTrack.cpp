@@ -141,7 +141,6 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                                   BgResult & bgResult,
                                   const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-    assert(directions.size() <= 2);
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
     bool bStillCrossing = false;
     // how to make the object moving in & we update the rectBox gradully?    
@@ -227,7 +226,7 @@ int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
     maxBox.height = maxBox.height + m_lastBox.height / 2; // take it as no height changing
     
     // 4. make the max box at least contain the min box.
-    boundBoxByMinBox(maxBox, minBox);
+    enlargeBoxByMinBox(maxBox, minBox);
     
     /* 5. Until Now, we get the next box */
     m_curBox = maxBox;
@@ -324,29 +323,31 @@ cv::Rect ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
 { 
     // 1. we use this dx dy and diffOr to get the possible maxium box
-    int dx = 0, dy = 0;
-    curMaxChangeSize(dx, dy);
+    // TODO: magic number here.
+    int dx = 32, dy = 32;
+    //curMaxChangeSize(dx, dy);
     int lux = m_lastBox.x - dx;
     int luy = m_lastBox.y - dy;
     int rbx = m_lastBox.x + m_lastBox.width + dx;
     int rby = m_lastBox.y + m_lastBox.height + dy;
     if (lux < 0) lux = 0;
     if (luy < 0) luy = 0;
-    if (rbx > m_imgWidth) rbx = m_imgWidth-1;
-    if (rby > m_imgHeight) rby = m_imgHeight-1;
-    if (rbx <= lux || rby < luy)
+    if (rbx > m_imgWidth) rbx = m_imgWidth;
+    if (rby > m_imgHeight) rby = m_imgHeight;
+    if (rbx <= lux || rby <= luy)
     LogD("%d-%d-%d-%d, %d-%d-%d-%d. dx-%d,dy-%d\n",rbx,lux,rby,luy,m_curBox.x,m_curBox.y,
           m_curBox.width, m_curBox.height, dx, dy);
     //assert(rbx > lux && rby > luy);
-    cv::Rect maxBox(lux, luy, rbx - lux, rby - luy);
-    if (maxBox.width % 2 != 0) maxBox.width--;
-    if (maxBox.height % 2 != 0) maxBox.height--;
+    cv::Rect box(lux, luy, rbx - lux, rby - luy);
+    if (box.width % 2 != 0) box.width--;
+    if (box.height % 2 != 0) box.height--;
+    const cv::Rect theMaxBox = box;
     // a). shrink the max box using 'diffOr' to get the possible maxium box.
-    doShrinkBoxUsingImage(diffOr, maxBox);
+    doShrinkBoxUsingImage(diffOr, box);
     // b). then shrink the max box using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, maxBox);    
-
-    return maxBox;
+    doShrinkBoxUsingImage(bgResult.binaryData, box);    
+    boundBoxByMaxBox(box, theMaxBox);
+    return box;
 }
 
 // box's width & height must be an even number.
@@ -478,19 +479,33 @@ cv::Rect ContourTrack :: calcOverlapArea(const cv::Rect & a, const cv::Rect & b)
     return cv::Rect(x, y, width, height);
 }
 
-void ContourTrack :: boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox)
+void ContourTrack :: enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox)
 {
-    if (maxBox.x > minBox.x)
-        maxBox.x = minBox.x;
-    if (maxBox.y < minBox.y)
-        maxBox.y = minBox.y;
-    if (maxBox.x + maxBox.width < minBox.x + minBox.width)
-        maxBox.width = minBox.x + minBox.width - maxBox.x;
-    if (maxBox.y + maxBox.height < minBox.y + minBox.height)
-        maxBox.height = minBox.y + minBox.height - maxBox.y;    
+    if (box.x > minBox.x)
+        box.x = minBox.x;
+    if (box.y < minBox.y)
+        box.y = minBox.y;
+    if (box.x + box.width < minBox.x + minBox.width)
+        box.width = minBox.x + minBox.width - box.x;
+    if (box.y + box.height < minBox.y + minBox.height)
+        box.height = minBox.y + minBox.height - box.y;    
     return;
 }
 
+void ContourTrack :: boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox)
+{
+    if (box.x < maxBox.x)
+        box.x = maxBox.x;
+    if (box.y > maxBox.y)
+        box.y = maxBox.y;
+    if (box.x + box.width > maxBox.x + maxBox.width)
+        box.width = maxBox.x + maxBox.width - box.x;
+    if (box.y + box.height > maxBox.y + maxBox.height)
+        box.height = maxBox.y + maxBox.height - box.y;    
+    return;
+}
+
+    
 // check box close to which boundary (should take skipTB,LR into account)    
 vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::Rect & rect)
 {
@@ -505,7 +520,7 @@ vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::R
     if (rect.y + rect.height >= m_imgHeight - m_skipTB - 16)
         directions.push_back(RIGHT);
 
-    assert(directions.size() <= 2);
+    // normally, the size of directions is 1 or 2, very rare it is 3 or 4.
     return directions;
 }
     

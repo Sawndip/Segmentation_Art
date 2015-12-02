@@ -113,7 +113,8 @@ private: // inner helpers
     int curMaxChangeSize(int & x, int & y);
     double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
     cv::Rect calcOverlapArea(const cv::Rect & a, const cv::Rect & b);
-    void boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox);
+    void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);
+    void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);    
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     int getShiftByTwoConsecutiveLine(int & xShift, int & yShift, const int bdNum,
                                      const TDLine & lastLine, const TDLine & updateLine);

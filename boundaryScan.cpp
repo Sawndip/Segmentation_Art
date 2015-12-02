@@ -443,6 +443,7 @@ int BoundaryScan :: calcLineMovingStatus(const int bdNum, TDLine & line)
 {      
     const double angle = line.movingAngle;
     line.movingDirection = (MOVING_DIRECTION)bdNum;
+    // NOTE: it is not accurate to using Angle to determine the MOVING_STATUS
     switch(bdNum) // tend to moving in
     {
     case 0: // top
