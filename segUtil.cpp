@@ -41,7 +41,7 @@ namespace Seg_Three
                                                   const int rectWidth,
                                                   const int rectHeight,
                                                   const int imgWidth, const int imgHeight)
-    {
+    {   // TODO: magic number 2 here.
         const int rightGap = imgWidth - lux - rectWidth;        
         const int bottomGap = imgHeight - luy - rectHeight;
         if (lux <= 2 && luy <= 2)
@@ -87,48 +87,60 @@ namespace Seg_Three
         return boundaryLine;
     }
 
+    // the input argument angle: [0, 2*Pi]
+    inline double diffAngleToScore(const double angle, const int maxScore);
+    {  // aproaching 0, then score maxScore points, approaching pi, then 0.           
+        if (angle <= M_PI) 
+            return (-1.0 * maxScore / M_PI) * angle + maxScore;
+        else // aproaching 2pi, then score maxScore points.
+            return (maxScore / M_PI) * angle - maxScore;
+    }
+    inline double vertexShiftToScore(const int shift, const int maxScore)
+    {
+       if (startShift > 64)
+           return 0;
+       else if (startShift > 32)
+           return 0.1 * maxScore;
+       else if (startShift > 16)
+           return 0.4 * maxScore;
+       else if (startShift > 8)
+           return 0.7 * maxScore;
+       else if (startShift > 4)
+           return (double)maxScore;
+       else
+           return 0.9 * maxScore;
+    }
     // check two lines' possibility to be consecutive.
     // 1. they have similar angle (50 points)
     // 2. if not, start/end point is close (inside 16 pixels, 50points)
-    double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2)
-    {
-       double score = 0.0;
-       // 1. moving angle: y = (-100/PI)x + 50, y = (100/PI)x - 150
+    double leftConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                       const int angleMaxScore, const bool bStart)
+    {       
+       int shift = l1.a.x - l2.a.x;
+       if (bStart == false)
+           shift = l1.b.x - l2.b.x;
+       if (shift < 0)
+           return 0.0;
        const double diffAngle = fabs(l1.movingAngle - l2.movingAngle);
-       if (diffAngle <= M_PI) // aproaching 0, then score 50points
-           score += (-100.0 / M_PI) * diffAngle + 50;
-       else // aproaching 2pi, then score 50points.
-           score += (100.0 / M_PI) * diffAngle - 150;
-
-       const int startShift = l1.a.x - l2.a.x;
-       const int endShift = l1.b.x - l2.b.x;
-       // 2. whether shift the same direction takes 10       
-       const int lineShift = abs(startShift - endShift);
-       if (lineShift <= 4)
-           score += 20;
-       else if (lineShift <= 8)
-           score += 15;
-       else if (lineShift <= 16)
-           score += 10;
-       else if (lineShift <= 32)
-           score += 5;
-       else
-           score += 0;
-
-       const int lineClose = abs(startShift) + abs(endShift);
-       if (lineClose < 4)
-           score += 15;
-       else if (lineClose < 8)
-           score += 20;
-       else if (lineClose < 16)
-           score += 15;
-       else if (lineClose < 32)
-           score += 10;
-       else if (lineClose < 64)
-           score += 5;
-       else
-           score += 0;
+       double score = diffAngleToScore(diffAngle, angleMaxScore);
+       score += vertexShiftToScore(shift, 100 - angleMaxScore);
        return score;
+    }
+    double rightConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                        const int angleMaxScore, const bool bStart)
+    {
+        return leftConsecutivityOfTwoLines(l2, l1, angleMaxScore, bStart); 
+    }
+    // balanced consecutivity: namely left & right all similar
+    double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                   const int angleMaxScore)
+    {
+        // two of those calls' return value will be 0.0
+        double score = leftConsecutivityOfTwoLines(l1, l2, angleMaxScore, true);
+        score += leftConsecutivityOfTwoLines(l1, l2, angleMaxScore, false);
+        score += rightConsecutivityOfTwoLines(l1, l2, angleMaxScore, true);
+        score += rightConsecutivityOfTwoLines(l1, l2, angleMaxScore, false);
+        return score / 2; 
     }
     
 } // namespace

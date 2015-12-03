@@ -107,7 +107,7 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
     //    consecutive lines (three frames level)
     stableAnalyseAndMarkLineStatus();    
     
-    // 9. finally, update the curFrontIdx & according
+    // 7. finally, update the curFrontIdx & according
     outputLineAnalyseResultAndUpdate(bgResult);
     return 0;
 }
@@ -203,7 +203,7 @@ int BoundaryScan :: premergeLines(const BgResult & bgResult)
                     it->movingAngle = getLineMoveAngle(*it, xMvs, yMvs);
                     oneBoundaryLines.erase(nextIt);
                     LogD("---- Merged New Line is %d-%d(%.2f).\n",
-                         it->a.x , it->b.x, it->movingAngle);
+                         it->a.x, it->b.x, it->movingAngle);
                 }
                 else if (ret == 2)
                 {
@@ -284,7 +284,8 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
 //////////////////////////////////////////////////////////////////////////////////////////
 // ***** Five Star Important    
 // 1. using cacheLines to further merge lines
-// 2. kick out disturbing lines
+// 2. kick out disturbing lines (merged be adjacent lines)
+// 3. correct line's MOVING_DIRECTION (using angle and its predecessor & successor)
 // 3. do line status marking (final output result of the BoundaryScan)
 // 4. Eager Strategy: two out of three are treat as the LINE.
 //    Conservative Strategy: all three lines are the "same".
@@ -299,25 +300,99 @@ int BoundaryScan :: stableAnalyseAndMarkLineStatus()
     vector<vector<TDLine> > & curLines = m_cacheLines[m_curFrontIdx];
     assert(curLines.size() == BORDER_NUM);
     assert(oldLines.size() == middleLines.size() && oldLines.size() == curLines.size());
-    for (int index = 0; index < BORDER_NUM; index++)
-    {   
-        for (auto it = curLines[index].begin(); it != curLines[index].end(); it++)
+    
+    for (int bdNum = 0; bdNum < BORDER_NUM; bdNum++)
+    {
+        if (newCurLines.size() > 0)
         {
-            TDLine * pPredecessor = NULL;
-            //findPredecessors(*it, oldLines[index],
-            //                 middleLines[index], index, pPredecessor);
-            //if (pPredecessor != NULL)
-            //{   // mark them
-            //    it->mayPreviousLine = pPredecessor;
-            //    continue;
-            //}
-            // cannot find direct predecessor, we try oneCurLine with twoOrMore previousLine
-            //if (findComposedPredecessor
-        }
+            markPredecessorsRecursively(0, bdNum, curLines[bdNum],
+                                        middleLines[bdNum], oldLines[bdNum]);
+        }    
     }
     return 0;
 }
 
+int BoundaryScan :: markPredecessorsRecursively(const int curIdx, const int bdNum,
+                                                vector<TDLine> & curLines,
+                                                vector<TDLine> & middleLines,
+                                                vector<TDLine> & oldLines)
+{
+    if (curIdx >= curLines.size())
+        return 0; // base: finish the process.
+
+    markPredecessor(curLines[curIdx], middleLines, oldLines);
+    // then check overlap after mark
+    for (auto it = curLines.begin() + curIdx; it != curLine.end(); /*No Increament Here*/)
+    {
+        do
+        {
+            auto nextIt = it + 1;
+            if (nextIt != curLine.end())
+            {
+                it->b.x >= nextIt.a.x;
+                it->b = nextIt.b; // do merging,  movingAngle update in the final update.
+                curLines.erase(nextIt);
+            }
+        } while(nextIt != curLine.end());
+        else
+            it++;
+    }       
+    return markPredecessorsRecursively(curIdx+1, bdNum, curLines, oldLines, middleLines);
+}
+
+int BoundaryScan :: markLeft(TDLine & curLine, vector<TDLine> & middleLines,
+                             vector<TDLine> & oldLines)
+{   // TODO: magic number 60: 70 ?
+    int maxScoreIdx = -1;
+    double maxScore = -1.0;
+    for (int k = 0; k < middleLines.size(); k++)
+    {
+        const double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
+        if (score > maxScore)
+        {
+            maxScore = score;
+            maxScoreIdx = k;
+        }
+    }
+
+    if (maxScore < 60.0)
+        return false;
+    else // also check the oldest one
+    {
+        int oldMaxIdx = -1;
+        double oldMaxScore = -1;
+        for (int k = 0; k < oldLines.size(); k++)
+        {
+            const double score = leftConsecutivityOfTwoLines();
+            if (score > oldMaxScore)
+            {
+                oldMaxScore = score;
+                oldMaxIdx = k;
+            }
+        }
+        maxScore += oldMaxScore;
+    }
+    return maxScore / 2 > 60.0;
+}
+    
+// the most important function in BoundaryScan.
+// It is using three consecutive boundary lines to get the most possible object contour width.
+//     
+//int BoundaryScan :: markPredecessorsAsQianKunZhenDuiKan(TDLine & curLine,
+//                                                        vector<TDLine> & oldLines,
+//                                                        vector<TDLine> & middleLines,
+//                                                        vector<TDLine> & curLines)
+//{   // curLines won't be used in this call.
+//    const int start = curLine.a.x;
+// 
+//    for (int k = 0; k < (int)oldLines.size(); k++)
+//    {
+//        isXContainedBy(curLine, oldLines[k]);
+//    }
+//    
+//    return 0;
+//}
+    
 // pPredecessor points to middleLines[n]
 //int BoundaryScan :: findDirectPredecessor(const TDLine & curLine,
 //                                          const vector<TDLine> & oldLines,

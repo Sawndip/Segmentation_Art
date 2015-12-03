@@ -368,7 +368,7 @@ int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
     TDLine boundaryLine = m_lastBoundaryLines[bdNum];
     if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
         boundaryLine = rectToBoundaryLine(bdNum, m_lastBox);
-    const double consecutivityScore = consecutivityOfTwoLines(boundaryLine, updateLine);
+    const double consecutivityScore = consecutivityOfTwoLines(updateLine, boundaryLine, 50);
     // TODO: magic number 75.0 here.
     if (consecutivityScore > 75.0)
     {

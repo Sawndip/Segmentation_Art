@@ -81,6 +81,7 @@ struct TDLine
         , b(-1, -1)
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
+        , bNewObjectLine(false)
         , mayPreviousLineStart(-1, -1)
         , mayPreviousLineEnd(-1, -1)        
     {
@@ -90,6 +91,7 @@ struct TDLine
         , movingAngle(0.0)      
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
+        , bNewObjectLine(false)
         , mayPreviousLineStart(-1, -1)
         , mayPreviousLineEnd(-1, -1)        
     {
@@ -100,6 +102,7 @@ struct TDLine
     double movingAngle;
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
+    bool bNewObjectLine; // only marked when detect new objects in.
     // previous line's points.
     TDPoint mayPreviousLineStart;
     TDPoint mayPreviousLineEnd;    
@@ -161,12 +164,20 @@ extern bool isYContainedBy(const TDLine & small, const TDLine & large);
 extern bool isXContainedBy(const TDLine & small, const TDLine & large);
 extern int loopIndex(const int index, const int maxIdx);
 extern MOVING_DIRECTION getPossibleMovingInDirection(const int lux, const int luy,
-                                                     const int rectWidth,
-                                                     const int rectHeight,
+                                                     const int rectWidth, const int rectHeight,
                                                      const int imgWidth, const int imgHeight);
 // ignore the distance to the boundary
 extern TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect);
-extern double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2);
+// consecutivity
+extern double leftConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                          const int angleMaxScore, const bool bStart);
+extern double rightConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                           const int angleMaxScore, const bool bStart);
+extern double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                      const int angleMaxScore);
+extern inline double diffAngleToScore(const double angle, const int maxScore);
+extern inline double vertexShiftToScore(const int shift, const int maxScore);
+
 }
 
 #endif ////
