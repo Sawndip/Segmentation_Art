@@ -63,7 +63,8 @@ int main(int argc, char * argv[])
     string imgFileFolder("./data");
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
- 
+
+    bool bInitPosition = false;
     SegControl seg;
     //   int init(const int width, const int height,
     //            const int skipTB, const int skipLR,
@@ -98,9 +99,13 @@ int main(int argc, char * argv[])
             imshow("In", inFrame);
             imshow("InGray", inFrameGray);            
             imshow("Bg", binaryFrame);
-            cv::moveWindow("In", 10, 10);
-            cv::moveWindow("InGray", 660, 10);            
-            cv::moveWindow("Bg", 10, 660);
+            if (bInitPosition == false)
+            {
+                cv::moveWindow("In", 10, 10);
+                cv::moveWindow("InGray", 660, 10);            
+                cv::moveWindow("Bg", 10, 660);
+                bInitPosition = true;
+            }
         }
 
         //waitKey(0);

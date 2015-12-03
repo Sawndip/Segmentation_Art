@@ -81,8 +81,10 @@ private:
     MOVING_STATUS m_movingStatus;
     bool m_bMovingStop; // MOVING_STOP is an assist status, along with other three.
     int m_allInCount;
+    int m_allOutCount;
+    int m_crossOutCount;    
     TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
-    
+    static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
     // 4. size changing function
     double m_a1; 
     double m_b1;
