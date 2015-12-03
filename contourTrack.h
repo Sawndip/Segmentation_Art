@@ -37,6 +37,7 @@ public:
                  const int lux, const int luy, // first appear coordinate
                  const int possibleWidth, const int possibleHeight,
                  const int firstAppearFrameCount);
+    
     ~ContourTrack();
     // 1. important ones
     int processFrame(const cv::Mat & in, BgResult & bgResult, // may be modified 
@@ -79,6 +80,7 @@ private:
     MOVING_DIRECTION m_outDirection;
     MOVING_STATUS m_movingStatus;
     bool m_bMovingStop; // MOVING_STOP is an assist status, along with other three.
+    int m_allInCount;
     TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
     
     // 4. size changing function
@@ -91,9 +93,6 @@ private:
     static const int m_halfChangingValue = 20;
 
 private: // inner helpers
-    // important ones
-    int updateCrossBoxUsingDiff(const cv::Mat & in, const BgResult & bgResult,
-                                const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box);
     
     int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
@@ -104,13 +103,21 @@ private: // inner helpers
                          const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int updateCrossOutBox(const int bdNum, TDLine & updateLine, BgResult & bgResult,
                           const cv::Mat & diffAnd, const cv::Mat & diffOr);
-
+    // helper to kick out untraced line but actually belong to exist tracker
+    int updateUntracedIfNeeded(const int bdNum, TDLine & updateLine);
+    // important ones    
+    cv::Rect getMaxCrossBoxUsingDiff(const BgResult & bgResult,
+                                     const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    
     // trival ones
     int curMaxChangeSize(int & x, int & y);
-    double calcOverlapRate(cv::Rect & a, cv::Rect & b);
-    cv::Rect calcOverlapArea(cv::Rect & a, cv::Rect & b);
+    double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
+    cv::Rect calcOverlapArea(const cv::Rect & a, const cv::Rect & b);
     void boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox);
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
+    int getShiftByTwoConsecutiveLine(int & xShift, int & yShift, const int bdNum,
+                                     const TDLine & lastLine, const TDLine & updateLine);
+    
 };
 
 }//namespace

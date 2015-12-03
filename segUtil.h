@@ -164,7 +164,9 @@ extern MOVING_DIRECTION getPossibleMovingInDirection(const int lux, const int lu
                                                      const int rectWidth,
                                                      const int rectHeight,
                                                      const int imgWidth, const int imgHeight);
-
+// ignore the distance to the boundary
+extern TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect);
+extern double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2);
 }
 
 #endif ////

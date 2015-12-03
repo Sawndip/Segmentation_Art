@@ -33,6 +33,7 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     , m_outDirection(DIRECTION_UNKNOWN)
     , m_movingStatus(MOVING_CROSS_IN)
     , m_bMovingStop(false) // may not be used
+    , m_allInCount(0)
 {
     // line's direction is not quit the same as the tracker's moving direction
     assert(theLine.movingDirection < 4);
@@ -71,15 +72,15 @@ ContourTrack :: ~ContourTrack()
 //// Process frame using compressive tracker or Boundary Info    
 int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
-{
-    
+{   
     m_inputFrames++;
+    m_lastBox = m_curBox;    
     // if the box is close to boudary, the tracker may moving out.
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
-    m_lastBox = m_curBox;    
     // BE AWARE: 1) tracer has moving status(in out inside).
     //           2) each boundary line also has moving status.
-    bool bCTTracking = false;
+    
+    bool bCTTracking = false; // use Compressive Tracking or BoundaryInfo tracking.
     switch(m_movingStatus)
     {
     // 1. MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking            
@@ -93,12 +94,12 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         break;
     case MOVING_CROSS_OUT:
     //  use boundary info to track, won't use compressive tracker
-        if (markAcrossOut(directions, resultLines, diffAnd, diffOr) < 0)
+        if (markAcrossOut(directions, bgResult, diffAnd, diffOr) < 0)
             // if all out, we tell the called to terminal the whole tracking.
             return 1; // 1 means terminal the tracking.
         break;
     case MOVING_CROSS_IN:
-        if (markAcrossIn(directions, resultLines, diffAnd, diffOr) < 0)
+        if (markAcrossIn(directions, bgResult, diffAnd, diffOr) < 0)
             // if all in, use normal tracking.
             bCTTracking = true;
         break;
@@ -124,7 +125,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
             return 1;
         }
     }
-    
+
     return 0;
 }
     
@@ -162,12 +163,21 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                                 m_lastBoundaryLines[bdNum].b.x)
                         {   // the predecessor is found, so update curBox using the line
                             bStillCrossing = true;
-                            updateCrossInBox(bdNum, resultLines[bdNum][k]);
+                            updateCrossInBox(bdNum, resultLines[bdNum][k],
+                                             bgResult, diffAnd, diffOr);
+                            m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
                         }
+                        // TODO: do we need a else here ??????
                     }
-                    else
-                    {
-
+                    else 
+                    {   // this untraced line may part of our object, let's check it.
+                        if (updateUntracedIfNeeded(bdNum, resultLines[bdNum][k]) > 0)
+                        {
+                            bStillCrossing = true;
+                            updateCrossInBox(bdNum, resultLines[bdNum][k],
+                                             bgResult, diffAnd, diffOr);
+                            m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
+                        }
                     }
                 }
             }
@@ -176,83 +186,78 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
     // all in
     if (bStillCrossing == false)
     {
-        m_movingStatus = MOVING_INSIDE;
-        return -1;
+        m_allInCount++;
+        if (m_allInCount >= 2) // TODO: magic number: all in threshold
+        {// reset lastBoundaryLines
+            for (int k = 0; k < BORDER_NUM; k++)
+                m_lastBoundaryLines[k] = TDLine();
+            // mark we are inside!
+            m_movingStatus = MOVING_INSIDE;
+            return -1;
+        }
     }
     return 0;
 }
 
+/*************************
+We have Three Steps to get a new proper cross in box(m_curBox).
+1. using DiffOr DiffAnd, m_lastBox to get the max & min box.
+2. using m_lastBoundaryLines[bdNum]'s angle to estimate the x, y shift.
+3. using current new boundary line(updateLine) to further update the estimated line.
+*************************/
 int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
-                                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+                                     BgResult & bgResult,
+                                     const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
-    // 1. first we use lastBox & diffResult to get the max & min possible box
-    cv::Rect maxBox, minBox;
-    updateCrossBoxUsingDiff(maxBox, minBox, diffAnd, diffOr);
-    // 2. then we use updateLine & lastBox's angle to modify the possible box we got
+    // 1. first we use lastBox & diffResult to get the max box
+    cv::Rect maxBox = getMaxCrossBoxUsingDiff(bgResult, diffAnd, diffOr);
+    // 2. calculate the minimal area that needed(get min box)
+    cv::Rect minBox = calcOverlapArea(m_lastBox, maxBox);
+    
+    // 3. then use lastBoundaryLine[bdNum] (must have, for we are in updateTracker)
+    //    angle to get the possible x, y shift
     TDLine & lastLine = m_lastBoundaryLines[bdNum];
-    switch(bdNum)
-    {
-    case 0:
-        break;
+    int xShift = 0, yShift = 0;
+    getShiftByTwoConsecutiveLine(xShift, yShift, bdNum, lastLine, updateLine);
 
-    }
+    maxBox.x = (maxBox.x + m_lastBox.x + xShift) / 2;
+    maxBox.y = (maxBox.y + m_lastBox.y + xShift) / 2;
+    maxBox.width = maxBox.width + m_lastBox.width / 2; // take it as no width changing
+    maxBox.height = maxBox.height + m_lastBox.height / 2; // take it as no height changing
     
-    
-    const int xDiff = abs(lastLine.a.x - updateLine.a.x);
-    const int yDiff = (int)fabs(round(tan(lastLine.movingAngle) * xDiff));
-    
-    return 0;
-}    
-    
-int ContourTrack ::  markAcrossOut(const vector<MOVING_DIRECTION> & directions,
-                                   BgResult & bgResult)
-{
-    
-    return 0;
-}
-
-// 1. when do re-calc the curBox, we tend to get it a little bigger.
-// 2. then we use diffOrResult & curMaxChangeSize to limit the expand of the box size.
-int ContourTrack :: updateCrossBoxUsingDiff(cv::Rect & max, cv::Rect & min,
-                                            BgResult & bgResult,
-                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
-{ 
-    int ret = 0;
-    // 1. we use this dx dy and diffOr to get the possible maxium box
-    int dx = 0, dy = 0;
-    curMaxChangeSize(dx, dy);
-    int lux = m_curBox.x - dx;
-    int luy = m_curBox.y - dy;
-    int rbx = m_curBox.x + m_curBox.width + dx;
-    int rby = m_curBox.y + m_curBox.height + dy;
-    if (lux < 0) lux = 0;
-    if (luy < 0) luy = 0;
-    if (rbx > m_imgWidth) rbx = m_imgWidth-1;
-    if (rby > m_imgHeight) rby = m_imgHeight-1;
-    if (rbx <= lux || rby < luy)
-    LogW("%d-%d-%d-%d, %d-%d-%d-%d. dx-%d,dy-%d\n",rbx,lux,rby,luy,m_curBox.x,m_curBox.y,
-          m_curBox.width, m_curBox.height, dx, dy);
-    //assert(rbx > lux && rby > luy);
-    cv::Rect maxBox(lux, luy, rbx - lux, rby - luy);
-    if (maxBox.width % 2 != 0) maxBox.width--;
-    if (maxBox.height % 2 != 0) maxBox.height--;
-    // a). shrink the max box using 'diffOr' to get the possible maxium box.
-    doShrinkBoxUsingImage(diffOr, maxBox);
-    // b). then shrink the max box using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, maxBox);    
-    // c). calculate the minimal area that needed.
-    cv::Rect minBox = calcOverlapArea(m_lastBox, m_curBox);
-    // make the max box at least contain the min box.
+    // 4. make the max box at least contain the min box.
     boundBoxByMinBox(maxBox, minBox);
-
-    /* Until Now, we get the next box */
+    
+    /* 5. Until Now, we get the next box */
     m_curBox = maxBox;
     if (m_largestWidth < m_curBox.width)
         m_largestWidth = m_curBox.width;
     if (m_largestHeight < m_curBox.height)
         m_largestHeight = m_curBox.height;
     
+    return 0;
+}    
+
+// return > 0: need update this line & mark this line's previousLine
+int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
+{
+    TDLine boundaryLine = m_lastBoundaryLines[bdNum];
+    if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
+        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox);
+    const double consecutivityScore = consecutivityOfTwoLines(boundaryLine, updateLine);
+
+    // TODO: magic number 75.0 here.
+    if (consecutivityScore > 75.0)
+    {
+        updateLine.mayPreviousLineStart = boundaryLine.a;
+        updateLine.mayPreviousLineEnd = boundaryLine.b;        
+        return 1;
+    }
+    return 0;
+}
+
+/*
     // 2. check the bAllIn (enter border)
     if (m_bAllIn == false)
     {
@@ -272,8 +277,76 @@ int ContourTrack :: updateCrossBoxUsingDiff(cv::Rect & max, cv::Rect & min,
         if (m_curBox.y < 4) m_outDirection = TOP;
         if (m_imgHeight - m_curBox.y - m_curBox.height < 4) m_outDirection = BOTTOM;
     }
-        
-    return ret;
+*/
+    
+int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
+                        BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+    
+{
+    
+    return 0;
+}
+
+int ContourTrack :: getShiftByTwoConsecutiveLine(int & xShift, int & yShift, const int bdNum,
+                                 const TDLine & lastLine, const TDLine & updateLine)
+{
+    if (lastLine.a.x == -1 && lastLine.b.x == -1)
+        return 0;
+    const int startDistance = updateLine.a.x - lastLine.a.x;
+    const int endDistance = updateLine.b.x - lastLine.b.x;
+    const double averageAngle = (lastLine.movingAngle + updateLine.movingAngle) / 2;
+    switch(bdNum)
+    {
+    case 0:
+        xShift = (startDistance + endDistance) / 2;
+        yShift = (int)(round(fabs(tan(averageAngle) * startDistance)));
+        break;
+    case 1:
+        xShift = (startDistance + endDistance) / 2;
+        yShift = (int)((-1) * round(fabs(tan(averageAngle) * startDistance)));
+        break;
+    case 2:
+        xShift = (int)(round(fabs(startDistance / tan(averageAngle))));
+        yShift = (startDistance + endDistance) / 2;        
+        break;
+    case 3:
+        xShift = (int)((-1) * (round(fabs(startDistance / tan(averageAngle)))));
+        yShift = (startDistance + endDistance) / 2;        
+        break;
+    }
+    
+    return 0;
+}
+    
+// 1. when do re-calc the curBox, we tend to get it a little bigger.
+// 2. then we use diffOrResult & curMaxChangeSize to limit the expand of the box size.
+cv::Rect ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
+                                           const cv::Mat & diffAnd, const cv::Mat & diffOr)
+{ 
+    // 1. we use this dx dy and diffOr to get the possible maxium box
+    int dx = 0, dy = 0;
+    curMaxChangeSize(dx, dy);
+    int lux = m_lastBox.x - dx;
+    int luy = m_lastBox.y - dy;
+    int rbx = m_lastBox.x + m_lastBox.width + dx;
+    int rby = m_lastBox.y + m_lastBox.height + dy;
+    if (lux < 0) lux = 0;
+    if (luy < 0) luy = 0;
+    if (rbx > m_imgWidth) rbx = m_imgWidth-1;
+    if (rby > m_imgHeight) rby = m_imgHeight-1;
+    if (rbx <= lux || rby < luy)
+    LogD("%d-%d-%d-%d, %d-%d-%d-%d. dx-%d,dy-%d\n",rbx,lux,rby,luy,m_curBox.x,m_curBox.y,
+          m_curBox.width, m_curBox.height, dx, dy);
+    //assert(rbx > lux && rby > luy);
+    cv::Rect maxBox(lux, luy, rbx - lux, rby - luy);
+    if (maxBox.width % 2 != 0) maxBox.width--;
+    if (maxBox.height % 2 != 0) maxBox.height--;
+    // a). shrink the max box using 'diffOr' to get the possible maxium box.
+    doShrinkBoxUsingImage(diffOr, maxBox);
+    // b). then shrink the max box using new bgResult
+    doShrinkBoxUsingImage(bgResult.binaryData, maxBox);    
+
+    return maxBox;
 }
 
 // box's width & height must be an even number.
@@ -284,15 +357,16 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
     for (k = 0; k < box.height; k+=2)
     {
         int j = 0;
+        int score = 0;
         for (j = 0; j < box.width; j+=2) // note, j+2 here
         {   // find a 2x2 area with all '255' (foreground).
             if (image.at<uchar>(box.x + k, box.y + j)     &
                 image.at<uchar>(box.x + k, box.y + j+1)   &
                 image.at<uchar>(box.x + k+1, box.y + j)   &
                 image.at<uchar>(box.x + k+1, box.y + j+1) )
-                break; // find the boundary.
+                score++;
         }
-        if (j < box.height)
+        if (score >= 4 || score * 2.0 / box.width > 0.1)
             break;
     }
     // do update: 
@@ -303,15 +377,16 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
     for (k = 0; k < box.height; k+=2)
     {
         int j = 0;
+        int score = 0;
         for (j = 0; j < box.width; j+=2) // note, j+2 here
         {   
             if (image.at<uchar>(box.x + k, box.y + box.height - j)     &
                 image.at<uchar>(box.x + k, box.y + box.height - j-1)   &
                 image.at<uchar>(box.x + k+1, box.y + box.height - j)   &
                 image.at<uchar>(box.x + k+1, box.y + box.height - j -1))
-                break; // find the boundary.
+                score++;
         }
-        if (j > 0)
+        if (score >= 4 || score * 2.0 / box.width > 0.1)
             break;
     }
     // do update: 
@@ -321,15 +396,16 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
     for (k = 0; k < box.width; k+=2)
     {
         int j = 0;
+        int score = 0;
         for (j = 0; j < box.height; j+=2) // note, j+2 here
         {   
             if (image.at<uchar>(box.x + k, box.y + j)     &
                 image.at<uchar>(box.x + k, box.y + j+1)   &
                 image.at<uchar>(box.x + k+1, box.y + j)   &
                 image.at<uchar>(box.x + k+1, box.y + j+1) )
-                break; // find the boundary.
+                score++; // find the boundary.
         }
-        if (j < box.height)
+        if (score >= 4 || score * 2.0 / box.height > 0.1)
             break;
     }
     box.x += k;
@@ -339,15 +415,16 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
     for (k = 0; k < box.width; k+=2)
     {
         int j = 0;
+        int score = 0;
         for (j = 0; j < box.height; j+=2) // note, j+2 here
         {   
             if (image.at<uchar>(box.x + box.width - k, box.y + box.height - j)   &
                 image.at<uchar>(box.x + box.width - k, box.y + box.height - j-1) &
                 image.at<uchar>(box.x + box.width - k-1, box.y + box.height -j)  &
                 image.at<uchar>(box.x + box.width - k-1, box.y + box.height -j-1))
-                break; // find the boundary.
+                score++; // find the boundary.
         }
-        if (j < box.height)
+        if (score >= 4 || score * 2.0 / box.height > 0.1)
             break;
     }
     box.width -= k;
@@ -378,7 +455,7 @@ int ContourTrack :: curMaxChangeSize(int & x, int & y)
 }
 
 // prerequisite: width/height of the two rects are the same.    
-double ContourTrack :: calcOverlapRate(cv::Rect & a, cv::Rect & b)
+double ContourTrack :: calcOverlapRate(const cv::Rect & a, const cv::Rect & b)
 {
     assert(a.width == b.width && a.height == b.height);
     if (a.width == 0 || a.height == 0)
@@ -387,7 +464,7 @@ double ContourTrack :: calcOverlapRate(cv::Rect & a, cv::Rect & b)
     return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
 }
 
-cv::Rect ContourTrack :: calcOverlapArea(cv::Rect & a, cv::Rect & b)
+cv::Rect ContourTrack :: calcOverlapArea(const cv::Rect & a, const cv::Rect & b)
 {
     if (a.x + a.width < b.x  || a.x > b.x + b.width ||
         a.y + a.height < b.y || a.y > b.y + b.height)
@@ -405,7 +482,7 @@ void ContourTrack :: boundBoxByMinBox(cv::Rect & maxBox, const cv::Rect & minBox
 {
     if (maxBox.x > minBox.x)
         maxBox.x = minBox.x;
-    if (maxBox.y > minBox.y)
+    if (maxBox.y < minBox.y)
         maxBox.y = minBox.y;
     if (maxBox.x + maxBox.width < minBox.x + minBox.width)
         maxBox.width = minBox.x + minBox.width - maxBox.x;
