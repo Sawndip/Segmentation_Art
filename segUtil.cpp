@@ -88,7 +88,7 @@ namespace Seg_Three
     }
 
     // the input argument angle: [0, 2*Pi]
-    inline double diffAngleToScore(const double angle, const int maxScore);
+    inline double diffAngleToScore(const double angle, const int maxScore)
     {  // aproaching 0, then score maxScore points, approaching pi, then 0.           
         if (angle <= M_PI) 
             return (-1.0 * maxScore / M_PI) * angle + maxScore;
@@ -97,18 +97,18 @@ namespace Seg_Three
     }
     inline double vertexShiftToScore(const int shift, const int maxScore)
     {
-       if (startShift > 64)
+       if (shift > 64)
            return 0;
-       else if (startShift > 32)
+       else if (shift > 32)
            return 0.1 * maxScore;
-       else if (startShift > 16)
+       else if (shift > 16)
            return 0.4 * maxScore;
-       else if (startShift > 8)
+       else if (shift > 8)
            return 0.7 * maxScore;
-       else if (startShift > 4)
+       else if (shift > 4)
            return (double)maxScore;
        else
-           return 0.9 * maxScore;
+           return (0.9 * maxScore);
     }
     // check two lines' possibility to be consecutive.
     // 1. they have similar angle (50 points)
@@ -127,9 +127,9 @@ namespace Seg_Three
        return score;
     }
     double rightConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
-                                        const int angleMaxScore, const bool bStart)
+                                        const int angleMaxScore, const bool bStartPoint)
     {
-        return leftConsecutivityOfTwoLines(l2, l1, angleMaxScore, bStart); 
+        return leftConsecutivityOfTwoLines(l2, l1, angleMaxScore, bStartPoint); 
     }
     // balanced consecutivity: namely left & right all similar
     double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,

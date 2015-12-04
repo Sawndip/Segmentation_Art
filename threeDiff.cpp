@@ -154,9 +154,7 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
             segResults.push_back(sr);
             it++; // increse here.
         }
-        
     }
-    
     return 0;
 }
 
@@ -178,8 +176,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
         for (int k = 0; k < (int)bgResult.resultLines[bdNum].size(); k++)
         {   // 1. untraced ones & MOVING_CROSS_IN ones will be created.
             const TDLine & theLine = bgResult.resultLines[bdNum][k];
-            if (bgResult.resultLines[bdNum][k].mayPreviousLineStart.x == -1 &&
-                bgResult.resultLines[bdNum][k].mayPreviousLineEnd.x == -1 &&
+            if (bgResult.resultLines[bdNum][k].bNewObjectLine == true && 
                 bgResult.resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
             {
                 // 2. now we get the cross lines stand for new objects, so we just create them.

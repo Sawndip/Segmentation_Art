@@ -98,10 +98,16 @@ private: // important inner helpers
     int canLinesBeMerged(const TDLine & l1, const TDLine & l2, const TDLine & l3);
     int stableAnalyseAndMarkLineStatus();
     int outputLineAnalyseResultAndUpdate(BgResult & bgResult);
+    int markPredecessorsRecursively(const int curIdx, const int bdNum,
+                                    vector<TDLine> & curLines, vector<TDLine> & middleLines,
+                                    const vector<TDLine> & oldLines);
+    int goMarking(const int bdNum, TDLine & curLine, vector<TDLine> & middleLines,
+                 const vector<TDLine> & oldLines);
 
 private: // trival inner helpers
     int doErode(const int times = 1);
     int doDilate(const int times = 1);
+    int mergeOverlapOfOnePositionLines(vector<TDLine> & lines, const int curIdx);
     double getLineMoveAngle(const TDLine & l1,
                             const vector<double> & xMvs, const vector<double> & yMvs);
     int calcLineMovingStatus(const int bdBum, TDLine & line);

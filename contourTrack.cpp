@@ -96,14 +96,14 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     // MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking
     // BE AWARE: 1) tracker has moving status(cross_in/cross_out/inside).
     //           2) each boundary line also has moving status(cross_in/cross_out).            
-    case MOVING_INSIDE: 
+    case MOVING_INSIDE:
         // TODO: magic number subsitution needed. 10frames * 10pixel = 100 pixles
         if (m_inputFrames >= 5 && directions.size() > 0)
         {   // line's movingDirection should be MOVING_CROSS_OUT
             // update lastBoundaryLines inside this call if needed
             markAcrossOut(directions, bgResult, diffAnd, diffOr);
             if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-            {   
+            {
                 m_crossOutCount = 0;
                 bCTTracking = false;
                 m_movingStatus = MOVING_CROSS_OUT;
@@ -112,7 +112,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                 bCTTracking = true;
         }
         else // do normal tracking.
-            bCTTracking = true;   
+            bCTTracking = true;
         break;
     case MOVING_CROSS_OUT:
         //  use boundary info to track, won't use compressive tracker

@@ -295,18 +295,18 @@ int BoundaryScan :: stableAnalyseAndMarkLineStatus()
     // Take use of all M_BOUNDARY_SCAN_CACHE_LINES=3 frames to do stable analyse.
     const int old = loopIndex(m_curFrontIdx, M_BOUNDARY_SCAN_CACHE_LINES);
     const int middle = loopIndex(old, M_BOUNDARY_SCAN_CACHE_LINES);
-    vector<vector<TDLine> > & oldLines = m_cacheLines[old];
-    vector<vector<TDLine> > & middleLines = m_cacheLines[middle];
-    vector<vector<TDLine> > & curLines = m_cacheLines[m_curFrontIdx];
-    assert(curLines.size() == BORDER_NUM);
-    assert(oldLines.size() == middleLines.size() && oldLines.size() == curLines.size());
+    vector<vector<TDLine> > & oldLiness = m_cacheLines[old];
+    vector<vector<TDLine> > & middleLiness = m_cacheLines[middle];
+    vector<vector<TDLine> > & curLiness = m_cacheLines[m_curFrontIdx];
+    assert(curLiness.size() == BORDER_NUM);
+    assert(oldLiness.size() == middleLiness.size() && oldLiness.size() == curLiness.size());
     
     for (int bdNum = 0; bdNum < BORDER_NUM; bdNum++)
     {
-        if (newCurLines.size() > 0)
+        if (curLiness.size() > 0)
         {
-            markPredecessorsRecursively(0, bdNum, curLines[bdNum],
-                                        middleLines[bdNum], oldLines[bdNum]);
+            markPredecessorsRecursively(0, bdNum, curLiness[bdNum],
+                                        middleLiness[bdNum], oldLiness[bdNum]);
         }    
     }
     return 0;
@@ -315,64 +315,80 @@ int BoundaryScan :: stableAnalyseAndMarkLineStatus()
 int BoundaryScan :: markPredecessorsRecursively(const int curIdx, const int bdNum,
                                                 vector<TDLine> & curLines,
                                                 vector<TDLine> & middleLines,
-                                                vector<TDLine> & oldLines)
+                                                const vector<TDLine> & oldLines)
 {
-    if (curIdx >= curLines.size())
-        return 0; // base: finish the process.
-
-    markPredecessor(curLines[curIdx], middleLines, oldLines);
-    // then check overlap after mark
-    for (auto it = curLines.begin() + curIdx; it != curLine.end(); /*No Increament Here*/)
-    {
-        do
-        {
-            auto nextIt = it + 1;
-            if (nextIt != curLine.end())
-            {
-                it->b.x >= nextIt.a.x;
-                it->b = nextIt.b; // do merging,  movingAngle update in the final update.
-                curLines.erase(nextIt);
-            }
-        } while(nextIt != curLine.end());
-        else
-            it++;
-    }       
-    return markPredecessorsRecursively(curIdx+1, bdNum, curLines, oldLines, middleLines);
+    if (curIdx >= (int)curLines.size())
+        return 0; // base: finish the process.    
+    goMarking(bdNum, curLines[curIdx], middleLines, oldLines);
+    mergeOverlapOfOnePositionLines(curLines, curIdx);
+    return markPredecessorsRecursively(curIdx+1, bdNum, curLines, middleLines, oldLines);
 }
-
-int BoundaryScan :: markLeft(TDLine & curLine, vector<TDLine> & middleLines,
-                             vector<TDLine> & oldLines)
+    
+int BoundaryScan :: goMarking(const int bdNum, TDLine & curLine, vector<TDLine> & middleLines,
+                              const vector<TDLine> & oldLines)
 {   // TODO: magic number 60: 70 ?
-    int maxScoreIdx = -1;
-    double maxScore = -1.0;
-    for (int k = 0; k < middleLines.size(); k++)
-    {
-        const double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
-        if (score > maxScore)
+    // 1. check the middle ones' start point(left point)
+    int middleMaxIdx = -1;
+    double middleMaxScore = -1.0;
+    for (int k = 0; k < (int)middleLines.size(); k++)
+    {   // one of the following score is 0.0;
+        double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
+        score += rightConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);        
+        if (score > middleMaxScore)
         {
-            maxScore = score;
-            maxScoreIdx = k;
+            middleMaxScore = score;
+            middleMaxIdx = k;
         }
     }
 
-    if (maxScore < 60.0)
-        return false;
-    else // also check the oldest one
+    if (middleMaxScore < 60.0)
+        return -1; // doesn't need to mark any lines
+
+    // 2. check the old ones' start point(left point)
+    int oldMaxIdx = -1;
+    double oldMaxScore = -1;
+    for (int k = 0; k < (int)oldLines.size(); k++)
     {
-        int oldMaxIdx = -1;
-        double oldMaxScore = -1;
-        for (int k = 0; k < oldLines.size(); k++)
+        double score = leftConsecutivityOfTwoLines(middleLines[middleMaxIdx],
+                                                         oldLines[k], 60, true);
+        score += rightConsecutivityOfTwoLines(middleLines[middleMaxIdx],
+                                                         oldLines[k], 60, true);
+        if (score > oldMaxScore)
         {
-            const double score = leftConsecutivityOfTwoLines();
-            if (score > oldMaxScore)
-            {
-                oldMaxScore = score;
-                oldMaxIdx = k;
-            }
+            oldMaxScore = score;
+            oldMaxIdx = k;
         }
-        maxScore += oldMaxScore;
     }
-    return maxScore / 2 > 60.0;
+    if (oldMaxScore < 60.0)
+        return -1; // doesn't need to mark any lines
+
+    // 3. NOW OK: find the start points of all three lines, lets do marking & extending.
+    //    For old ones will be replaced by new coming frame soon, so we don't mark the olds, but
+    //    the middle lines' merging will refer to the olds.
+    if (middleLines[middleMaxIdx].b.x < oldLines[oldMaxIdx].b.x)
+        middleLines[middleMaxIdx].b = oldLines[oldMaxIdx].b;
+
+    if (middleLines[middleMaxIdx].mayPreviousLineStart.x == -1)
+        // middle doesn't have previous one, so the curLine is the 'bNewObjectLine'
+        curLine.bNewObjectLine = true;
+    else
+        curLine.bNewObjectLine = false;
+    // calc the new points of curLine
+    if (curLine.b.x < middleLines[middleMaxIdx].b.x)
+        curLine.b = middleLines[middleMaxIdx].b;
+    curLine.mayPreviousLineStart = middleLines[middleMaxIdx].a;
+    curLine.mayPreviousLineEnd = middleLines[middleMaxIdx].b;
+    // 4. do other update needed
+     // curLines will be merge after this call.
+    mergeOverlapOfOnePositionLines(middleLines, middleMaxIdx);
+    const double newAngle = (curLine.movingAngle +
+                             middleLines[middleMaxIdx].movingAngle +
+                             oldLines[oldMaxIdx].movingAngle) / 3.0;
+    curLine.movingAngle = middleLines[middleMaxIdx].movingAngle = newAngle;
+    // update moving status by angle & bdNum
+    calcLineMovingStatus(bdNum, curLine);
+    middleLines[middleMaxIdx].movingStatus = curLine.movingStatus;
+    return 0;
 }
     
 // the most important function in BoundaryScan.
@@ -611,5 +627,34 @@ int BoundaryScan :: doDilate(const int times)
     }
     return 0;
 }
-    
+
+// merge overlap points at certain position (extending)
+int BoundaryScan :: mergeOverlapOfOnePositionLines(vector<TDLine> & lines, const int curIdx)
+{
+    for (auto it = lines.begin() + curIdx; it != lines.end(); it++)
+    {
+        auto nextIt = it + 1;
+        while(nextIt != lines.end())
+        {
+            if (it->b.x >= nextIt->a.x)
+            {
+                nextIt++;
+                continue;
+            }
+            else
+                break;
+        }
+        auto mergeIt = nextIt - 1;
+        it->b = mergeIt->b;
+        for (auto deleteIt = it + 1; deleteIt <= mergeIt && deleteIt != lines.end();
+             /*No Increament Here*/)
+        {
+            deleteIt = lines.erase(deleteIt);
+            LogD("here 1?\n");
+        }
+        LogD("here 2?\n");
+    }
+    return 0;
+}
+
 } // namespace Seg_Three
