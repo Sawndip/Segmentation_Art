@@ -247,8 +247,9 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
     // 1. gaps between two lines should be relatively small
     const int xDistance = l2.a.x - l1.b.x;
     const int line1len = l1.b.x - l1.a.x;
-    const int line2len = l2.b.x - l2.a.x;        
-    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.05)
+    const int line2len = l2.b.x - l2.a.x;
+    // TODO: magic number here
+    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.1)
     {
         LogD("TestingMerge1 Fail for large distance: "
              "xDis:%d, line1:%d, line2:%d imgW:%d, imgHeight:%d.\n",
@@ -376,11 +377,12 @@ int BoundaryScan :: goMarking(const int bdNum, TDLine & curLine, vector<TDLine> 
     // calc the new points of curLine
     if (curLine.b.x < middleLines[middleMaxIdx].b.x)
         curLine.b = middleLines[middleMaxIdx].b;
-    curLine.mayPreviousLineStart = middleLines[middleMaxIdx].a;
-    curLine.mayPreviousLineEnd = middleLines[middleMaxIdx].b;
     // 4. do other update needed
      // curLines will be merge after this call.
     mergeOverlapOfOnePositionLines(middleLines, middleMaxIdx);
+    curLine.mayPreviousLineStart = middleLines[middleMaxIdx].a;
+    curLine.mayPreviousLineEnd = middleLines[middleMaxIdx].b;
+    
     const double newAngle = (curLine.movingAngle +
                              middleLines[middleMaxIdx].movingAngle +
                              oldLines[oldMaxIdx].movingAngle) / 3.0;
@@ -650,9 +652,7 @@ int BoundaryScan :: mergeOverlapOfOnePositionLines(vector<TDLine> & lines, const
              /*No Increament Here*/)
         {
             deleteIt = lines.erase(deleteIt);
-            LogD("here 1?\n");
         }
-        LogD("here 2?\n");
     }
     return 0;
 }

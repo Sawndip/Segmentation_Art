@@ -38,7 +38,7 @@ string intToString(const int n)
 void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgNames)
 {
     imgNames.clear();
-    for (int k = 0; k < SEQ_FILE_MAX_NUM; k++)
+    for (int k = 75; k < SEQ_FILE_MAX_NUM; k++)
     {
         string strNum = intToString(k);
         if (k < 10)
@@ -69,7 +69,7 @@ int main(int argc, char * argv[])
     //   int init(const int width, const int height,
     //            const int skipTB, const int skipLR,
     //            const int scanBorderSizeTB, const int scanBorderSizeLR);
-    seg.init(640, 480, 16, 16, 2, 2);
+    seg.init(640, 480, 32, 32, 2, 2);
     vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare
