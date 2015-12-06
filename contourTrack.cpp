@@ -21,8 +21,6 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     , m_skipLR(skipLR)      
     , m_inputFrames(0)
     , m_firstAppearFrameCount(firstAppearFrameCount)
-    , m_bAllIn(false) // may not be used
-    , m_bAllOut(false) // may not be used
     , m_bOutputRegion(false) // may not be used
     , m_lastBox(lux, luy, possibleWidth, possibleHeight)
     , m_curBox(m_lastBox)
@@ -39,26 +37,14 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
 {
     // line's direction is not quit the same as the tracker's moving direction
     assert(theLine.movingDirection < 4);
-    m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;
-    
     assert(width > 0 && height > 0);
-    // 1. calculate the size changing function.
-    // take as function: y = a1x + b1 & y = a2x + b2,
-    // with x=0, y=1; x=20, y=0.5, x=imgWidth, y=0;
-    m_a1 = -0.5 / m_halfChangingValue;
-    m_b1 = 1.0;
-    m_a2w = 0.5 / (m_halfChangingValue - width);
-    m_a2w = -m_a2w * width;
-    m_a2h = 0.5 / (m_halfChangingValue - height);
-    m_a2h = -m_a2h * height;
-    
-    // 2. compressive tracker part.
+    m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;   
+    // compressive tracker part.
     // won't init until bAllIn is set, namely MOVING_STATUS changes from CROSS_IN to INSIDE.
     // m_ctTracker = new CompressiveTracker();
-    // m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);
-        
+    // m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);        
     LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, initWidth:%d, "
-         "initHeight:%d. \n", m_idx, 
+         "initHeight:%d. \n", m_idx,
          directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
     return;
 }
@@ -161,6 +147,9 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                                   BgResult & bgResult,
                                   const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
+    LogI("Across In frame: %d, directions size: %d.\n", m_inputFrames, (int)directions.size());
+    dumpVectorInt(directions);
+    // 
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
     bool bStillCrossing = false;
     // how to make the object moving in & we update the rectBox gradully?    
@@ -185,9 +174,15 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                             updateCrossInBox(bdNum, resultLines[bdNum][k],
                                              bgResult, diffAnd, diffOr);
                             m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
+                            LogD("???? Get Previous Line & updateCrossInBox. "
+                                 "Last %d-%d-%d-%d,  %d-%d-%d-%d.\n",
+                                 m_lastBox.x, m_lastBox.y, m_lastBox.width, m_lastBox.height,
+                                 m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
                         }
-                        // TODO: do we need a else here ??????
-                        // if BoundaryScan do a great job, we don't have to have a 'else'.
+                        else // for the 
+                        {
+                            LogD("????????? Realy here.\n");
+                        }
                     }
                     else 
                     {   // this untraced line may part of our object, let's check it.
@@ -198,6 +193,8 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                                              bgResult, diffAnd, diffOr);
                             m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
                         }
+                        else
+                            LogD("????????? How to Deal ??.\n");
                     }
                 }
             }
@@ -270,7 +267,6 @@ int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
         m_allOutCount++;
     else 
         m_allOutCount = 0;
-    
     return 0;
 }
     
@@ -280,29 +276,17 @@ cv::Rect ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
 { 
     // 1. we use this dx dy and diffOr to get the possible maxium box
-    // TODO: magic number here.
-    int dx = 32, dy = 32;
-    //curMaxChangeSize(dx, dy);
-    int lux = m_lastBox.x - dx;
-    int luy = m_lastBox.y - dy;
-    int rbx = m_lastBox.x + m_lastBox.width + dx;
-    int rby = m_lastBox.y + m_lastBox.height + dy;
-    if (lux < 0) lux = 0;
-    if (luy < 0) luy = 0;
-    if (rbx > m_imgWidth) rbx = m_imgWidth;
-    if (rby > m_imgHeight) rby = m_imgHeight;
-    if (rbx <= lux || rby <= luy)
-    LogD("%d-%d-%d-%d, %d-%d-%d-%d. dx-%d,dy-%d\n",rbx,lux,rby,luy,m_curBox.x,m_curBox.y,
-          m_curBox.width, m_curBox.height, dx, dy);
-    //assert(rbx > lux && rby > luy);
-    cv::Rect box(lux, luy, rbx - lux, rby - luy);
-    if (box.width % 2 != 0) box.width--;
-    if (box.height % 2 != 0) box.height--;
-    const cv::Rect theMaxBox = box;
-    // a). shrink the max box using 'diffOr' to get the possible maxium box.
-    doShrinkBoxUsingImage(diffOr, box);
-    // b). then shrink the max box using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, box);    
+    // restrictions: each time we at most enlarge 32 pixels, shrink 16pixels
+    // so enlarge/shrink gradually.
+    static const int maxEnlargeDx = 32, maxEnlargeDy = 32;
+    static const int maxShrinkDx = 16, maxShrinkDy = 16;    
+    // now we do enlarge & shrink.
+    cv::Rect boxThisRound = m_lastBox;
+    // a). enlarge the max box using 'diffOr' to get the possible maxium box.
+    doEnlargeBoxUsingImage(diffOr, boxThisRound, maxEnlargeDx, maxEnlargeDy);
+    //// b). shrink the max box using new bgResult
+    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);    
+
     boundBoxByMaxBox(box, theMaxBox);
     return box;
 }
@@ -319,23 +303,31 @@ int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
 {
     // 1. first we use lastBox & diffResult to get the max box
     cv::Rect maxBox = getMaxCrossBoxUsingDiff(bgResult, diffAnd, diffOr);
+    LogD("111111:\n");
+    dumpRect(maxBox);
     // 2. calculate the minimal area that needed(get min box)
     cv::Rect minBox = calcOverlapArea(m_lastBox, maxBox);
+    LogD("2222:\n");
+    dumpRect(minBox);
     
     // 3. then use lastBoundaryLine[bdNum] (must have, for we are in updateTracker)
     //    angle to get the possible x, y shift
     TDLine & lastLine = m_lastBoundaryLines[bdNum];
-    int xShift = 0, yShift = 0;
-    getShiftByTwoConsecutiveLine(xShift, yShift, bdNum, lastLine, updateLine);
-
+    int xShift = 0, widthShift = 0, yShift = 0, heightShift = 0;
+    estimateShiftByTwoConsecutiveLine(xShift, yShift,
+                                      widthShift, heightShift, bdNum, lastLine, updateLine);
     maxBox.x = (maxBox.x + m_lastBox.x + xShift) / 2;
     maxBox.y = (maxBox.y + m_lastBox.y + yShift) / 2;
     maxBox.width = (maxBox.width + m_lastBox.width) / 2; // take it as no width changing
     maxBox.height = (maxBox.height + m_lastBox.height) / 2; // take it as no height changing
+    LogD("3333:\n");
+    dumpRect(maxBox);
     
     // 4. make the max box at least contain the min box.
     enlargeBoxByMinBox(maxBox, minBox);
     enlargeBoxByMinBox(maxBox, cv::Rect(maxBox.x, maxBox.y, 16, 16));    
+    LogD("4444:\n");
+    dumpRect(maxBox);
     
     /* 5. Until Now, we get the next box */
     m_curBox = maxBox;
@@ -353,7 +345,7 @@ int ContourTrack :: updateCrossOutBox(const int bdNum, TDLine & updateLine,
 {
     TDLine & lastLine = m_lastBoundaryLines[bdNum];
     int xShift = 0, yShift = 0;
-    getShiftByTwoConsecutiveLine(xShift, yShift, bdNum, lastLine, updateLine);
+    //getShiftByTwoConsecutiveLine(xShift, yShift, bdNum, lastLine, updateLine);
     // cross_out shift is the opposite of cross in shift
     m_curBox.x = m_lastBox.x - xShift;
     m_curBox.y = m_lastBox.y - yShift;
@@ -380,32 +372,24 @@ int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
     return 0;
 }
 
-/*
-    // 2. check the bAllIn (enter border)
-    if (m_bAllIn == false)
+int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & diffOr, cv::Rect & box,
+                                           const maxEnlargeDx, const maxEnlargeDy)
+{
+    const int minX = m_lastBox.x - maxEnlargeDx < 0 ? 0 : m_lastBox.x - maxEnlargeDx;
+    const int minY = m_lastBox.y - maxEnlargeDy < 0 ? 0 : lastBox.y - maxEnlargeDy;
+    const int maxX = m_lastBox.x + m_lastBox.width + maxEnlargeDx > m_imgWidth ?
+                                   m_imgWidth : m_lastBox.x + m_lastBox.width + maxEnlargeDx;
+    const int maxY = m_lastBox.y + m_lastBox.height + maxEnlargeDy > m_imgHeight ?
+                                   m_imgHeight : m_lastBox.y + m_lastBox.height + maxEnlargeDy;
+    if (maxX <= minX || maxY <= minY)
     {
-        if (m_curBox.x >= 2 && m_curBox.x + m_curBox.width < m_imgWidth &&
-            m_curBox.y >= 2 && m_curBox.y + m_curBox.height < m_imgHeight )
-            m_bAllIn = true;
+        LogW("Something Wrong: %d-%d-%d-%d, %d-%d-%d-%d. Won't enlarge box.\n",
+             minX, minY, maxX, maxY,
+             m_lastBox.x, m_lastBox.y, m_lastBox.width, m_lastBox.height);
+        return -1;
     }
-
-    // TODO: PXT: Bug here, could leave from topleft or topright, namely the corner, but
-    // we cannot deal with this situation, may fix it later after do some tests.
-    if (m_curBox.width <= 4 || m_curBox.height <= 4)
-    {
-        m_bAllOut = true;
-        ret = 1;
-        if (m_curBox.x < 4) m_outDirection = LEFT;
-        if (m_imgWidth - m_curBox.x - m_curBox.width < 4) m_outDirection = RIGHT;
-        if (m_curBox.y < 4) m_outDirection = TOP;
-        if (m_imgHeight - m_curBox.y - m_curBox.height < 4) m_outDirection = BOTTOM;
-    }
-*/
     
-// box's width & height must be an even number.
-int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
-{   // using a 2x2 window do scaning the image from the border of the box
-    // 1. top
+    cv:Rect newBox = boxThisRound;
     int k = 0;
     for (k = 0; k < box.height; k+=2)
     {
@@ -413,18 +397,46 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
         int score = 0;
         for (j = 0; j < box.width; j+=2) // note, j+2 here
         {   // find a 2x2 area with all '255' (foreground).
-            if (image.at<uchar>(box.x + k, box.y + j)     &
-                image.at<uchar>(box.x + k, box.y + j+1)   &
-                image.at<uchar>(box.x + k+1, box.y + j)   &
-                image.at<uchar>(box.x + k+1, box.y + j+1) )
+            if (image.at<uchar>(box.y + k, box.x + j)     &
+                image.at<uchar>(box.y + k, box.x + j+1)   &
+                image.at<uchar>(box.y + k+1, box.x + j)   &
+                image.at<uchar>(box.y + k+1, box.x + j+1) )
                 score++;
         }
         if (score >= 4 || score * 2.0 / box.width > 0.1)
             break;
     }
-    // do update: 
-    box.y += k;
-    box.height -= k;
+    // do update:
+    newBox.y += k;
+    newBox.height -= k;
+    
+    return 0;
+}
+
+// box's width & height must be an even number.
+int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
+{   // using a 2x2 window do scaning the image from the border of the box
+    // 1. top
+    cv::Rect newBox = box;
+    int k = 0;
+    for (k = 0; k < box.height; k+=2)
+    {
+        int j = 0;
+        int score = 0;
+        for (j = 0; j < box.width; j+=2) // note, j+2 here
+        {   // find a 2x2 area with all '255' (foreground).
+            if (image.at<uchar>(box.y + k, box.x + j)     &
+                image.at<uchar>(box.y + k, box.x + j+1)   &
+                image.at<uchar>(box.y + k+1, box.x + j)   &
+                image.at<uchar>(box.y + k+1, box.x + j+1) )
+                score++;
+        }
+        if (score >= 4 || score * 2.0 / box.width > 0.1)
+            break;
+    }
+    // do update:
+    newBox.y += k;
+    newBox.height -= k;
     
     // 2. bottom
     for (k = 0; k < box.height; k+=2)
@@ -433,17 +445,17 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
         int score = 0;
         for (j = 0; j < box.width; j+=2) // note, j+2 here
         {   
-            if (image.at<uchar>(box.x + k, box.y + box.height - j)     &
-                image.at<uchar>(box.x + k, box.y + box.height - j-1)   &
-                image.at<uchar>(box.x + k+1, box.y + box.height - j)   &
-                image.at<uchar>(box.x + k+1, box.y + box.height - j -1))
+            if (image.at<uchar>(box.y + box.height - k, box.x + j)     &
+                image.at<uchar>(box.y + box.height - k, box.x + j+1)   &
+                image.at<uchar>(box.y + box.height - k+1, box.x + j)   &
+                image.at<uchar>(box.y + box.height - k+1, box.x + j+1))
                 score++;
         }
         if (score >= 4 || score * 2.0 / box.width > 0.1)
             break;
     }
     // do update: 
-    box.height -= k;
+    newBox.height -= k;
 
     // 3. left
     for (k = 0; k < box.width; k+=2)
@@ -452,17 +464,17 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
         int score = 0;
         for (j = 0; j < box.height; j+=2) // note, j+2 here
         {   
-            if (image.at<uchar>(box.x + k, box.y + j)     &
-                image.at<uchar>(box.x + k, box.y + j+1)   &
-                image.at<uchar>(box.x + k+1, box.y + j)   &
-                image.at<uchar>(box.x + k+1, box.y + j+1) )
+            if (image.at<uchar>(box.y + j, box.x + k)     &
+                image.at<uchar>(box.y + j, box.x + k+1)   &
+                image.at<uchar>(box.y + j+1, box.x + k)   &
+                image.at<uchar>(box.y + j+1, box.x + k+1) )
                 score++; // find the boundary.
         }
         if (score >= 4 || score * 2.0 / box.height > 0.1)
             break;
     }
-    box.x += k;
-    box.width -= k;
+    newBox.x += k;
+    newBox.width -= k;
 
     // 4. right
     for (k = 0; k < box.width; k+=2)
@@ -471,42 +483,22 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
         int score = 0;
         for (j = 0; j < box.height; j+=2) // note, j+2 here
         {   
-            if (image.at<uchar>(box.x + box.width - k, box.y + box.height - j)   &
-                image.at<uchar>(box.x + box.width - k, box.y + box.height - j-1) &
-                image.at<uchar>(box.x + box.width - k-1, box.y + box.height -j)  &
-                image.at<uchar>(box.x + box.width - k-1, box.y + box.height -j-1))
+            if (image.at<uchar>(box.y + j, box.x + box.width - k)   &
+                image.at<uchar>(box.y + j, box.x + box.width - k-1) &
+                image.at<uchar>(box.y + j+1, box.x + box.width -k)  &
+                image.at<uchar>(box.y + j+1, box.x + box.width -k-1))
                 score++; // find the boundary.
         }
         if (score >= 4 || score * 2.0 / box.height > 0.1)
             break;
     }
-    box.width -= k;
+    newBox.width -= k;
+    box = newBox;
     return 0;
 }
     
 //////////////////////////////////////////////////////////////////////////////////////////
 // trival ones
-// shrink or dilate, just estimation, may not be used.
-int ContourTrack :: curMaxChangeSize(int & x, int & y)
-{
-    double xRate;
-    double yRate;
-    if (m_lastBox.width < m_halfChangingValue)
-        xRate = m_a1*m_lastBox.width + m_b1;
-    else
-        xRate = m_a2w*m_lastBox.width + m_b2w;
-    if (m_lastBox.height < m_halfChangingValue)
-        yRate = m_a1*m_lastBox.height + m_b1;
-    else
-        yRate = m_a2h*m_lastBox.height + m_b2h;
-
-    x = (int)round(m_lastBox.width * xRate);
-    y = (int)round(m_lastBox.height * yRate);
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-    return 0;
-}
-
 // prerequisite: width/height of the two rects are the same.    
 double ContourTrack :: calcOverlapRate(const cv::Rect & a, const cv::Rect & b)
 {
@@ -562,14 +554,15 @@ void ContourTrack :: boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox)
 vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::Rect & rect)
 {
     vector<MOVING_DIRECTION> directions;
-    // TODO: magic number should be eliminated
-    if (rect.x <= m_skipLR)
+    static const int APPROCHING_DISTANCE = 8;
+    // TODO: magic number 8 should be eliminated
+    if (rect.x <= m_skipLR + APPROCHING_DISTANCE)
         directions.push_back(LEFT);
-    if (rect.x + rect.width >= m_imgWidth - m_skipLR)
+    if (rect.x + rect.width >= m_imgWidth - m_skipLR - APPROCHING_DISTANCE)
         directions.push_back(RIGHT);
-    if (rect.y <= m_skipTB)
+    if (rect.y <= m_skipTB + APPROCHING_DISTANCE)
         directions.push_back(TOP);
-    if (rect.y + rect.height >= m_imgHeight - m_skipTB)
+    if (rect.y + rect.height >= m_imgHeight - m_skipTB - APPROCHING_DISTANCE)
         directions.push_back(RIGHT);
 
     // normally, the size of directions is 1 or 2, very rare it is 3 or 4.
@@ -577,9 +570,15 @@ vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::R
 }
 
 // use two possible consecutive lines to estimate x,y direction moving.
-int ContourTrack :: getShiftByTwoConsecutiveLine(int & xShift, int & yShift, const int bdNum,
-                                           const TDLine & lastLine, const TDLine & updateLine)
+int ContourTrack :: estimateShiftByTwoConsecutiveLine (int & xShift, int & yShift,
+                    int & widthShift, int & heightShift, const int bdNum,
+                    const TDLine & lastLine, const TDLine & updateLine)
 {
+
+    // debugging
+    xShift = yShift = widthShift = heightShift = 16;
+    return 0;
+    /////
     if (lastLine.a.x == -1 && lastLine.b.x == -1)
     {
         LogE("Invalid LastLine, then we cnannot calculate consecutivity of two lines.\n");
@@ -591,7 +590,7 @@ int ContourTrack :: getShiftByTwoConsecutiveLine(int & xShift, int & yShift, con
     switch(bdNum)
     {
     case 0:
-        xShift = (startDistance + endDistance) / 2;
+        xShift = 00; // TODO: 
         yShift = (int)(round(fabs(tan(averageAngle) * startDistance)));
         break;
     case 1:

@@ -181,38 +181,39 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
             {
                 // 2. now we get the cross lines stand for new objects, so we just create them.
                 // 1). we calculate the lux/luy, possible width/height
+                const int fixedLen = theLine.b.x - theLine.a.x;
                 int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
                 // TODO: should make 2 & 8 param in future.
                 switch(bdNum)
                 {
                 case 0: // top: enlarge width 4 pixels, each side with 2.
-                    lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
+                    lux = theLine.a.x - 2 - m_skipLR < 0 ? 0 : theLine.a.x - 2 - m_skipLR;
                     luy = 0; // TODO?? what value should be taken?
-                    possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
-                        m_imgWidth : theLine.b.x + 2 - lux;
+                    possibleWidth = fixedLen + 2 + m_skipLR > m_imgWidth ?
+                        m_imgWidth : fixedLen + 2 + m_skipLR;
                     // make it 8 pixels for all newly created Rect
                     possibleHeight = m_skipTB + 8; 
                     break;                    
                 case 1: // bottom
                     possibleHeight = m_skipTB + 8;
-                    lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
+                    lux = theLine.a.x - 2 - m_skipLR < 0 ? 0 : theLine.a.x - 2 - m_skipLR;
                     luy = m_imgHeight - possibleHeight;
-                    possibleWidth = theLine.b.x + 2 - lux > m_imgWidth ?
-                        m_imgWidth : theLine.b.x + 2 - lux;
+                    possibleWidth = fixedLen + 2 + m_skipLR > m_imgWidth ?
+                        m_imgWidth : fixedLen + 2 + m_skipLR;
                     break;                    
                 case 2: // left
                     lux = 0;
-                    luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB ;
+                    luy = theLine.a.x - 2 - m_skipTB < 0 ? 0 : theLine.a.x - 2 - m_skipTB ;
                     possibleWidth = m_skipLR + 8;
-                    possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
-                        m_imgHeight : theLine.b.x + 2 - luy;
+                    possibleHeight = fixedLen + 2 + m_skipTB > m_imgHeight ?
+                        m_imgHeight : fixedLen + 2 + m_skipTB;
                     break;                    
                 case 3: // right
                     possibleWidth = m_skipLR + 8;
                     lux = m_imgWidth - possibleWidth;
-                    luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB;
-                    possibleHeight = theLine.b.x + 2 - luy > m_imgHeight ?
-                        m_imgHeight : theLine.b.x + 2 - luy;
+                    luy = theLine.a.x - 2 - m_skipTB < 0 ? 0 : theLine.a.x - 2 - m_skipTB;
+                    possibleHeight = fixedLen + 2 + m_skipTB > m_imgHeight ?
+                        m_imgHeight : fixedLen + 2 + m_skipTB;
                     break;
                 default:
                     LogE("impossible to happen, border direction: %d.\n", bdNum);

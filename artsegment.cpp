@@ -353,7 +353,8 @@ int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
             input2.push_back(*(data + j * in.channels()));
             input2.push_back(*(data + j * in.channels() + 1));
             input2.push_back(*(data + j * in.channels() + 2));
-            selfProbabilty[k*m_imgWidth+j] = m_pArts[k][j]->processOneInput(VectorSpace<double>(input1));
+            selfProbabilty[k*m_imgWidth+j] =
+                m_pArts[k][j]->processOneInput(VectorSpace<double>(input1));
             out.at<uchar>(k, j) = 0;
         }
     }
@@ -365,7 +366,8 @@ int ArtSegment :: processFrame(const cv::Mat & in, cv::Mat & out)
 // recalc every 
 int ArtSegment :: refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::Mat & out)
 {
-    // for the borders, we won't draw line, namely take them as background for computation effective.
+    // for the borders, we won't draw line, namely take them as background for
+    // computation effective.
     for (int k = 1; k < m_imgHeight - 1; k++)
     {
         for (int j = 1; j < m_imgWidth - 1; j++)
@@ -373,8 +375,10 @@ int ArtSegment :: refineProbabilitiesByCollectiveWisdom(vector<double> & p, cv::
             // self + surroundings
             const double fp = p[k*m_imgWidth + j] + 
                 0.1 * (p[k*m_imgWidth + j-1] + p[k*m_imgWidth + j-1] +
-                p[(k-1) * m_imgWidth + j-1] + p[(k-1) * m_imgWidth + j] + p[(k-1) * m_imgWidth + j+1] + //up
-                p[(k+1) * m_imgWidth + j-1] + p[(k+1) * m_imgWidth + j] + p[(k+1) * m_imgWidth + j+1]); 
+                p[(k-1) * m_imgWidth + j-1] + p[(k-1) * m_imgWidth + j] +
+                       p[(k-1) * m_imgWidth + j+1] + //up
+                p[(k+1) * m_imgWidth + j-1] + p[(k+1) * m_imgWidth + j] +
+                       p[(k+1) * m_imgWidth + j+1]); 
             if (fp > 0.6)
                 out.at<uchar>(k, j) = 0;
             else

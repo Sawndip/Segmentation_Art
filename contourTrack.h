@@ -46,7 +46,6 @@ public:
     
     // 2. trival ones
     int getIdx() const {return m_idx;}
-    int isAllIn() const {return m_bAllIn;}    
     cv::Rect & getCurBox() {return m_curBox;}
     cv::Rect & getLastBox() {return m_lastBox;}    
     bool canOutputRegion() {return m_bOutputRegion;}
@@ -64,18 +63,15 @@ private:
     int m_skipLR;
     int m_inputFrames;    
     const int m_firstAppearFrameCount;
-    
-    bool m_bAllIn; // some objects may not always in.
-    bool m_bAllOut;
     bool m_bOutputRegion;
     
     // 1. using CompressiveTrack as tracker
     cv::Rect m_lastBox;
     cv::Rect m_curBox; // changing every time with diffResults' influence
     CompressiveTracker *m_ctTracker;    
+    // some internal status
     int m_largestWidth;
-    int m_largestHeight;
-    
+    int m_largestHeight;    
     MOVING_DIRECTION m_inDirection;
     MOVING_DIRECTION m_outDirection;
     MOVING_STATUS m_movingStatus;
@@ -85,14 +81,6 @@ private:
     int m_crossOutCount;    
     TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
     static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
-    // 4. size changing function
-    double m_a1; 
-    double m_b1;
-    double m_a2w; 
-    double m_b2w;
-    double m_a2h; 
-    double m_b2h;        
-    static const int m_halfChangingValue = 20;
 
 private: // inner helpers
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box);
@@ -111,6 +99,7 @@ private: // inner helpers
     cv::Rect getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                      const cv::Mat & diffAnd, const cv::Mat & diffOr);
     
+private:    
     // trival ones
     int curMaxChangeSize(int & x, int & y);
     double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
@@ -118,9 +107,9 @@ private: // inner helpers
     void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);
     void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);    
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
-    int getShiftByTwoConsecutiveLine(int & xShift, int & yShift, const int bdNum,
-                                     const TDLine & lastLine, const TDLine & updateLine);
-    
+    int estimateShiftByTwoConsecutiveLine(int & xShift, int & yShift, 
+         int & widthShift, int & heightShift, const int bdNum,
+         const TDLine & lastLine, const TDLine & updateLine);
 };
 
 }//namespace

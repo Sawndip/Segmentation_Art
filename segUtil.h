@@ -102,7 +102,7 @@ struct TDLine
     double movingAngle;
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
-    bool bNewObjectLine; // only marked when detect new objects in.
+    bool bNewObjectLine; // marked when detect new object in or objects start going out!
     // previous line's points.
     TDPoint mayPreviousLineStart;
     TDPoint mayPreviousLineEnd;    
@@ -177,6 +177,19 @@ extern double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
                                       const int angleMaxScore);
 extern inline double diffAngleToScore(const double angle, const int maxScore);
 extern inline double vertexShiftToScore(const int shift, const int maxScore);
+
+inline void dumpRect(const cv::Rect & rect)
+{
+    LogD("x:%d, y:%d,width:%d,height%d.\n", rect.x, rect.y, rect.width, rect.height);
+    return;
+}
+inline void dumpVectorInt(const vector<int> & vi)
+{
+    for (int k=0; k <(int)vi.size(); k++)
+        LogD("Mo.%d: %d.\n", k, vi[k]);
+    return;
+}
+
 
 }
 

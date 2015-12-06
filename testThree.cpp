@@ -49,8 +49,6 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
             imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
     }
 
-    printf("Test Images: %s - %s.\n", imgNames[0].c_str(),
-           imgNames[SEQ_FILE_MAX_NUM - 1].c_str());
     return;
 }
 
@@ -88,6 +86,10 @@ int main(int argc, char * argv[])
             cv::Mat & binaryFrame = seg.getBinaryFrame();
             for (int k = 0; k < (int)segResults.size(); k++)
             {
+                putText(inFrame, intToString(segResults[k].m_objIdx),
+                        cvPoint(segResults[k].m_curBox.x, segResults[k].m_curBox.y),
+                        1, 1, CV_RGB(25,200,25));
+                rectangle(inFrame, segResults[k].m_curBox, Scalar(200,0,0), 1);
                 putText(binaryFrame, intToString(segResults[k].m_objIdx),
                         cvPoint(segResults[k].m_curBox.x, segResults[k].m_curBox.y),
                         1, 1, CV_RGB(25,200,25));
@@ -97,13 +99,14 @@ int main(int argc, char * argv[])
             //putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
             //putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
             imshow("In", inFrame);
-            imshow("InGray", inFrameGray);            
+            //imshow("InGray", inFrameGray);            
             imshow("Bg", binaryFrame);
             if (bInitPosition == false)
             {
-                cv::moveWindow("In", 10, 10);
-                cv::moveWindow("InGray", 660, 10);            
-                cv::moveWindow("Bg", 10, 660);
+                cv::moveWindow("In", 15, 10);
+                //cv::moveWindow("InGray", 660, 10);            
+                //cv::moveWindow("Bg", 10, 660);
+                cv::moveWindow("Bg", 670, 10);
                 bInitPosition = true;
             }
         }
