@@ -148,8 +148,6 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                                   const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
     LogI("Across In frame: %d, directions size: %d.\n", m_inputFrames, (int)directions.size());
-    dumpVectorInt(directions);
-    // 
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
     bool bStillCrossing = false;
     // how to make the object moving in & we update the rectBox gradully?    
@@ -275,20 +273,21 @@ int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
 cv::Rect ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                            const cv::Mat & diffAnd, const cv::Mat & diffOr)
 { 
-    // 1. we use this dx dy and diffOr to get the possible maxium box
-    // restrictions: each time we at most enlarge 32 pixels, shrink 16pixels
-    // so enlarge/shrink gradually.
-    static const int maxEnlargeDx = 32, maxEnlargeDy = 32;
-    static const int maxShrinkDx = 16, maxShrinkDy = 16;    
+    // we use this dx dy and diffOr to get the possible maxium box
+    static const int maxEnlargeDx = 16, maxEnlargeDy = 16;
+    static const int maxShrinkDx = 16, maxShrinkDy = 16;
     // now we do enlarge & shrink.
     cv::Rect boxThisRound = m_lastBox;
     // a). enlarge the max box using 'diffOr' to get the possible maxium box.
-    doEnlargeBoxUsingImage(diffOr, boxThisRound, maxEnlargeDx, maxEnlargeDy);
+    doEnlargeBoxUsingImage(bgResult.binaryData, boxThisRound, maxEnlargeDx, maxEnlargeDy);
     //// b). shrink the max box using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);    
+    doShrinkBoxUsingImage(bgResult.binaryData, boxThisRound, maxShrinkDx, maxShrinkDy);
+    LogD("Before Cross In Using Diff.\n");
+    dumpRect(m_curBox);
+    LogD("After Cross In Using Diff.\n");
+    dumpRect(boxThisRound);    
 
-    boundBoxByMaxBox(box, theMaxBox);
-    return box;
+    return boxThisRound;
 }
 
 /*************************
@@ -303,31 +302,31 @@ int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
 {
     // 1. first we use lastBox & diffResult to get the max box
     cv::Rect maxBox = getMaxCrossBoxUsingDiff(bgResult, diffAnd, diffOr);
-    LogD("111111:\n");
-    dumpRect(maxBox);
-    // 2. calculate the minimal area that needed(get min box)
-    cv::Rect minBox = calcOverlapArea(m_lastBox, maxBox);
-    LogD("2222:\n");
-    dumpRect(minBox);
-    
-    // 3. then use lastBoundaryLine[bdNum] (must have, for we are in updateTracker)
-    //    angle to get the possible x, y shift
-    TDLine & lastLine = m_lastBoundaryLines[bdNum];
-    int xShift = 0, widthShift = 0, yShift = 0, heightShift = 0;
-    estimateShiftByTwoConsecutiveLine(xShift, yShift,
-                                      widthShift, heightShift, bdNum, lastLine, updateLine);
-    maxBox.x = (maxBox.x + m_lastBox.x + xShift) / 2;
-    maxBox.y = (maxBox.y + m_lastBox.y + yShift) / 2;
-    maxBox.width = (maxBox.width + m_lastBox.width) / 2; // take it as no width changing
-    maxBox.height = (maxBox.height + m_lastBox.height) / 2; // take it as no height changing
-    LogD("3333:\n");
-    dumpRect(maxBox);
-    
-    // 4. make the max box at least contain the min box.
-    enlargeBoxByMinBox(maxBox, minBox);
-    enlargeBoxByMinBox(maxBox, cv::Rect(maxBox.x, maxBox.y, 16, 16));    
-    LogD("4444:\n");
-    dumpRect(maxBox);
+    //LogD("111111:\n");
+    //dumpRect(maxBox);
+    //// 2. calculate the minimal area that needed(get min box)
+    //cv::Rect minBox = calcOverlapArea(m_lastBox, maxBox);
+    //LogD("2222:\n");
+    //dumpRect(minBox);
+    // 
+    //// 3. then use lastBoundaryLine[bdNum] (must have, for we are in updateTracker)
+    ////    angle to get the possible x, y shift
+    //TDLine & lastLine = m_lastBoundaryLines[bdNum];
+    //int xShift = 0, widthShift = 0, yShift = 0, heightShift = 0;
+    //estimateShiftByTwoConsecutiveLine(xShift, yShift,
+    //                                  widthShift, heightShift, bdNum, lastLine, updateLine);
+    //maxBox.x = (maxBox.x + m_lastBox.x + xShift) / 2;
+    //maxBox.y = (maxBox.y + m_lastBox.y + yShift) / 2;
+    //maxBox.width = (maxBox.width + m_lastBox.width) / 2; // take it as no width changing
+    //maxBox.height = (maxBox.height + m_lastBox.height) / 2; // take it as no height changing
+    //LogD("3333:\n");
+    //dumpRect(maxBox);
+    // 
+    //// 4. make the max box at least contain the min box.
+    //enlargeBoxByMinBox(maxBox, minBox);
+    //enlargeBoxByMinBox(maxBox, cv::Rect(maxBox.x, maxBox.y, 16, 16));    
+    //LogD("4444:\n");
+    //dumpRect(maxBox);
     
     /* 5. Until Now, we get the next box */
     m_curBox = maxBox;
@@ -343,7 +342,7 @@ int ContourTrack :: updateCrossOutBox(const int bdNum, TDLine & updateLine,
                                       BgResult & bgResult,
                                       const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-    TDLine & lastLine = m_lastBoundaryLines[bdNum];
+//    TDLine & lastLine = m_lastBoundaryLines[bdNum];
     int xShift = 0, yShift = 0;
     //getShiftByTwoConsecutiveLine(xShift, yShift, bdNum, lastLine, updateLine);
     // cross_out shift is the opposite of cross in shift
@@ -372,112 +371,170 @@ int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
     return 0;
 }
 
-int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & diffOr, cv::Rect & box,
-                                           const maxEnlargeDx, const maxEnlargeDy)
+int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
+                                           const int maxEnlargeDx, const int maxEnlargeDy)
 {
-    const int minX = m_lastBox.x - maxEnlargeDx < 0 ? 0 : m_lastBox.x - maxEnlargeDx;
-    const int minY = m_lastBox.y - maxEnlargeDy < 0 ? 0 : lastBox.y - maxEnlargeDy;
-    const int maxX = m_lastBox.x + m_lastBox.width + maxEnlargeDx > m_imgWidth ?
-                                   m_imgWidth : m_lastBox.x + m_lastBox.width + maxEnlargeDx;
-    const int maxY = m_lastBox.y + m_lastBox.height + maxEnlargeDy > m_imgHeight ?
-                                   m_imgHeight : m_lastBox.y + m_lastBox.height + maxEnlargeDy;
-    if (maxX <= minX || maxY <= minY)
-    {
-        LogW("Something Wrong: %d-%d-%d-%d, %d-%d-%d-%d. Won't enlarge box.\n",
-             minX, minY, maxX, maxY,
-             m_lastBox.x, m_lastBox.y, m_lastBox.width, m_lastBox.height);
-        return -1;
-    }
+    // TODO : move to init()
+    const int minTopY = box.y - maxEnlargeDy < 0 ? 0 : box.y - maxEnlargeDy;
+    const int maxTopY = box.y;
+    const int minBottomY = box.y + box.height;
+    const int maxBottomY = box.y + box.height + maxEnlargeDy > m_imgHeight ?
+                           m_imgHeight : box.y + box.height + maxEnlargeDy;
+    const int minLeftX = box.x - maxEnlargeDx < 0 ? 0 : box.x - maxEnlargeDx;
+    const int maxLeftX = box.x;
+    const int minRightX = box.x + box.width;
+    const int maxRightX = box.x + box.width + maxEnlargeDx > m_imgWidth ?
+                          m_imgWidth : box.x + box.width + maxEnlargeDx;
     
-    cv:Rect newBox = boxThisRound;
+    cv::Rect newBox = box;
     int k = 0;
-    for (k = 0; k < box.height; k+=2)
-    {
-        int j = 0;
-        int score = 0;
-        for (j = 0; j < box.width; j+=2) // note, j+2 here
+    // 1. enlarge top line
+    for (k = maxTopY; k > minTopY; k-=2) 
+    {   
+        int j = 0, score = 0, loss = 0;
+        for (j = box.x; j < box.x + box.width; j+=2) // note, j+2 here
         {   // find a 2x2 area with all '255' (foreground).
-            if (image.at<uchar>(box.y + k, box.x + j)     &
-                image.at<uchar>(box.y + k, box.x + j+1)   &
-                image.at<uchar>(box.y + k+1, box.x + j)   &
-                image.at<uchar>(box.y + k+1, box.x + j+1) )
+            if (image.at<uchar>(k, j) & image.at<uchar>(k, j+1)  &
+                image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
-        if (score >= 4 || score * 2.0 / box.width > 0.1)
-            break;
+        // TODO: magic number here.
+        if (score < 4 || (score << 1) / box.width < 0.15) // 15%
+        {
+            loss++;
+            if (loss >= 2)
+                break;
+        }
     }
-    // do update:
-    newBox.y += k;
-    newBox.height -= k;
-    
+    newBox.y = k;
+    // 2. enlarge bottom line
+    for (k = minBottomY; k < maxBottomY; k+=2) 
+    {   
+        int j = 0, score = 0, loss = 0;
+        for (j = box.x; j < box.x + box.width; j+=2) // note, j+2 here
+        {   // find a 2x2 area with all '255' (foreground).
+            if (image.at<uchar>(k, j) & image.at<uchar>(k, j+1)  &
+                image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
+                score++;
+        }
+        // TODO: magic number here.
+        if (score < 4 || (score << 1) / box.width < 0.15) // 15%
+        {
+            loss++;
+            if (loss >= 2)
+                break;
+        }
+    }
+    newBox.height = k - newBox.y;
+    // 3. enlarge left line
+    for (k = maxLeftX; k > minLeftX; k-=2) 
+    {
+        int j = 0, score = 0, loss = 0;        
+        for (j = box.y; j <= box.y + box.height; j+=2) // note, j+2 here
+        {   
+            if (image.at<uchar>(j, k) & image.at<uchar>(j, k+1)  &
+                image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
+                score++;
+        }
+        // TODO: magic number here.
+        if (score < 4 || (score << 1) / box.height < 0.15) // 15%
+        {
+            loss++;
+            if (loss >= 2)
+                break;
+        }        
+    }
+    newBox.x = k;
+    // 4. enlarge right line
+    for (k = minRightX; k < maxRightX; k+=2) 
+    {
+        int j = 0, score = 0, loss = 0;        
+        for (j = box.y; j <= box.y + box.height; j+=2) // note, j+2 here
+        {   
+            if (image.at<uchar>(j, k) & image.at<uchar>(j, k+1)  &
+                image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
+                score++;
+        }
+        if (score < 4 || (score << 1) / box.height < 0.15) // 15%
+        {
+            loss++;
+            if (loss >= 2)
+                break;
+        }        
+    }
+    newBox.width = k - newBox.x;
+    LogD("Befor Enlarge: \n");
+    dumpRect(box);
+    LogD("After Enlarge: \n");
+    dumpRect(newBox);
+    box = newBox;
     return 0;
 }
 
 // box's width & height must be an even number.
-int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
+int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
+                                          const int maxShrinkDx, const int maxShrinkDy)
 {   // using a 2x2 window do scaning the image from the border of the box
-    // 1. top
+    const int minTopY = box.y;
+    const int maxTopY = maxShrinkDy > box.height/2 ? box.y + box.height/2 : box.y + maxShrinkDy;
+    const int maxBottomY = box.y + box.height; 
+    const int minBottomY = maxShrinkDy > box.height/2 ?
+                                       box.y + box.height/2 : box.y + box.height - maxShrinkDy;
+    const int minLeftX = box.x;
+    const int maxLeftX = maxShrinkDx > box.width/2 ? box.x + box.width/2 : box.x + maxShrinkDx;
+    const int minRightX = maxShrinkDx > box.width/2 ?
+                                      box.x + box.width/2 : box.x + box.width - maxShrinkDx;
+    const int maxRightX = box.x + box.width;
+
     cv::Rect newBox = box;
     int k = 0;
-    for (k = 0; k < box.height; k+=2)
+    // 1. top shrink
+    for (k = minTopY; k < maxTopY; k+=2)
     {
         int j = 0;
         int score = 0;
-        for (j = 0; j < box.width; j+=2) // note, j+2 here
+        for (j = box.x; j < box.x + box.width; j+=2) // note, j+2 here
         {   // find a 2x2 area with all '255' (foreground).
-            if (image.at<uchar>(box.y + k, box.x + j)     &
-                image.at<uchar>(box.y + k, box.x + j+1)   &
-                image.at<uchar>(box.y + k+1, box.x + j)   &
-                image.at<uchar>(box.y + k+1, box.x + j+1) )
+            if (image.at<uchar>(k, j)   & image.at<uchar>(k, j+1) &
+                image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
         if (score >= 4 || score * 2.0 / box.width > 0.1)
             break;
     }
-    // do update:
-    newBox.y += k;
-    newBox.height -= k;
-    
-    // 2. bottom
-    for (k = 0; k < box.height; k+=2)
+    newBox.y = k;
+    // 2. bottom shrink
+    for (k = maxBottomY; k > minBottomY; k-=2)
     {
         int j = 0;
         int score = 0;
-        for (j = 0; j < box.width; j+=2) // note, j+2 here
+        for (j = box.x; j < box.x + box.width; j+=2) // note, j+2 here
         {   
-            if (image.at<uchar>(box.y + box.height - k, box.x + j)     &
-                image.at<uchar>(box.y + box.height - k, box.x + j+1)   &
-                image.at<uchar>(box.y + box.height - k+1, box.x + j)   &
-                image.at<uchar>(box.y + box.height - k+1, box.x + j+1))
+            if (image.at<uchar>(k, j)   & image.at<uchar>(k, j+1) &
+                image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
         if (score >= 4 || score * 2.0 / box.width > 0.1)
             break;
     }
-    // do update: 
-    newBox.height -= k;
-
-    // 3. left
-    for (k = 0; k < box.width; k+=2)
+    newBox.height = k - newBox.y;
+    // 3. left shrink
+    for (k = minLeftX; k < maxLeftX; k+=2)
     {
         int j = 0;
         int score = 0;
-        for (j = 0; j < box.height; j+=2) // note, j+2 here
+        for (j = box.y; j < box.height; j+=2) // note, j+2 here
         {   
-            if (image.at<uchar>(box.y + j, box.x + k)     &
-                image.at<uchar>(box.y + j, box.x + k+1)   &
-                image.at<uchar>(box.y + j+1, box.x + k)   &
-                image.at<uchar>(box.y + j+1, box.x + k+1) )
-                score++; // find the boundary.
+            if (image.at<uchar>(j, k)   & image.at<uchar>(j, k+1) &
+                image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
+                score++;
         }
         if (score >= 4 || score * 2.0 / box.height > 0.1)
             break;
     }
-    newBox.x += k;
-    newBox.width -= k;
-
+    newBox.x = k;
     // 4. right
-    for (k = 0; k < box.width; k+=2)
+    for (k = maxRightX; k > minRightX; k-=2)
     {
         int j = 0;
         int score = 0;
@@ -492,7 +549,11 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box)
         if (score >= 4 || score * 2.0 / box.height > 0.1)
             break;
     }
-    newBox.width -= k;
+    newBox.width = k - newBox.x;
+    LogD("Before Shrink: \n");
+    dumpRect(box);
+    LogD("After Shrink: \n");
+    dumpRect(newBox);
     box = newBox;
     return 0;
 }

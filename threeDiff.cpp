@@ -190,7 +190,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     lux = theLine.a.x - 2 - m_skipLR < 0 ? 0 : theLine.a.x - 2 - m_skipLR;
                     luy = 0; // TODO?? what value should be taken?
                     possibleWidth = fixedLen + 2 + m_skipLR > m_imgWidth ?
-                        m_imgWidth : fixedLen + 2 + m_skipLR;
+                                    m_imgWidth : fixedLen + 2 + m_skipLR;
                     // make it 8 pixels for all newly created Rect
                     possibleHeight = m_skipTB + 8; 
                     break;                    

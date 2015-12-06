@@ -83,8 +83,6 @@ private:
     static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
 
 private: // inner helpers
-    int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box);
-    
     int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                      BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int markAcrossOut(const vector<MOVING_DIRECTION> & directions,
@@ -98,13 +96,17 @@ private: // inner helpers
     // important ones    
     cv::Rect getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                      const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
+                               const int maxEnlargeDx, const int maxEnlargeDy);
+    int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
+                              const int maxShrinkDx, const int maxShrinkDy);
     
 private:    
     // trival ones
     int curMaxChangeSize(int & x, int & y);
     double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
     cv::Rect calcOverlapArea(const cv::Rect & a, const cv::Rect & b);
-    void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);
+    void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);    
     void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);    
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     int estimateShiftByTwoConsecutiveLine(int & xShift, int & yShift, 
@@ -115,3 +117,11 @@ private:
 }//namespace
 
 #endif // _CONTOUR_TRACK_H_
+
+/*
+  Cross In Box Size Calculate
+  1. When create, make it realy nice.
+  2. When do cross in update, using diffOr do enlarge, then using BgResult do shrink.
+     Both the above operations are with restrictions, namely each time can at most changing
+     32 * tan(theta)
+*/

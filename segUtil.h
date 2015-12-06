@@ -180,7 +180,7 @@ extern inline double vertexShiftToScore(const int shift, const int maxScore);
 
 inline void dumpRect(const cv::Rect & rect)
 {
-    LogD("x:%d, y:%d,width:%d,height%d.\n", rect.x, rect.y, rect.width, rect.height);
+    LogD("x:%d, y:%d, width:%d, height:%d.\n", rect.x, rect.y, rect.width, rect.height);
     return;
 }
 inline void dumpVectorInt(const vector<int> & vi)
