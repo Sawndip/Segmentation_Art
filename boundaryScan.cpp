@@ -82,11 +82,14 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
     //for (int k = 0; k < 2; k++)
     {   
         // close: dilate then erode
-        doDilate();
-        doErode();
-        // oepn: erode then dilate
-        doErode();
-        doDilate();            
+        doDilate(2);
+        doErode(2);
+        //// oepn: erode then dilate
+        doErode(2);
+        doDilate(2);
+        //// close again
+        //doDilate(2);
+        //doErode(2);
     }
     
     // 3. scan the boundary, get the TDPoint of the lines

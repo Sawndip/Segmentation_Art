@@ -94,8 +94,9 @@ private: // inner helpers
     // helper to kick out untraced line but actually belong to exist tracker
     int updateUntracedIfNeeded(const int bdNum, TDLine & updateLine);
     // important ones    
-    cv::Rect getMaxCrossBoxUsingDiff(const BgResult & bgResult,
-                                     const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int getMaxCrossBoxUsingDiff(const BgResult & bgResult,
+                                const cv::Mat & diffAnd, const cv::Mat & diffOr,
+                                cv::Rect & box);
     int doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                const int maxEnlargeDx, const int maxEnlargeDy);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
@@ -109,9 +110,8 @@ private:
     void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);    
     void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);    
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
-    int estimateShiftByTwoConsecutiveLine(int & xShift, int & yShift, 
-         int & widthShift, int & heightShift, const int bdNum,
-         const TDLine & lastLine, const TDLine & updateLine);
+    cv::Rect estimateMinBoxByTwoConsecutiveLine (const int bdNum, const TDLine & lastLine,
+                                                 const TDLine & updateLine);
 };
 
 }//namespace

@@ -60,12 +60,21 @@ int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResul
     // 1. fill the m_bgResult's binaryData/mvs by opticalFlow detection.
     ret = m_segBg.processFrame(in, m_bgResult.binaryData,
                                m_bgResult.xMvs, m_bgResult.yMvs);
+    //// 2. do erode/dilate on the whole image
+    //const cv::Mat ker = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+    //cv::Mat dst;
+    //for(int k = 0; k < 2; k++)
+    //{
+    //    cv::dilate(m_bgResult.binaryData, dst, ker);
+    //    cv::erode(m_bgResult.binaryData, dst, ker);
+    //}
+    //dst.copyTo(m_bgResult.binaryData);;
     assert(ret >= 0);
     if (ret > 0) // got a frame
-    {   // 2. Fill the m_bgResult's four lines info by do simple erode & dilate on binaryData.
+    {   // 3. Fill the m_bgResult's four lines info by do simple erode & dilate on binaryData.
         //    Do pre-merge short-lines that we are sure they are the same objects.
         m_boundaryScan.processFrame(m_bgResult);
-        // 3. all other stuff are doing by this call. Details are described in ThreeDiff class.
+        // 4. all other stuff are doing by this call. Details are described in ThreeDiff class.
         ret = m_threeDiff.processFrame(in, m_bgResult, segResults);
         m_bgResult.reset(); // reset lines.
         LogI("Frame %d: SegResults size: %d.\n", m_inputFrames, (int)segResults.size());

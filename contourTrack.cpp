@@ -83,22 +83,18 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     // BE AWARE: 1) tracker has moving status(cross_in/cross_out/inside).
     //           2) each boundary line also has moving status(cross_in/cross_out).            
     case MOVING_INSIDE:
-        // TODO: magic number subsitution needed. 10frames * 10pixel = 100 pixles
-        if (m_inputFrames >= 5 && directions.size() > 0)
-        {   // line's movingDirection should be MOVING_CROSS_OUT
-            // update lastBoundaryLines inside this call if needed
-            markAcrossOut(directions, bgResult, diffAnd, diffOr);
-            if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-            {
-                m_crossOutCount = 0;
-                bCTTracking = false;
-                m_movingStatus = MOVING_CROSS_OUT;
-            }
-            else
-                bCTTracking = true;
+        // line's movingDirection should be MOVING_CROSS_OUT
+        // update lastBoundaryLines inside this call if needed
+        markAcrossOut(directions, bgResult, diffAnd, diffOr);
+        if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
+        {
+            m_crossOutCount = 0;
+            bCTTracking = false;
+            m_movingStatus = MOVING_CROSS_OUT;
         }
-        else // do normal tracking.
+        else
             bCTTracking = true;
+        
         break;
     case MOVING_CROSS_OUT:
         //  use boundary info to track, won't use compressive tracker
@@ -172,27 +168,28 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                             updateCrossInBox(bdNum, resultLines[bdNum][k],
                                              bgResult, diffAnd, diffOr);
                             m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
-                            LogD("???? Get Previous Line & updateCrossInBox. "
+                            LogD("Get Previous Line & updateCrossInBox. "
                                  "Last %d-%d-%d-%d,  %d-%d-%d-%d.\n",
                                  m_lastBox.x, m_lastBox.y, m_lastBox.width, m_lastBox.height,
                                  m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
                         }
                         else // for the 
                         {
-                            LogD("????????? Realy here.\n");
+                            LogD("=== IN: Realy here.\n");
                         }
                     }
-                    else 
+                    else
                     {   // this untraced line may part of our object, let's check it.
                         if (updateUntracedIfNeeded(bdNum, resultLines[bdNum][k]) > 0)
                         {
+                            LogD("=== CrossingIn update untraced In.\n");
                             bStillCrossing = true;
                             updateCrossInBox(bdNum, resultLines[bdNum][k],
                                              bgResult, diffAnd, diffOr);
                             m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
                         }
                         else
-                            LogD("????????? How to Deal ??.\n");
+                            LogD("=== CrossingIN how to Deal ??.\n");
                     }
                 }
             }
@@ -201,7 +198,9 @@ int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
     // all in
     if (bStillCrossing == false)
         m_allInCount++;
-
+    else 
+        m_allInCount = 0;
+    
     return 0;
 }
 
@@ -237,8 +236,8 @@ int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
                                               bgResult, diffAnd, diffOr);
                             m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
                         }
-                        // TODO: do we need a else here ??????
-                        // if BoundaryScan do a great job, we don't have to have a 'else'.
+                        else
+                            LogD("==== CrossOut : realy here.\n");
                     }
                     else 
                     {   // this untraced line may part of our object, let's check it.
@@ -248,7 +247,11 @@ int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
                             updateCrossOutBox(bdNum, resultLines[bdNum][k],
                                               bgResult, diffAnd, diffOr);
                             m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
+                            LogD("==== CrossOut : update untraced.\n");
                         }
+                        else
+                            LogD("==== CrossOut : how to deal.\n");
+
                     }
                 }
             }
@@ -270,24 +273,23 @@ int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
     
 // 1. when do re-calc the curBox, we tend to get it a little bigger.
 // 2. then we use diffOrResult & curMaxChangeSize to limit the expand of the box size.
-cv::Rect ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
-                                           const cv::Mat & diffAnd, const cv::Mat & diffOr)
+int ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
+                                            const cv::Mat & diffAnd,
+                                            const cv::Mat & diffOr, cv::Rect & box)
 { 
     // we use this dx dy and diffOr to get the possible maxium box
-    static const int maxEnlargeDx = 16, maxEnlargeDy = 16;
-    static const int maxShrinkDx = 16, maxShrinkDy = 16;
+    static const int maxEnlargeDx = 32, maxEnlargeDy = 32;
+    static const int maxShrinkDx = 32, maxShrinkDy = 32;
     // now we do enlarge & shrink.
-    cv::Rect boxThisRound = m_lastBox;
     // a). enlarge the max box using 'diffOr' to get the possible maxium box.
-    doEnlargeBoxUsingImage(bgResult.binaryData, boxThisRound, maxEnlargeDx, maxEnlargeDy);
+    cv::Rect maxBox = box;
+    doEnlargeBoxUsingImage(diffOr, maxBox, maxEnlargeDx * 2, maxEnlargeDy * 2);
     //// b). shrink the max box using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, boxThisRound, maxShrinkDx, maxShrinkDy);
-    LogD("Before Cross In Using Diff.\n");
-    dumpRect(m_curBox);
-    LogD("After Cross In Using Diff.\n");
-    dumpRect(boxThisRound);    
+    doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);    
+    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);
+    boundBoxByMaxBox(box, maxBox);
 
-    return boxThisRound;
+    return 0;
 }
 
 /*************************
@@ -300,36 +302,19 @@ int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
                                      BgResult & bgResult,
                                      const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-    // 1. first we use lastBox & diffResult to get the max box
-    cv::Rect maxBox = getMaxCrossBoxUsingDiff(bgResult, diffAnd, diffOr);
-    //LogD("111111:\n");
-    //dumpRect(maxBox);
-    //// 2. calculate the minimal area that needed(get min box)
-    //cv::Rect minBox = calcOverlapArea(m_lastBox, maxBox);
-    //LogD("2222:\n");
-    //dumpRect(minBox);
-    // 
-    //// 3. then use lastBoundaryLine[bdNum] (must have, for we are in updateTracker)
-    ////    angle to get the possible x, y shift
-    //TDLine & lastLine = m_lastBoundaryLines[bdNum];
-    //int xShift = 0, widthShift = 0, yShift = 0, heightShift = 0;
-    //estimateShiftByTwoConsecutiveLine(xShift, yShift,
-    //                                  widthShift, heightShift, bdNum, lastLine, updateLine);
-    //maxBox.x = (maxBox.x + m_lastBox.x + xShift) / 2;
-    //maxBox.y = (maxBox.y + m_lastBox.y + yShift) / 2;
-    //maxBox.width = (maxBox.width + m_lastBox.width) / 2; // take it as no width changing
-    //maxBox.height = (maxBox.height + m_lastBox.height) / 2; // take it as no height changing
-    //LogD("3333:\n");
-    //dumpRect(maxBox);
-    // 
-    //// 4. make the max box at least contain the min box.
-    //enlargeBoxByMinBox(maxBox, minBox);
-    //enlargeBoxByMinBox(maxBox, cv::Rect(maxBox.x, maxBox.y, 16, 16));    
-    //LogD("4444:\n");
-    //dumpRect(maxBox);
+    // 1. use boundary line to get the lease width or height.
+    TDLine lastLine = m_lastBoundaryLines[bdNum];
+    // if no last line, we using current one
+    if (lastLine.a.x == -1 || lastLine.b.x == -1) 
+        lastLine = updateLine;
+    cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine, updateLine);
+    LogD("Estimate Box: \n");
+    dumpRect(box);
+    // 2. use lastBox & diffResult to get the max box
+    getMaxCrossBoxUsingDiff(bgResult, diffAnd, diffOr, box);
     
-    /* 5. Until Now, we get the next box */
-    m_curBox = maxBox;
+    /* 3. Until Now, we get the next box */
+    m_curBox = box;
     if (m_largestWidth < m_curBox.width)
         m_largestWidth = m_curBox.width;
     if (m_largestHeight < m_curBox.height)
@@ -342,14 +327,11 @@ int ContourTrack :: updateCrossOutBox(const int bdNum, TDLine & updateLine,
                                       BgResult & bgResult,
                                       const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-//    TDLine & lastLine = m_lastBoundaryLines[bdNum];
-    int xShift = 0, yShift = 0;
-    //getShiftByTwoConsecutiveLine(xShift, yShift, bdNum, lastLine, updateLine);
-    // cross_out shift is the opposite of cross in shift
-    m_curBox.x = m_lastBox.x - xShift;
-    m_curBox.y = m_lastBox.y - yShift;
-    m_curBox.width = m_lastBox.width - abs(xShift);
-    m_curBox.height = m_lastBox.height - abs(yShift);
+    const int maxShrinkDx = 32;
+    const int maxShrinkDy = 32;
+    cv::Rect box = m_lastBox;
+    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);    
+    m_curBox = box;
     return 0;
 }
         
@@ -358,7 +340,12 @@ int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
 {
     TDLine boundaryLine = m_lastBoundaryLines[bdNum];
     if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
-        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox);
+    {
+        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false); // false = CROSS_OUT
+        boundaryLine.a.x = boundaryLine.a.x - m_skipLR < 0 ? 0 : boundaryLine.a.x - m_skipLR;
+        boundaryLine.b.x = boundaryLine.b.x - m_skipLR < 0 ? 0 : boundaryLine.b.x - m_skipLR;
+    }
+    
     const double consecutivityScore = consecutivityOfTwoLines(updateLine, boundaryLine, 50);
     // TODO: magic number 75.0 here.
     if (consecutivityScore > 75.0)
@@ -385,84 +372,79 @@ int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box
     const int minRightX = box.x + box.width;
     const int maxRightX = box.x + box.width + maxEnlargeDx > m_imgWidth ?
                           m_imgWidth : box.x + box.width + maxEnlargeDx;
-    
+
+    const static int enlargeLossThreshold = 3;
+    const static double enlargeScorePercentThreshold = 0.1;    
+        
     cv::Rect newBox = box;
     int k = 0;
     // 1. enlarge top line
-    for (k = maxTopY; k > minTopY; k-=2) 
+    int loss = 0;
+    for (k = maxTopY; k > minTopY; k--) 
     {   
-        int j = 0, score = 0, loss = 0;
-        for (j = box.x; j < box.x + box.width; j+=2) // note, j+2 here
-        {   // find a 2x2 area with all '255' (foreground).
-            if (image.at<uchar>(k, j) & image.at<uchar>(k, j+1)  &
-                image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
+        int j = 0, score = 0;
+        for (j = box.x; j < box.x + box.width; j++) 
+            if (image.at<uchar>(k, j))
                 score++;
-        }
-        // TODO: magic number here.
-        if (score < 4 || (score << 1) / box.width < 0.15) // 15%
+        if (score * 1.0 / box.width < enlargeScorePercentThreshold)
         {
             loss++;
-            if (loss >= 2)
+            if (loss >= enlargeLossThreshold)
                 break;
         }
     }
     newBox.y = k;
     // 2. enlarge bottom line
-    for (k = minBottomY; k < maxBottomY; k+=2) 
+    loss = 0;
+    for (k = minBottomY; k < maxBottomY; k++)
     {   
-        int j = 0, score = 0, loss = 0;
-        for (j = box.x; j < box.x + box.width; j+=2) // note, j+2 here
-        {   // find a 2x2 area with all '255' (foreground).
-            if (image.at<uchar>(k, j) & image.at<uchar>(k, j+1)  &
-                image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
+        int j = 0, score = 0;
+        for (j = box.x; j < box.x + box.width; j++)
+            if (image.at<uchar>(k, j))
                 score++;
-        }
-        // TODO: magic number here.
-        if (score < 4 || (score << 1) / box.width < 0.15) // 15%
+        if (score * 1.0 / box.width < enlargeScorePercentThreshold)
         {
             loss++;
-            if (loss >= 2)
+            if (loss >= enlargeLossThreshold)
                 break;
         }
     }
     newBox.height = k - newBox.y;
+
     // 3. enlarge left line
-    for (k = maxLeftX; k > minLeftX; k-=2) 
+    loss = 0;    
+    for (k = maxLeftX; k > minLeftX; k--) 
     {
-        int j = 0, score = 0, loss = 0;        
-        for (j = box.y; j <= box.y + box.height; j+=2) // note, j+2 here
-        {   
-            if (image.at<uchar>(j, k) & image.at<uchar>(j, k+1)  &
-                image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
+        int j = 0, score = 0;
+        // NOTE: here we use new box's y & height
+        for (j = newBox.y; j <= newBox.y + newBox.height; j++) // note, j+2 here
+            if (image.at<uchar>(j, k))
                 score++;
-        }
-        // TODO: magic number here.
-        if (score < 4 || (score << 1) / box.height < 0.15) // 15%
+        if (score * 1.0 / newBox.height < enlargeScorePercentThreshold)
         {
             loss++;
-            if (loss >= 2)
+            if (loss >= enlargeLossThreshold)
                 break;
         }        
     }
     newBox.x = k;
     // 4. enlarge right line
-    for (k = minRightX; k < maxRightX; k+=2) 
+    loss = 0;    
+    for (k = minRightX; k < maxRightX; k++) 
     {
-        int j = 0, score = 0, loss = 0;        
-        for (j = box.y; j <= box.y + box.height; j+=2) // note, j+2 here
-        {   
-            if (image.at<uchar>(j, k) & image.at<uchar>(j, k+1)  &
-                image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
+        int j = 0, score = 0;        
+        for (j = newBox.y; j <= newBox.y + newBox.height; j++)
+            if (image.at<uchar>(j, k))
                 score++;
-        }
-        if (score < 4 || (score << 1) / box.height < 0.15) // 15%
+        if (score * 1.0 / newBox.height < enlargeScorePercentThreshold)
         {
             loss++;
-            if (loss >= 2)
+            if (loss >= enlargeLossThreshold)
                 break;
         }        
     }
     newBox.width = k - newBox.x;
+    
     LogD("Befor Enlarge: \n");
     dumpRect(box);
     LogD("After Enlarge: \n");
@@ -630,45 +612,45 @@ vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::R
     return directions;
 }
 
-// use two possible consecutive lines to estimate x,y direction moving.
-int ContourTrack :: estimateShiftByTwoConsecutiveLine (int & xShift, int & yShift,
-                    int & widthShift, int & heightShift, const int bdNum,
-                    const TDLine & lastLine, const TDLine & updateLine)
+// Used by: updateCrossInBox, keep in mind there are boundary lines there.
+// use two consecutive boundary lines to estimate posssible changing of the box,
+// used when cross in. the result will be used in enlarge/shrink operaion as the
+// minimal box.
+cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
+        const TDLine & lastLine, const TDLine & updateLine)
 {
-
-    // debugging
-    xShift = yShift = widthShift = heightShift = 16;
-    return 0;
-    /////
-    if (lastLine.a.x == -1 && lastLine.b.x == -1)
-    {
-        LogE("Invalid LastLine, then we cnannot calculate consecutivity of two lines.\n");
-        return -1; // should not be the case
-    }
-    const int startDistance = updateLine.a.x - lastLine.a.x;
-    const int endDistance = updateLine.b.x - lastLine.b.x;
-    const double averageAngle = (lastLine.movingAngle + updateLine.movingAngle) / 2;
+    cv::Rect minBox;
+    assert (lastLine.a.x != -1 && lastLine.b.x != -1);
+    //const double averageAngle = (lastLine.movingAngle + updateLine.movingAngle) / 2;
     switch(bdNum)
     {
-    case 0:
-        xShift = 00; // TODO: 
-        yShift = (int)(round(fabs(tan(averageAngle) * startDistance)));
+    case 0: // Top
+        minBox.x = std::min(lastLine.a.x, updateLine.a.x) + m_skipLR;
+        minBox.y = m_skipTB;
+        minBox.width = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
+        minBox.height = m_lastBox.height; // because it is crossing in          
         break;
-    case 1:
-        xShift = (startDistance + endDistance) / 2;
-        yShift = (int)((-1) * round(fabs(tan(averageAngle) * startDistance)));
+    case 1: // Bottom
+        minBox.x = std::min(lastLine.a.x, updateLine.a.x) + m_skipLR;
+        minBox.y = m_imgHeight - m_lastBox.height;
+        minBox.width = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
+        minBox.height = m_lastBox.height; // because it is crossing in          
         break;
-    case 2:
-        xShift = (int)(round(fabs(startDistance / tan(averageAngle))));
-        yShift = (startDistance + endDistance) / 2;        
+    case 2: // Left
+        minBox.x = m_skipLR;
+        minBox.y = std::min(lastLine.a.x, updateLine.a.x) + m_skipTB;
+        minBox.width = m_lastBox.width;
+        minBox.height = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
         break;
     case 3:
-        xShift = (int)((-1) * (round(fabs(startDistance / tan(averageAngle)))));
-        yShift = (startDistance + endDistance) / 2;        
+        minBox.x = m_imgWidth - m_lastBox.width;
+        minBox.y = std::min(lastLine.a.x, updateLine.a.x) + m_skipTB;
+        minBox.width = m_lastBox.width;
+        minBox.height = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x);
         break;
     }
     
-    return 0;
+    return minBox;
 }
     
 } // namespace Seg_Three

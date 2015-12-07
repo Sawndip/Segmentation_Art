@@ -63,25 +63,25 @@ namespace Seg_Three
         return DIRECTION_UNKNOWN;
     }
 
-    TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect)
+    TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const bool bCrossIn)
     {             
         TDLine boundaryLine;
         switch(bdNum)
         {
         case 0:
             boundaryLine = TDLine(TDPoint(rect.x, 0), TDPoint(rect.x + rect.width, 0));
-            boundaryLine.movingAngle = - M_PI / 2;
+            boundaryLine.movingAngle = bCrossIn ? -M_PI/2 : M_PI/ 2;
             break;
         case 1:
             boundaryLine = TDLine(TDPoint(rect.x, 0), TDPoint(rect.x + rect.width, 0));
-            boundaryLine.movingAngle = M_PI / 2;
+            boundaryLine.movingAngle = bCrossIn ? M_PI/2: -M_PI/2;
             break;
         case 2:
             boundaryLine = TDLine(TDPoint(rect.y, 0), TDPoint(rect.y + rect.height, 0));
-            boundaryLine.movingAngle = 0;
+            boundaryLine.movingAngle = bCrossIn ? 0 : M_PI;
         case 3:
             boundaryLine = TDLine(TDPoint(rect.y, 0), TDPoint(rect.y + rect.height, 0));
-            boundaryLine.movingAngle = M_PI;
+            boundaryLine.movingAngle = bCrossIn ? M_PI : 0;
             break;            
         }
         return boundaryLine;

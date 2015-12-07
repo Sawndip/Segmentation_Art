@@ -9,6 +9,7 @@
 #include <string>
 // tools
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp> // erode/dilate
 #include <opencv2/highgui/highgui.hpp>
 // project
 #include "segUtil.h"
