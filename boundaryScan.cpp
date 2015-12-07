@@ -79,11 +79,11 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
         }
     }
     // 2. we do open / close: seems for simplified erode/dilate, just open is ok.    
-    // for (int k = 0; k < 2; k++)
+    //for (int k = 0; k < 2; k++)
     {   
         // close: dilate then erode
-        doDilate(4); // 8 pixels
-        doErode(4);
+        doDilate();
+        doErode();
         // oepn: erode then dilate
         doErode();
         doDilate();            

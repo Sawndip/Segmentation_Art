@@ -40,14 +40,14 @@ int SegControl :: init(const int width, const int height,
     // 3. bgResults
     m_bgResult.binaryData.create(height, width, CV_8UC1);
     // top bottom left right
-    m_bgResult.xMvs.resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResult.xMvs.resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResult.xMvs.resize((height - 2*skipTB)*scanSizeLR);
-    m_bgResult.xMvs.resize((height - 2*skipTB)*scanSizeLR);
-    m_bgResult.yMvs.resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResult.yMvs.resize((width - 2*skipLR)*scanSizeTB);
-    m_bgResult.yMvs.resize((height - 2*skipTB)*scanSizeLR);
-    m_bgResult.yMvs.resize((height - 2*skipTB)*scanSizeLR);    
+    m_bgResult.xMvs[0].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.xMvs[1].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.xMvs[2].resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.xMvs[3].resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.yMvs[0].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.yMvs[1].resize((width - 2*skipLR)*scanSizeTB);
+    m_bgResult.yMvs[2].resize((height - 2*skipTB)*scanSizeLR);
+    m_bgResult.yMvs[3].resize((height - 2*skipTB)*scanSizeLR);    
     return 0;
 }
 

@@ -187,31 +187,28 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                 switch(bdNum)
                 {
                 case 0: // top: enlarge width 4 pixels, each side with 2.
-                    lux = theLine.a.x - 2 - m_skipLR < 0 ? 0 : theLine.a.x - 2 - m_skipLR;
+                    lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
                     luy = 0; // TODO?? what value should be taken?
-                    possibleWidth = fixedLen + 2 + m_skipLR > m_imgWidth ?
-                                    m_imgWidth : fixedLen + 2 + m_skipLR;
+                    possibleWidth = fixedLen + 2 > m_imgWidth ? m_imgWidth : fixedLen + 2;
                     // make it 8 pixels for all newly created Rect
                     possibleHeight = m_skipTB + 8; 
                     break;                    
                 case 1: // bottom
                     possibleHeight = m_skipTB + 8;
-                    lux = theLine.a.x - 2 - m_skipLR < 0 ? 0 : theLine.a.x - 2 - m_skipLR;
+                    lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
                     luy = m_imgHeight - possibleHeight;
-                    possibleWidth = fixedLen + 2 + m_skipLR > m_imgWidth ?
-                        m_imgWidth : fixedLen + 2 + m_skipLR;
+                    possibleWidth = fixedLen + 2 > m_imgWidth ? m_imgWidth : fixedLen + 2;
                     break;                    
                 case 2: // left
                     lux = 0;
-                    luy = theLine.a.x - 2 - m_skipTB < 0 ? 0 : theLine.a.x - 2 - m_skipTB ;
+                    luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB ;
                     possibleWidth = m_skipLR + 8;
-                    possibleHeight = fixedLen + 2 + m_skipTB > m_imgHeight ?
-                        m_imgHeight : fixedLen + 2 + m_skipTB;
+                    possibleHeight = fixedLen + 2 > m_imgHeight ? m_imgHeight : fixedLen + 2;
                     break;                    
                 case 3: // right
                     possibleWidth = m_skipLR + 8;
                     lux = m_imgWidth - possibleWidth;
-                    luy = theLine.a.x - 2 - m_skipTB < 0 ? 0 : theLine.a.x - 2 - m_skipTB;
+                    luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB;
                     possibleHeight = fixedLen + 2 + m_skipTB > m_imgHeight ?
                         m_imgHeight : fixedLen + 2 + m_skipTB;
                     break;
