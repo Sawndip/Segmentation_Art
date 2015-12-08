@@ -66,8 +66,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     // the possible boundary lines that we may dealing with
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
-    bool bCTTracking = true; // use Compressive Tracking or BoundaryInfo tracking.
-    //bool bResetCT = false;
+   
     // 1. consume lines interested by tracker(using curBox/lastBoundaryLine)
     for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
     {
@@ -75,33 +74,14 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         if (it != directions.end())
         {   // we need process boundary lines, after process we marked it as used.
             for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
-            {
-                int ret = processOneBoundaryLine(bdNum, resultLines[bdNum][k],
-                                                 bgResult, diffAnd, diffOr);
-                if (ret == 0)
-                {   // need CompressiveTrack to fire
-                    bCTTracking = true;
-                    //bResetCT = false; 
-                }
-                else if (ret == 1)
-                {   // will use compressive tracker & we need reset it first
-                    bCTTracking = true;
-                    //bResetCT = true; // need reset the compressive tracker
-                }
-                else if (ret == 2)
-                {   // use boundaru info do the tracking & update
-                    bCTTracking = false;
-                    //bResetCT = false; // need reset the compressive tracker
-                }
-                else
-                    LogD("No other return values possible right now %d..\n", ret);
-            }
+                if (resultLines[bdNum][k].bValid == true) // For bothin CROSS_IN/OUT
+                    processOneBoundaryLine(bdNum, resultLines[bdNum][k],
+                                                     bgResult, diffAnd, diffOr);
         }
     }
     
-    // 2. normal tracking if consum nothing
-    //    (also could consume lines but still use CTTrack, for instance: TODO)
-    if (bCTTracking == true)
+    // 2. compressive tracking. some objects may never use this (always cross boundaries)
+    if (m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) // STOP needed?
     {
         if (m_ctTracker == NULL)
         {
@@ -117,7 +97,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
             return 1;
         }
     }
-
+    
     return 0;
 }
     
@@ -324,12 +304,12 @@ int ContourTrack :: updateCrossOutBox(const int bdNum, TDLine & updateLine,
     return 0;
 }
         
-// return > 0: need update this line & mark this line's previousLine
+// TODO: do we need this? return > 0: need update this line & mark this line's previousLine
 int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
 {
     TDLine boundaryLine = m_lastBoundaryLines[bdNum];
     if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
-        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false);
+        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
     TDLine newLine = boundaryLine;
     int skip = 0;
     if (bdNum < 2)
@@ -595,18 +575,42 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
     return minBox;
 }
 
-// the most important one, update curBox using boundary lines info.
-// return values: 0,1,2.
+// the most important one, all complexities are implemented by this function.
+// 1. update curBox using boundary lines
+// 2. update moving status using boundary lines
+// 3. 
+// return values: >= 0, process ok
+//                 < 0, process error
 int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine, 
                       BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-    // 0. just check its line overlap with curBox.
-    TDLine boundaryLine = m_lastBoundaryLines[bdNum];
-    if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
-        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false);
+    // 1. check its previous line, all valid line(output by BoundaryScan) has previous line
+    bool bBoundaryUpdate = false;
+    // TODO: the timing to reset lastBoundary is needed tuning.
+    TDLine lastLine = m_lastBoundaryLines[bdNum]; 
+    if (theLine.mayPreviousLineStart.x == lastLine.a.x &&
+        theLine.mayPreviousLineEnd.x == lastLine.b.x &&
+        lastLine.a.x != -1 && lastLine.b.x != -1)
+        bBoundaryUpdate = true;
+    else
+    {   // no previous line marked, if have overlap, it is mostly movingOut or movingIn with
+        // another boundary.
+        // just check its line overlap with curBox
+        // NOTE: please make sure curBox never have width/height = 0.
+        if (1)
+        {
+            lastLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
+            const int overlapLen = overlapXLenOfTwolines(lastLine, theLine);
+             
+            if (overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x))
+            {
+            }
+
+        }
+    }
     
-    
-    // 1. check its previous line
+    if (bBoundaryUpdate == false)
+        return 0;
 
     // 1. check whether this line will be consumed by this tracker.
     switch(bdNum)
@@ -625,11 +629,11 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine,
     return 0;
 }
 
-
 } // namespace Seg_Three
 
+/////////////////////////// End of The File //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////    
 
-    
 /*
     switch(m_movingStatus)
     {

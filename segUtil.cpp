@@ -13,7 +13,8 @@ namespace Seg_Three
     // Enum to String
     static const char *MovingDirections[] =
     {
-        "TOP", "BOTTOM", "LEFT", "RIGHT", "CENTER", "UNKNOWN"
+        "TOP", "BOTTOM", "LEFT", "RIGHT", "TOP_LEFT",
+        "BOTTOM_LEFT", "TOP_RIGHT", "BOTTOM_RIGHT", "UNKNOWN"
     };
     static const char *MovingStatus[] =
     {
@@ -35,6 +36,13 @@ namespace Seg_Three
         if (nextIdx >= maxIdx)
             return 0;
         return nextIdx;
+    }
+
+    MOVING_DIRECTION getPossibleMovingInDirection(const cv::Rect & rect,
+                                                  const int imgWidth, const int imgHeight)
+    {
+        return getPossibleMovingInDirection(rect.x, rect.y,
+                                            rect.width, rect.height, imgWidth, imgHeight);
     }
 
     MOVING_DIRECTION getPossibleMovingInDirection(const int lux, const int luy,
@@ -63,28 +71,37 @@ namespace Seg_Three
         return DIRECTION_UNKNOWN;
     }
 
-    TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const bool bCrossIn)
+    TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const bool bCrossIn,
+                              const int skipTB = 0, const int skipLR = 0)
     {
-        
+        assert(skipTB > 0 && skipLR > 0);
         TDLine boundaryLine;
         switch(bdNum)
         {
         case 0:
-            boundaryLine = TDLine(TDPoint(rect.x, 0), TDPoint(rect.x + rect.width, 0));
+            boundaryLine = TDLine(TDPoint(rect.x - skipLR, 0),
+                                  TDPoint(rect.x + rect.width - skipLR, 0));
             boundaryLine.movingAngle = bCrossIn ? -M_PI/2 : M_PI/2;
             break;
         case 1:
-            boundaryLine = TDLine(TDPoint(rect.x, 0), TDPoint(rect.x + rect.width, 0));
+            boundaryLine = TDLine(TDPoint(rect.x - skipLR, 0),
+                                  TDPoint(rect.x + rect.width - skipLR, 0));
             boundaryLine.movingAngle = bCrossIn ? M_PI/2: -M_PI/2;
             break;
         case 2:
-            boundaryLine = TDLine(TDPoint(rect.y, 0), TDPoint(rect.y + rect.height, 0));
+            boundaryLine = TDLine(TDPoint(rect.y - skipTB, 0),
+                                  TDPoint(rect.y + rect.height - skipTB, 0));
             boundaryLine.movingAngle = bCrossIn ? 0 : M_PI;
         case 3:
-            boundaryLine = TDLine(TDPoint(rect.y, 0), TDPoint(rect.y + rect.height, 0));
+            boundaryLine = TDLine(TDPoint(rect.y - skipTB, 0),
+                                  TDPoint(rect.y + rect.height - skipTB, 0));
             boundaryLine.movingAngle = bCrossIn ? M_PI : 0;
             break;            
         }
+        if (boundaryLine.a.x < 0)
+            boundaryLine.a.x = 0;
+        if (boundaryLine.b.x < 0)
+            boundaryLine.b.x = 0;
         return boundaryLine;
     }
 
@@ -204,5 +221,14 @@ namespace Seg_Three
         return;
     }
 
+    int overlapXLenOfTwolines(const TDLine & a, const TDLine & b)
+    {
+        if (a.a.x >= b.b.x)
+            return b.b.x - a.a.x; // nagtive number
+        else if (b.a.x >= a.b.x)
+            return a.b.x - b.a.x; // nagtive number
+        else
+            return std::min(abs(a.b.x - b.a.x), abs(b.b.x - a.a.x));
+    }
     
 } // namespace

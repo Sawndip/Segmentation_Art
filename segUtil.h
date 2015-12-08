@@ -30,9 +30,9 @@ namespace Seg_Three
 enum {BORDER_NUM = 4};
 enum MOVING_DIRECTION
 {
-    TOP = 0, BOTTOM, RIGHT, LEFT, CENTER = 4,
-    TOP_LEFT, BOTTOM_LEFT, TOP_RIGHT, BOTTOM_RIGHT = 8,
-    DIRECTION_NUM = 9, DIRECTION_UNKNOWN = 9
+    TOP = 0, BOTTOM, RIGHT, LEFT = 3, 
+    TOP_LEFT = 4, BOTTOM_LEFT, TOP_RIGHT, BOTTOM_RIGHT = 7,
+    DIRECTION_NUM = 8, DIRECTION_UNKNOWN = 8
 };
 enum MOVING_STATUS
 {   //moving stop is an assist status, along with other three status.
@@ -170,8 +170,12 @@ extern int loopIndex(const int index, const int maxIdx);
 extern MOVING_DIRECTION getPossibleMovingInDirection(const int lux, const int luy,
                                                      const int rectWidth, const int rectHeight,
                                                      const int imgWidth, const int imgHeight);
+extern MOVING_DIRECTION getPossibleMovingInDirection(const cv::Rect & rect,
+                                                     const int imgWidth, const int imgHeight);
+
 // ignore the distance to the boundary
-extern TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const bool bCrossIn);
+extern TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const bool bCrossIn,
+                                 const int skipTB, const int skipLR);
 // consecutivity
 extern double leftConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
                                           const int angleMaxScore, const bool bStart);
@@ -188,6 +192,8 @@ extern void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);
 extern cv::Rect calcOverlapRect(const cv::Rect & a, const cv::Rect & b);
 extern double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
 extern double percentContainedBy(const cv::Rect & a, const cv::Rect & b);
+extern int overlapXLenOfTwolines(const TDLine & a, const TDLine & b);
+
 // inline log trivials
 inline void dumpRect(const cv::Rect & rect)
 {

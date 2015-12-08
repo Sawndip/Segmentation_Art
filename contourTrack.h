@@ -49,11 +49,16 @@ public:
     cv::Rect & getCurBox() {return m_curBox;}
     cv::Rect & getLastBox() {return m_lastBox;}    
     bool canOutputRegion() {return m_bOutputRegion;}
-    int getFirstAppearFrameCount() {return m_firstAppearFrameCount;}
+    int getFirstAppearFrameCount() {return m_firstAppearFrameCount;}    
     MOVING_DIRECTION getInDirection(){return m_inDirection;}
+    void setInDirection(const MOVING_DIRECTION d){m_inDirection = d;}    
     MOVING_DIRECTION getOutDirection(){return m_outDirection;}
     MOVING_STATUS getMovingStatus() {return m_movingStatus;}
     void setMovingStatus(MOVING_STATUS newMS) {m_movingStatus = newMS;}
+    void setLastBoundary(const int bdNum, const TDLine & line) {
+        m_lastBoundaryLines[bdNum] = line;
+    }
+    
     
 private:
     const int m_idx;

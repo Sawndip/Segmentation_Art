@@ -154,6 +154,8 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
             segResults.push_back(sr);
             it++; // increse here.
         }
+        // PXT: TODO: merge tracker that with the same tracking area (status == moving_inside)
+        
     }
     return 0;
 }
@@ -175,7 +177,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
     {
         for (int k = 0; k < (int)bgResult.resultLines[bdNum].size(); k++)
         {   // 1. untraced ones & MOVING_CROSS_IN ones will be created.
-            const TDLine & theLine = bgResult.resultLines[bdNum][k];
+            TDLine & theLine = bgResult.resultLines[bdNum][k];
             if (bgResult.resultLines[bdNum][k].bValid == true &&
                 bgResult.resultLines[bdNum][k].bUsed == false && 
                 bgResult.resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
@@ -217,29 +219,54 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     LogE("impossible to happen, border direction: %d.\n", bdNum);
                     break;
                 }
-                // 2). now we create the tracker.
-                MOVING_DIRECTION md =
-                    getPossibleMovingInDirection(lux, luy, possibleWidth, possibleHeight,
-                                                 m_imgWidth, m_imgHeight);
-                assert((int)theLine.movingDirection == bdNum);
 
+                // 2) filter some used ones that actually can be consumed(above code)
                 bool bNeedCreateNew = true;
                 cv::Rect tobeCreateRect(lux, luy, possibleWidth, possibleHeight);
                 for (int k = 0; k < (int)m_trackers.size(); k++)
                 {
-                    cv::Rect & rect = m_trackers[k]->getCurBox();
-                    const double percent = percentContainedBy(tobeCreateRect, rect);
+                    cv::Rect & curBox = m_trackers[k]->getCurBox();
+                    // for objects moving in from the same Corner
+                    if (m_trackers[k]->getMovingStatus() == MOVING_CROSS_IN)
+                    {
+                        MOVING_DIRECTION d =
+                            getPossibleMovingInDirection(curBox, m_imgWidth, m_imgHeight);
+                        if (d >= TOP_LEFT &&
+                            d == getPossibleMovingInDirection(tobeCreateRect,
+                                                              m_imgWidth, m_imgHeight))
+                        {
+                            bNeedCreateNew = false;
+                            LogW("Won't create new: coming from the same corner %s.\n",
+                                 getMovingDirectionStr(d));
+                            dumpRect(curBox);
+                            dumpRect(tobeCreateRect);
+                            // do updating
+                            m_trackers[k]->setInDirection(d);
+                            m_trackers[k]->setLastBoundary(bdNum, theLine);
+                            theLine.bUsed = true;
+                            break; // NOTE: break out.
+                        }
+                    }
+                    const double percent = percentContainedBy(tobeCreateRect, curBox);
                     if (percent > 0.7) // TODO: magic number
                     {
                         bNeedCreateNew = false;
                         LogW("Won't create new: contained by track No.%d, %.2f percent:\n",
                              m_trackers[k]->getIdx(), percent);
-                        dumpRect(rect);
+                        dumpRect(curBox);
                         dumpRect(tobeCreateRect);
+                        theLine.bUsed = true; // although no needs
+                        break;
                     }
                 }
+
+                // 3). finally we create the new tracker.
                 if (bNeedCreateNew == true)
-                {    
+                {
+                    assert((int)theLine.movingDirection == bdNum);                    
+                    MOVING_DIRECTION md =
+                        getPossibleMovingInDirection(lux, luy, possibleWidth, possibleHeight,
+                                                     m_imgWidth, m_imgHeight);
                     ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
                                                             m_imgWidth, m_imgHeight,
                                                             m_skipTB, m_skipLR,
