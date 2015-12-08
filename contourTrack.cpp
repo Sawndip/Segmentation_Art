@@ -11,8 +11,7 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
                              const int width, const int height,
                              const int skipTB, const int skipLR,
                              const int directionIn, const TDLine & theLine,
-                             const int lux, const int luy,                         
-                             const int possibleWidth, const int possibleHeight,
+                             const cv::Rect & firstBox, 
                              const int firstAppearFrameCount)
     : m_idx(idx)
     , m_imgWidth(width)
@@ -22,11 +21,11 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     , m_inputFrames(0)
     , m_firstAppearFrameCount(firstAppearFrameCount)
     , m_bOutputRegion(false) // may not be used
-    , m_lastBox(lux, luy, possibleWidth, possibleHeight)
-    , m_curBox(m_lastBox)
+    , m_lastBox(firstBox)
+    , m_curBox(firstBox)
     , m_ctTracker(NULL)
-    , m_largestWidth(possibleWidth) // may not be used
-    , m_largestHeight(possibleHeight) // may not be used
+    , m_largestWidth(m_curBox.width) // may not be used
+    , m_largestHeight(m_curBox.height) // may not be used
     , m_inDirection((MOVING_DIRECTION)directionIn)
     , m_outDirection(DIRECTION_UNKNOWN)
     , m_movingStatus(MOVING_CROSS_IN)
@@ -37,7 +36,6 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
 {
     // line's direction is not quit the same as the tracker's moving direction
     assert(theLine.movingDirection < 4);
-    assert(width > 0 && height > 0);
     m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;   
     // compressive tracker part.
     // won't init until bAllIn is set, namely MOVING_STATUS changes from CROSS_IN to INSIDE.
@@ -151,13 +149,13 @@ CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum, TDLi
                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
     // 1. check its previous line, all valid line(output by BoundaryScan) has previous line
-    bool bBoundaryUpdate = false;
-    // TODO: the timing to reset lastBoundary needs tuning.
+    // TODO: the timing to reset lastBoundary needs tuning.    
+    bool bBoundaryConsume = false;
     TDLine lastLine = m_lastBoundaryLines[bdNum]; 
     if (theLine.mayPreviousLineStart.x == lastLine.a.x &&
         theLine.mayPreviousLineEnd.x == lastLine.b.x &&
         lastLine.a.x != -1 && lastLine.b.x != -1)
-        bBoundaryUpdate = true;
+        bBoundaryConsume = true;
     else
     {   // no previous line marked, if have overlap, it is mostly movingOut or movingIn with
         // another boundary.
@@ -168,52 +166,17 @@ CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum, TDLi
         // TODO: magic number here!!!
         if (lastLine.b.x - lastLine.a.x > 0 &&
             overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.6)
-        {
-            bBoundaryUpdate = true;
-        }
+            bBoundaryConsume = true;
     }
     
-    if (bBoundaryUpdate == false)
+    if (bBoundaryConsume == false)
         return CONSUME_NOTHING;
-/*    
-            if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD) 
-            {   
-                for (int k = 0; k < BORDER_NUM; k++) // reset lastBoundaryLines
-                    m_lastBoundaryLines[k] = TDLine();
-                m_movingStatus = MOVING_INSIDE; // mark we are inside!
-                m_allInCount = 0;
-            }
-            // line's movingDirection should be MOVING_CROSS_OUT
-            // update lastBoundaryLines inside this call if needed
-            markAcrossOut(directions, bgResult, diffAnd, diffOr);
-            if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-            {
-                m_crossOutCount = 0;
-                m_movingStatus = MOVING_CROSS_OUT;
-            }
-            break;
-        case MOVING_CROSS_OUT:
-            //  use boundary info to track, won't use compressive tracker
-            markAcrossOut(directions, bgResult, diffAnd, diffOr);
-            if (m_allOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-            {   // !! // 1 means terminal the tracking.
-                // NOTE: if all out, we tell the caller to terminal the whole tracking.
-                return CONSUME_NOTHING; 
-            }
-            break;
-            // case MOVING_STOP: this is not a valid status for track's moving status.
-        default:
-            LogE("Not valid moving status.\n");
-            break;
-        }
-    }
 
-*/
-    // 1. check whether this line will be consumed by this tracker.
+    // Ok now, let update curBox with this boundary line.
+    
     switch(bdNum)
     {
     case 0:
-        
         break;
     case 1:
         break;

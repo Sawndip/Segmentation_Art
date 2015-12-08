@@ -263,22 +263,22 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                 // 3). finally we create the new tracker.
                 if (bNeedCreateNew == true)
                 {
-                    assert((int)theLine.movingDirection == bdNum);                    
+                    bgResult.resultLines[bdNum][k].bUsed = true;
+                    assert((int)theLine.movingDirection == bdNum);
                     MOVING_DIRECTION md =
                         getPossibleMovingInDirection(lux, luy, possibleWidth, possibleHeight,
                                                      m_imgWidth, m_imgHeight);
                     ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
                                                             m_imgWidth, m_imgHeight,
                                                             m_skipTB, m_skipLR,
-                                                            md, theLine, lux, luy,
-                                                            possibleWidth, possibleHeight,
+                                                            md, theLine, tobeCreateRect,
                                                             m_inputFrames);
                     m_trackers.push_back(pTrack);
                     // 3). we ouptput the newly created Segmentation. 
                     SegResults sr;
                     sr.m_objIdx = m_objIdx;
                     sr.m_inDirection = (MOVING_DIRECTION)bdNum;
-                    sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
+                    sr.m_curBox = tobeCreateRect;
                     segResults.push_back(sr);
                     m_objIdx++;
                 }

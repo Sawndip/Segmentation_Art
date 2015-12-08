@@ -34,8 +34,7 @@ public:
                  const int width, const int height, // image width/height
                  const int skipTB, const int skipLR,
                  const int directionIn, const TDLine & theLine, 
-                 const int lux, const int luy, // first appear coordinate
-                 const int possibleWidth, const int possibleHeight,
+                 const cv::Rect & firstBox, 
                  const int firstAppearFrameCount);
     
     ~ContourTrack();
