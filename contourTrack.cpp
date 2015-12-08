@@ -68,6 +68,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
    
     // 1. consume lines interested by tracker(using curBox/lastBoundaryLine)
+    vector<CONSUME_LINE_RESULT> boundaryResults;
     for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
     {
         auto it = std::find(directions.begin(), directions.end(), bdNum);
@@ -75,12 +76,16 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         {   // we need process boundary lines, after process we marked it as used.
             for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
                 if (resultLines[bdNum][k].bValid == true) // For bothin CROSS_IN/OUT
-                    processOneBoundaryLine(bdNum, resultLines[bdNum][k],
-                                                     bgResult, diffAnd, diffOr);
+                    boundaryResults.push_back(
+                        processOneBoundaryLine(bdNum, resultLines[bdNum][k],
+                                               bgResult, diffAnd, diffOr));
         }
     }
-    
-    // 2. compressive tracking. some objects may never use this (always cross boundaries)
+
+    // 2. do status changing update
+    doStatusChanging(getConsumeResult(boundaryResults));
+        
+    // 3. compressive tracking. some objects may never use this (always cross boundaries)
     if (m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) // STOP needed?
     {
         if (m_ctTracker == NULL)
@@ -97,7 +102,35 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
             return 1;
         }
     }
-    
+
+    // 4. do post-process of boundary line update (after we get new curBox)
+    directions.clear();
+    directions = checkBoxApproachingBoundary(m_curBox);
+    for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
+    {
+        auto it = std::find(directions.begin(), directions.end(), bdNum);
+        if (it != directions.end())
+        {   // we need process boundary lines, after process we marked it as used.
+            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
+            {
+                if (resultLines[bdNum][k].bValid == true &&
+                    resultLines[bdNum][k].bUsed == false) // For bothin CROSS_IN/OUT
+                {
+                    TDLine boundaryLine = rectToBoundaryLine(bdNum, m_curBox,
+                                                             false, m_skipTB, m_skipLR);
+                    const int overlapLen = overlapXLenOfTwolines(boundaryLine,
+                                                                 resultLines[bdNum][k]);
+                    // TODO: magic number here!!!
+                    if (boundaryLine.b.x - boundaryLine.a.x > 0 &&
+                        overlapLen * 1.0 / (boundaryLine.b.x - boundaryLine.a.x) > 0.6)
+                    {
+                        resultLines[bdNum][k].bUsed = true;
+                    }
+                }
+            }
+        }
+    }
+        
     return 0;
 }
     
@@ -108,6 +141,91 @@ int ContourTrack :: flushFrame()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers: important ones
+// the most important one, all complexities are implemented by this function.
+// 1. update curBox using boundary lines
+// 2. update moving status using boundary lines
+// 3. 
+// return values: >= 0, process ok
+//                 < 0, process error
+CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine, 
+                    BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+{
+    // 1. check its previous line, all valid line(output by BoundaryScan) has previous line
+    bool bBoundaryUpdate = false;
+    // TODO: the timing to reset lastBoundary needs tuning.
+    TDLine lastLine = m_lastBoundaryLines[bdNum]; 
+    if (theLine.mayPreviousLineStart.x == lastLine.a.x &&
+        theLine.mayPreviousLineEnd.x == lastLine.b.x &&
+        lastLine.a.x != -1 && lastLine.b.x != -1)
+        bBoundaryUpdate = true;
+    else
+    {   // no previous line marked, if have overlap, it is mostly movingOut or movingIn with
+        // another boundary.
+        // just check its line overlap with curBox
+        // NOTE: please make sure curBox never have width/height = 0.
+        lastLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
+        const int overlapLen = overlapXLenOfTwolines(lastLine, theLine);
+        // TODO: magic number here!!!
+        if (lastLine.b.x - lastLine.a.x > 0 &&
+            overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.6)
+        {
+            bBoundaryUpdate = true;
+        }
+    }
+    
+    if (bBoundaryUpdate == false)
+        return CONSUME_NOTHING;
+/*    
+            if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD) 
+            {   
+                for (int k = 0; k < BORDER_NUM; k++) // reset lastBoundaryLines
+                    m_lastBoundaryLines[k] = TDLine();
+                m_movingStatus = MOVING_INSIDE; // mark we are inside!
+                m_allInCount = 0;
+            }
+            // line's movingDirection should be MOVING_CROSS_OUT
+            // update lastBoundaryLines inside this call if needed
+            markAcrossOut(directions, bgResult, diffAnd, diffOr);
+            if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
+            {
+                m_crossOutCount = 0;
+                m_movingStatus = MOVING_CROSS_OUT;
+            }
+            break;
+        case MOVING_CROSS_OUT:
+            //  use boundary info to track, won't use compressive tracker
+            markAcrossOut(directions, bgResult, diffAnd, diffOr);
+            if (m_allOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
+            {   // !! // 1 means terminal the tracking.
+                // NOTE: if all out, we tell the caller to terminal the whole tracking.
+                return CONSUME_NOTHING; 
+            }
+            break;
+            // case MOVING_STOP: this is not a valid status for track's moving status.
+        default:
+            LogE("Not valid moving status.\n");
+            break;
+        }
+    }
+
+*/
+    // 1. check whether this line will be consumed by this tracker.
+    switch(bdNum)
+    {
+    case 0:
+        
+        break;
+    case 1:
+        break;
+    case 2:
+        break;
+    case 3:
+        break;
+    }
+
+    return CONSUME_NOTHING;
+}
+    
 int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                                   BgResult & bgResult,
                                   const cv::Mat & diffAnd, const cv::Mat & diffOr)
@@ -575,59 +693,54 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
     return minBox;
 }
 
-// the most important one, all complexities are implemented by this function.
-// 1. update curBox using boundary lines
-// 2. update moving status using boundary lines
-// 3. 
-// return values: >= 0, process ok
-//                 < 0, process error
-int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine, 
-                      BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+int ContourTrack :: getConsumeResult(const vector<CONSUME_LINE_RESULT> & results)
 {
-    // 1. check its previous line, all valid line(output by BoundaryScan) has previous line
-    bool bBoundaryUpdate = false;
-    // TODO: the timing to reset lastBoundary is needed tuning.
-    TDLine lastLine = m_lastBoundaryLines[bdNum]; 
-    if (theLine.mayPreviousLineStart.x == lastLine.a.x &&
-        theLine.mayPreviousLineEnd.x == lastLine.b.x &&
-        lastLine.a.x != -1 && lastLine.b.x != -1)
-        bBoundaryUpdate = true;
-    else
-    {   // no previous line marked, if have overlap, it is mostly movingOut or movingIn with
-        // another boundary.
-        // just check its line overlap with curBox
-        // NOTE: please make sure curBox never have width/height = 0.
-        if (1)
-        {
-            lastLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
-            const int overlapLen = overlapXLenOfTwolines(lastLine, theLine);
-             
-            if (overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x))
-            {
-            }
+    int result = (int)CONSUME_NOTHING;
+    for (int k=0; k < (int)results.size(); k++)
+        result |= (int)results[k];
+    return result;
+}
 
-        }
-    }
-    
-    if (bBoundaryUpdate == false)
-        return 0;
-
-    // 1. check whether this line will be consumed by this tracker.
-    switch(bdNum)
+int ContourTrack :: doStatusChanging(const int statusResult)
+{
+    switch(statusResult)
     {
-    case 0:
-        
+    case CONSUME_NOTHING:
+        if (m_movingStatus == MOVING_CROSS_IN)
+            m_allInCount++;
+        else if (m_movingStatus == MOVING_CROSS_OUT)
+            m_allOutCount++;
+        else // MOVING_INSIDE/STOP: this is normal, moving inside should with no boundary lines.
+            m_crossOutCount = 0;
         break;
-    case 1:
+    case CONSUME_IN_LINE:
+        m_allInCount = 0;
         break;
-    case 2:
+    case CONSUME_OUT_LINE:
+        m_allOutCount = 0;
+        if (m_movingStatus == MOVING_INSIDE)
+            m_crossOutCount++;
         break;
-    case 3:
+    case (CONSUME_IN_LINE | CONSUME_OUT_LINE):
+        if (m_movingStatus == MOVING_CROSS_IN)
+            LogW("Object cross In & Out simultaneously.\n");
+        //cross IN/OUT simultaneously
         break;
     }
 
+    if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD &&
+        m_movingStatus == MOVING_CROSS_IN)
+        m_movingStatus = MOVING_INSIDE;
+    else if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD &&
+             m_movingStatus == MOVING_INSIDE)
+        m_movingStatus = MOVING_CROSS_OUT;
+    else if (m_allOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD &&
+             m_movingStatus == MOVING_CROSS_OUT)
+        m_movingStatus = MOVING_FINISH;
+    
     return 0;
 }
+
 
 } // namespace Seg_Three
 

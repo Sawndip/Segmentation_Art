@@ -88,9 +88,8 @@ private:
     static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
 
 private: // inner helpers
-    int processOneBoundaryLine(const int bdNum, TDLine & theLine, BgResult & bgResult,
-                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    
+    CONSUME_LINE_RESULT processOneBoundaryLine(const int bdNum, TDLine & theLine,
+                        BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                      BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int markAcrossOut(const vector<MOVING_DIRECTION> & directions,
@@ -116,6 +115,8 @@ private:
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     cv::Rect estimateMinBoxByTwoConsecutiveLine (const int bdNum, const TDLine & lastLine,
                                                  const TDLine & updateLine);
+    int getConsumeResult(const vector<CONSUME_LINE_RESULT> & results);
+    int doStatusChanging(const int statusResult);
 };
 
 }//namespace

@@ -36,10 +36,15 @@ enum MOVING_DIRECTION
 };
 enum MOVING_STATUS
 {   //moving stop is an assist status, along with other three status.
-    MOVING_CROSS_IN = 0, MOVING_CROSS_OUT, MOVING_INSIDE, MOVING_STOP, 
-    MOVING_UNKNOWN = 4
+    MOVING_CROSS_IN = 0, MOVING_CROSS_OUT, MOVING_INSIDE, MOVING_STOP,
+    MOVING_FINISH = 4, MOVING_UNKNOWN = 5
 };
-
+enum CONSUME_LINE_RESULT
+{
+    CONSUME_NOTHING = 0x0,
+    CONSUME_IN_LINE = 0x2,
+    CONSUME_OUT_LINE = 0x4
+};
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Basic Structures    
@@ -205,6 +210,13 @@ inline void dumpVectorInt(const vector<int> & vi)
     for (int k=0; k <(int)vi.size(); k++)
         LogD("Mo.%d: %d.\n", k, vi[k]);
     return;
+}
+inline int sumVectorInt(const vector<int> & vi)
+{
+    int sum = 0;
+    for (int k=0; k <(int)vi.size(); k++)
+        sum += vi[k];
+    return sum;
 }
 
 }
