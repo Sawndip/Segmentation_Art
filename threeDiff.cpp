@@ -176,7 +176,8 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
         for (int k = 0; k < (int)bgResult.resultLines[bdNum].size(); k++)
         {   // 1. untraced ones & MOVING_CROSS_IN ones will be created.
             const TDLine & theLine = bgResult.resultLines[bdNum][k];
-            if (bgResult.resultLines[bdNum][k].bValid == true && 
+            if (bgResult.resultLines[bdNum][k].bValid == true &&
+                bgResult.resultLines[bdNum][k].bUsed == false && 
                 bgResult.resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
             {
                 // 2. now we get the cross lines stand for new objects, so we just create them.
@@ -221,20 +222,39 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     getPossibleMovingInDirection(lux, luy, possibleWidth, possibleHeight,
                                                  m_imgWidth, m_imgHeight);
                 assert((int)theLine.movingDirection == bdNum);
-                ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
-                                                        m_imgWidth, m_imgHeight,
-                                                        m_skipTB, m_skipLR,
-                                                        md, theLine, lux, luy,
-                                                        possibleWidth, possibleHeight,
-                                                        m_inputFrames);
-                m_trackers.push_back(pTrack);
-                // 3). we ouptput the newly created Segmentation. 
-                SegResults sr;
-                sr.m_objIdx = m_objIdx;
-                sr.m_inDirection = (MOVING_DIRECTION)bdNum;
-                sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
-                segResults.push_back(sr);
-                m_objIdx++;                
+
+                bool bNeedCreateNew = true;
+                cv::Rect tobeCreateRect(lux, luy, possibleWidth, possibleHeight);
+                for (int k = 0; k < (int)m_trackers.size(); k++)
+                {
+                    cv::Rect & rect = m_trackers[k]->getCurBox();
+                    const double percent = percentContainedBy(tobeCreateRect, rect);
+                    if (percent > 0.7) // TODO: magic number
+                    {
+                        bNeedCreateNew = false;
+                        LogW("Won't create new: contained by track No.%d, %.2f percent:\n",
+                             m_trackers[k]->getIdx(), percent);
+                        dumpRect(rect);
+                        dumpRect(tobeCreateRect);
+                    }
+                }
+                if (bNeedCreateNew == true)
+                {    
+                    ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
+                                                            m_imgWidth, m_imgHeight,
+                                                            m_skipTB, m_skipLR,
+                                                            md, theLine, lux, luy,
+                                                            possibleWidth, possibleHeight,
+                                                            m_inputFrames);
+                    m_trackers.push_back(pTrack);
+                    // 3). we ouptput the newly created Segmentation. 
+                    SegResults sr;
+                    sr.m_objIdx = m_objIdx;
+                    sr.m_inDirection = (MOVING_DIRECTION)bdNum;
+                    sr.m_curBox = cv::Rect(lux, luy, possibleWidth, possibleHeight);
+                    segResults.push_back(sr);
+                    m_objIdx++;
+                }
             }
         }
     }

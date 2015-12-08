@@ -143,5 +143,66 @@ namespace Seg_Three
         score += rightConsecutivityOfTwoLines(l1, l2, angleMaxScore, false);
         return score / 2; 
     }
+
+    // prerequisite: width/height of the two rects are the same.
+    double calcOverlapRate(const cv::Rect & a, const cv::Rect & b)
+    {
+        assert(a.width == b.width && a.height == b.height);
+        if (a.width == 0 || a.height == 0)
+            return 0.0;
+        cv::Rect overlapBox = calcOverlapRect(a, b);
+        return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
+    }
+    // percentage = (a&b's overlap area) / (a's area)
+    double percentContainedBy(const cv::Rect & a, const cv::Rect & b)
+    {
+        if (a.width == 0 || a.height == 0)
+            return 1.0;
+        if (b.width == 0 || b.height == 0)
+            return 0.0;
+        cv::Rect overlapBox = calcOverlapRect(a, b);
+        return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
+    }
+
+    cv::Rect calcOverlapRect(const cv::Rect & a, const cv::Rect & b)
+    {
+        if (a.x + a.width < b.x  || a.x > b.x + b.width ||
+            a.y + a.height < b.y || a.y > b.y + b.height  )
+            return cv::Rect(0, 0, 0, 0);
+        const int x = std::max(a.x, b.x);
+        const int y = std::max(a.y, b.y);
+        const int width = a.width + b.width -
+                          (std::max(a.x+a.width, b.x+b.width) - std::min(a.x, b.x));
+        const int height = a.height + b.height -
+                           (std::max(a.y + a.height, b.y + b.height) - std::min(a.y, b.y));
+        return cv::Rect(x, y, width, height);
+    }
+
+    void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox)
+    {
+        if (box.x > minBox.x)
+            box.x = minBox.x;
+        if (box.y > minBox.y)
+            box.y = minBox.y;
+        if (box.x + box.width < minBox.x + minBox.width)
+            box.width = minBox.x + minBox.width - box.x;
+        if (box.y + box.height < minBox.y + minBox.height)
+            box.height = minBox.y + minBox.height - box.y;    
+        return;
+    }
+
+    void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox)
+    {
+        if (box.x < maxBox.x)
+            box.x = maxBox.x;
+        if (box.y < maxBox.y)
+            box.y = maxBox.y;
+        if (box.x + box.width > maxBox.x + maxBox.width)
+            box.width = maxBox.x + maxBox.width - box.x;
+        if (box.y + box.height > maxBox.y + maxBox.height)
+            box.height = maxBox.y + maxBox.height - box.y;    
+        return;
+    }
+
     
 } // namespace

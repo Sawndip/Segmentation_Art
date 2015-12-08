@@ -182,6 +182,13 @@ extern double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
 extern inline double diffAngleToScore(const double angle, const int maxScore);
 extern inline double vertexShiftToScore(const int shift, const int maxScore);
 
+// Rect Overlap Bound part
+extern void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);
+extern void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);
+extern cv::Rect calcOverlapRect(const cv::Rect & a, const cv::Rect & b);
+extern double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
+extern double percentContainedBy(const cv::Rect & a, const cv::Rect & b);
+// inline log trivials
 inline void dumpRect(const cv::Rect & rect)
 {
     LogD("x:%d, y:%d, width:%d, height:%d.\n", rect.x, rect.y, rect.width, rect.height);
@@ -193,7 +200,6 @@ inline void dumpVectorInt(const vector<int> & vi)
         LogD("Mo.%d: %d.\n", k, vi[k]);
     return;
 }
-
 
 }
 

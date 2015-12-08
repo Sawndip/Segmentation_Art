@@ -54,6 +54,8 @@ public:
     MOVING_DIRECTION getOutDirection(){return m_outDirection;}
     MOVING_STATUS getMovingStatus() {return m_movingStatus;}
     void setMovingStatus(MOVING_STATUS newMS) {m_movingStatus = newMS;}
+    int processOneBoundaryLine(const int bdNum, TDLine & theLine, BgResult & bgResult,
+                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
     
 private:
     const int m_idx;
@@ -104,11 +106,6 @@ private: // inner helpers
     
 private:    
     // trival ones
-    int curMaxChangeSize(int & x, int & y);
-    double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
-    cv::Rect calcOverlapArea(const cv::Rect & a, const cv::Rect & b);
-    void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);    
-    void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);    
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     cv::Rect estimateMinBoxByTwoConsecutiveLine (const int bdNum, const TDLine & lastLine,
                                                  const TDLine & updateLine);

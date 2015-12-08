@@ -62,56 +62,26 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {   
     m_inputFrames++;
-    m_lastBox = m_curBox;    
-    // if the box is close to boudary, the tracker may moving out.
+    m_lastBox = m_curBox;
+    // the possible boundary lines that we may dealing with
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
-    bool bCTTracking = false; // use Compressive Tracking or BoundaryInfo tracking.
-    switch(m_movingStatus)
+    vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
+    bool bCTTracking = true; // use Compressive Tracking or BoundaryInfo tracking.
+    
+    for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
     {
-    case MOVING_CROSS_IN:
-        markAcrossIn(directions, bgResult, diffAnd, diffOr);
-        if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD) 
-        {   
-            for (int k = 0; k < BORDER_NUM; k++) // reset lastBoundaryLines
-                m_lastBoundaryLines[k] = TDLine();
-            m_movingStatus = MOVING_INSIDE; // mark we are inside!
-            m_allInCount = 0;
-            bCTTracking = true; // if all in, use normal tracking.
+        auto it = std::find(directions.begin(), directions.end(), bdNum);        
+        if (it != directions.end())
+        {   // we need process boundary lines, after process we marked it as used.
+            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)            
+                if (processOneBoundaryLine(bdNum, resultLines[bdNum][k],
+                                           bgResult, diffAnd, diffOr) < 0)
+                    // < 0 means BoundaryInfo cannot do tracking, use CompressiveTracker
+                    bCTTracking = false;
         }
-        break;
-    // MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking
-    // BE AWARE: 1) tracker has moving status(cross_in/cross_out/inside).
-    //           2) each boundary line also has moving status(cross_in/cross_out).            
-    case MOVING_INSIDE:
-        // line's movingDirection should be MOVING_CROSS_OUT
-        // update lastBoundaryLines inside this call if needed
-        markAcrossOut(directions, bgResult, diffAnd, diffOr);
-        if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-        {
-            m_crossOutCount = 0;
-            bCTTracking = false;
-            m_movingStatus = MOVING_CROSS_OUT;
-        }
-        else
-            bCTTracking = true;
-        
-        break;
-    case MOVING_CROSS_OUT:
-        //  use boundary info to track, won't use compressive tracker
-        markAcrossOut(directions, bgResult, diffAnd, diffOr);
-        if (m_allOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-        {   // !! // 1 means terminal the tracking.
-            // NOTE: if all out, we tell the caller to terminal the whole tracking.
-            return 1; 
-        }
-        break;
-    // case MOVING_STOP: this is not a valid status for track's moving status.
-    default:
-        LogE("Not valid moving status.\n");
-        break;
     }
-
-    //// normal tracking
+    
+    // normal tracking
     if (bCTTracking == true)
     {
         if (m_ctTracker == NULL)
@@ -119,6 +89,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
             m_ctTracker = new CompressiveTracker();
             m_ctTracker->init(in, m_curBox);
         }
+        
         assert(m_ctTracker != NULL);
         if (m_ctTracker->processFrame(in, m_curBox) < 0)
         {
@@ -132,8 +103,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
 }
     
 int ContourTrack :: flushFrame()
-{
-    
+{    
     return 0;
 }; 
 
@@ -272,7 +242,7 @@ int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
 }
     
 // 1. when do re-calc the curBox, we tend to get it a little bigger.
-// 2. then we use diffOrResult & curMaxChangeSize to limit the expand of the box size.
+// 2. then we use diffOrResult to limit the expand of the box size.
 int ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                             const cv::Mat & diffAnd,
                                             const cv::Mat & diffOr, cv::Rect & box)
@@ -545,63 +515,12 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
 }
     
 //////////////////////////////////////////////////////////////////////////////////////////
-// trival ones
-// prerequisite: width/height of the two rects are the same.    
-double ContourTrack :: calcOverlapRate(const cv::Rect & a, const cv::Rect & b)
-{
-    assert(a.width == b.width && a.height == b.height);
-    if (a.width == 0 || a.height == 0)
-        return 0.0;
-    cv::Rect overlapBox = calcOverlapArea(a, b);
-    return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
-}
-
-cv::Rect ContourTrack :: calcOverlapArea(const cv::Rect & a, const cv::Rect & b)
-{
-    if (a.x + a.width < b.x  || a.x > b.x + b.width ||
-        a.y + a.height < b.y || a.y > b.y + b.height)
-        return cv::Rect(0, 0, 0, 0);
-    const int x = std::max(a.x, b.x);
-    const int y = std::max(a.y, b.y);
-    const int width = a.width + b.width -
-                      (std::max(a.x+a.width, b.x+b.width) - std::min(a.x, b.x));
-    const int height = a.height + b.height -
-                       (std::max(a.y + a.height, b.y + b.height) - std::min(a.y, b.y));
-    return cv::Rect(x, y, width, height);
-}
-
-void ContourTrack :: enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox)
-{
-    if (box.x > minBox.x)
-        box.x = minBox.x;
-    if (box.y < minBox.y)
-        box.y = minBox.y;
-    if (box.x + box.width < minBox.x + minBox.width)
-        box.width = minBox.x + minBox.width - box.x;
-    if (box.y + box.height < minBox.y + minBox.height)
-        box.height = minBox.y + minBox.height - box.y;    
-    return;
-}
-
-void ContourTrack :: boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox)
-{
-    if (box.x < maxBox.x)
-        box.x = maxBox.x;
-    if (box.y > maxBox.y)
-        box.y = maxBox.y;
-    if (box.x + box.width > maxBox.x + maxBox.width)
-        box.width = maxBox.x + maxBox.width - box.x;
-    if (box.y + box.height > maxBox.y + maxBox.height)
-        box.height = maxBox.y + maxBox.height - box.y;    
-    return;
-}
-
-    
+// trival ones    
 // check box close to which boundary (should take skipTB,LR into account)    
 vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::Rect & rect)
 {
     vector<MOVING_DIRECTION> directions;
-    static const int APPROCHING_DISTANCE = 8;
+    static const int APPROCHING_DISTANCE = 4;
     // TODO: magic number 8 should be eliminated
     if (rect.x <= m_skipLR + APPROCHING_DISTANCE)
         directions.push_back(LEFT);
@@ -656,5 +575,64 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
     
     return minBox;
 }
-    
+
+// the most important one, update curBox using boundary lines info.
+int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine, 
+                      BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+{
+   
+
+    return 0;
+}
+
+
 } // namespace Seg_Three
+
+
+    
+/*
+    switch(m_movingStatus)
+    {
+    case MOVING_CROSS_IN:
+        markAcrossIn(directions, bgResult, diffAnd, diffOr);
+        if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD) 
+        {   
+            for (int k = 0; k < BORDER_NUM; k++) // reset lastBoundaryLines
+                m_lastBoundaryLines[k] = TDLine();
+            m_movingStatus = MOVING_INSIDE; // mark we are inside!
+            m_allInCount = 0;
+            bCTTracking = true; // if all in, use normal tracking.
+        }
+        break;
+    // MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking
+    // BE AWARE: 1) tracker has moving status(cross_in/cross_out/inside).
+    //           2) each boundary line also has moving status(cross_in/cross_out).            
+    case MOVING_INSIDE:
+        // line's movingDirection should be MOVING_CROSS_OUT
+        // update lastBoundaryLines inside this call if needed
+        markAcrossOut(directions, bgResult, diffAnd, diffOr);
+        if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
+        {
+            m_crossOutCount = 0;
+            bCTTracking = false;
+            m_movingStatus = MOVING_CROSS_OUT;
+        }
+        else
+            bCTTracking = true;
+        
+        break;
+    case MOVING_CROSS_OUT:
+        //  use boundary info to track, won't use compressive tracker
+        markAcrossOut(directions, bgResult, diffAnd, diffOr);
+        if (m_allOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
+        {   // !! // 1 means terminal the tracking.
+            // NOTE: if all out, we tell the caller to terminal the whole tracking.
+            return 1; 
+        }
+        break;
+    // case MOVING_STOP: this is not a valid status for track's moving status.
+    default:
+        LogE("Not valid moving status.\n");
+        break;
+    }
+*/
