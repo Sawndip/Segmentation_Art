@@ -54,8 +54,6 @@ public:
     MOVING_DIRECTION getOutDirection(){return m_outDirection;}
     MOVING_STATUS getMovingStatus() {return m_movingStatus;}
     void setMovingStatus(MOVING_STATUS newMS) {m_movingStatus = newMS;}
-    int processOneBoundaryLine(const int bdNum, TDLine & theLine, BgResult & bgResult,
-                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
     
 private:
     const int m_idx;
@@ -85,6 +83,9 @@ private:
     static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
 
 private: // inner helpers
+    int processOneBoundaryLine(const int bdNum, TDLine & theLine, BgResult & bgResult,
+                               const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    
     int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
                      BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int markAcrossOut(const vector<MOVING_DIRECTION> & directions,
@@ -95,6 +96,7 @@ private: // inner helpers
                           const cv::Mat & diffAnd, const cv::Mat & diffOr);
     // helper to kick out untraced line but actually belong to exist tracker
     int updateUntracedIfNeeded(const int bdNum, TDLine & updateLine);
+
     // important ones    
     int getMaxCrossBoxUsingDiff(const BgResult & bgResult,
                                 const cv::Mat & diffAnd, const cv::Mat & diffOr,

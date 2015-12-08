@@ -67,21 +67,40 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
     bool bCTTracking = true; // use Compressive Tracking or BoundaryInfo tracking.
-    
+    //bool bResetCT = false;
+    // 1. consume lines interested by tracker(using curBox/lastBoundaryLine)
     for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
     {
-        auto it = std::find(directions.begin(), directions.end(), bdNum);        
+        auto it = std::find(directions.begin(), directions.end(), bdNum);
         if (it != directions.end())
         {   // we need process boundary lines, after process we marked it as used.
-            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)            
-                if (processOneBoundaryLine(bdNum, resultLines[bdNum][k],
-                                           bgResult, diffAnd, diffOr) < 0)
-                    // < 0 means BoundaryInfo cannot do tracking, use CompressiveTracker
+            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
+            {
+                int ret = processOneBoundaryLine(bdNum, resultLines[bdNum][k],
+                                                 bgResult, diffAnd, diffOr);
+                if (ret == 0)
+                {   // need CompressiveTrack to fire
+                    bCTTracking = true;
+                    //bResetCT = false; 
+                }
+                else if (ret == 1)
+                {   // will use compressive tracker & we need reset it first
+                    bCTTracking = true;
+                    //bResetCT = true; // need reset the compressive tracker
+                }
+                else if (ret == 2)
+                {   // use boundaru info do the tracking & update
                     bCTTracking = false;
+                    //bResetCT = false; // need reset the compressive tracker
+                }
+                else
+                    LogD("No other return values possible right now %d..\n", ret);
+            }
         }
     }
     
-    // normal tracking
+    // 2. normal tracking if consum nothing
+    //    (also could consume lines but still use CTTrack, for instance: TODO)
     if (bCTTracking == true)
     {
         if (m_ctTracker == NULL)
@@ -577,10 +596,31 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
 }
 
 // the most important one, update curBox using boundary lines info.
+// return values: 0,1,2.
 int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine, 
                       BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
-   
+    // 0. just check its line overlap with curBox.
+    TDLine boundaryLine = m_lastBoundaryLines[bdNum];
+    if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
+        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false);
+    
+    
+    // 1. check its previous line
+
+    // 1. check whether this line will be consumed by this tracker.
+    switch(bdNum)
+    {
+    case 0:
+        
+        break;
+    case 1:
+        break;
+    case 2:
+        break;
+    case 3:
+        break;
+    }
 
     return 0;
 }
