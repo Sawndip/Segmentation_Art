@@ -64,13 +64,14 @@ namespace Seg_Three
     }
 
     TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const bool bCrossIn)
-    {             
+    {
+        
         TDLine boundaryLine;
         switch(bdNum)
         {
         case 0:
             boundaryLine = TDLine(TDPoint(rect.x, 0), TDPoint(rect.x + rect.width, 0));
-            boundaryLine.movingAngle = bCrossIn ? -M_PI/2 : M_PI/ 2;
+            boundaryLine.movingAngle = bCrossIn ? -M_PI/2 : M_PI/2;
             break;
         case 1:
             boundaryLine = TDLine(TDPoint(rect.x, 0), TDPoint(rect.x + rect.width, 0));

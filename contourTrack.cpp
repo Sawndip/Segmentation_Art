@@ -340,19 +340,23 @@ int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
 {
     TDLine boundaryLine = m_lastBoundaryLines[bdNum];
     if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
-    {
-        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false); // false = CROSS_OUT
-        boundaryLine.a.x = boundaryLine.a.x - m_skipLR < 0 ? 0 : boundaryLine.a.x - m_skipLR;
-        boundaryLine.b.x = boundaryLine.b.x - m_skipLR < 0 ? 0 : boundaryLine.b.x - m_skipLR;
-    }
+        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false);
+    TDLine newLine = boundaryLine;
+    int skip = 0;
+    if (bdNum < 2)
+        skip = m_skipLR;
+    else
+        skip = m_skipTB;
+    newLine.a.x += skip;
+    newLine.b.x += skip;
     
-    const double consecutivityScore = consecutivityOfTwoLines(updateLine, boundaryLine, 50);
-    // TODO: magic number 75.0 here.
-    if (consecutivityScore > 75.0)
+    const double consecutivityScore = consecutivityOfTwoLines(newLine, boundaryLine, 50);
+    // TODO: magic number 70.0 here.
+    if (consecutivityScore > 70.0)
     {
-        updateLine.mayPreviousLineStart = boundaryLine.a;
-        updateLine.mayPreviousLineEnd = boundaryLine.b;
-        m_lastBoundaryLines[bdNum] = boundaryLine;
+        updateLine.mayPreviousLineStart = updateLine.a;
+        updateLine.mayPreviousLineEnd = updateLine.b;
+        m_lastBoundaryLines[bdNum] = updateLine;
         return 1;
     }
     return 0;

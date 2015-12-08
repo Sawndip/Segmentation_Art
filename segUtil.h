@@ -81,7 +81,8 @@ struct TDLine
         , b(-1, -1)
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
-        , bNewObjectLine(false)
+        , bValid(false)
+        , bUsed(false)        
         , mayPreviousLineStart(-1, -1)
         , mayPreviousLineEnd(-1, -1)        
     {
@@ -91,7 +92,8 @@ struct TDLine
         , movingAngle(0.0)      
         , movingDirection(DIRECTION_UNKNOWN)
         , movingStatus(MOVING_UNKNOWN)
-        , bNewObjectLine(false)
+        , bValid(false)
+        , bUsed(false)        
         , mayPreviousLineStart(-1, -1)
         , mayPreviousLineEnd(-1, -1)        
     {
@@ -102,7 +104,9 @@ struct TDLine
     double movingAngle;
     MOVING_DIRECTION movingDirection;
     MOVING_STATUS movingStatus;
-    bool bNewObjectLine; // marked when detect new object in or objects start going out!
+    // whether a valid line: size bigger than 32pixels & it has predecessors
+    bool bValid; 
+    bool bUsed; // whether used by contourTracker to do update
     // previous line's points.
     TDPoint mayPreviousLineStart;
     TDPoint mayPreviousLineEnd;    

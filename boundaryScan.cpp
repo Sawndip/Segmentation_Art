@@ -88,8 +88,8 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
         doErode(2);
         doDilate(2);
         //// close again
-        //doDilate(2);
-        //doErode(2);
+        doDilate(2);
+        doErode(2);
     }
     
     // 3. scan the boundary, get the TDPoint of the lines
@@ -108,7 +108,7 @@ int BoundaryScan :: processFrame(BgResult & bgResult)
     
     // 6. do further merge using cacheLines and mark 'mayPreviousLine' of
     //    consecutive lines (three frames level)
-    stableAnalyseAndMarkLineStatus();    
+    stableAnalyseAndMarkLineStatus(bgResult);    
     
     // 7. finally, update the curFrontIdx & according
     outputLineAnalyseResultAndUpdate(bgResult);
@@ -198,10 +198,6 @@ int BoundaryScan :: premergeLines(const BgResult & bgResult)
                 const int ret = canLinesBeMerged(*it, *nextIt, *lookAheadIt);
                 if (ret == 1)
                 {
-                    LogD("Merge border'%s' two lines: %d-%d(%.2f) AND %d-%d(%.2f).\n",
-                         getMovingDirectionStr((MOVING_DIRECTION)index),
-                         it->a.x, it->b.x, it->movingAngle,
-                         nextIt->a.x, nextIt->b.x,nextIt->movingAngle);                
                     it->b = nextIt->b;
                     it->movingAngle = getLineMoveAngle(*it, xMvs, yMvs);
                     oneBoundaryLines.erase(nextIt);
@@ -210,12 +206,6 @@ int BoundaryScan :: premergeLines(const BgResult & bgResult)
                 }
                 else if (ret == 2)
                 {
-                    LogD("Merge border %s three lines: %d-%d(%.2f) AND %d-%d(%.2f), and"
-                         " disturbing line: %d-%d(%.2f).\n",
-                         getMovingDirectionStr((MOVING_DIRECTION)index),
-                         it->a.x, it->b.x, it->movingAngle,
-                         lookAheadIt->a.x, lookAheadIt->b.x, lookAheadIt->movingAngle,
-                         nextIt->a.x, nextIt->b.x,nextIt->movingAngle);
                     it->b = lookAheadIt->b;
                     it->movingAngle = getLineMoveAngle(*it, xMvs, yMvs);                    
                     oneBoundaryLines.erase(lookAheadIt);
@@ -238,9 +228,9 @@ int BoundaryScan :: premergeLines(const BgResult & bgResult)
     
 //////////////////////////////////////////////////////////////////////////////////////////
 // using mvs & also the line's x direction distance    
-// if 1. xDistance is less than 5% of the imgWidth + imgHeight
-//    2. xDistance is less than 20% of the 'line1's length + line2's length'
-//    3. mvs are quit close (angle less than 20 degree(pi/180*20 arc)): weight 60;
+// if 1. xDistance is less than 20% of the imgWidth + imgHeight
+//    2. xDistance is less than 50% of the 'line1's length + line2's length'
+//    3. mvs are quit close (angle less than 20 degree(pi/2 arc))
 // then we can merge this two lines.
 // return: 0: no merge; 1:merge one line; 2:merge two lines.
 // Note: lines' angle would be calculated and assign in this call.    
@@ -252,7 +242,7 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
     const int line1len = l1.b.x - l1.a.x;
     const int line2len = l2.b.x - l2.a.x;
     // TODO: magic number here
-    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.1)
+    if (1.0 * xDistance / (m_imgWidth + m_imgHeight) > 0.2)
     {
         LogD("TestingMerge1 Fail for large distance: "
              "xDis:%d, line1:%d, line2:%d imgW:%d, imgHeight:%d.\n",
@@ -279,7 +269,8 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
     if (l2.a.x == l3.a.x) // l2, l3 are the same, we hit the end.
         return 0;
     bool bClose = isLineCloseEnough(fabs(l1.movingAngle - l3.movingAngle));
-    // TODO: magic number here
+    // TODO: magic number here: not matter, for we will use the merged one as the base line
+    //       to do futher merging.
     if (bClose && l2.b.x - l1.a.x <= 32) // 
         return 2; // l2 is a distrubing line
     return 0;
@@ -288,12 +279,13 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
 //////////////////////////////////////////////////////////////////////////////////////////
 // ***** Five Star Important    
 // 1. using cacheLines to further merge lines
-// 2. kick out disturbing lines (merged be adjacent lines)
+// 2. kick out disturbing lines (merge adjacent lines)
 // 3. correct line's MOVING_DIRECTION (using angle and its predecessor & successor)
 // 3. do line status marking (final output result of the BoundaryScan)
 // 4. Eager Strategy: two out of three are treat as the LINE.
 //    Conservative Strategy: all three lines are the "same".
-int BoundaryScan :: stableAnalyseAndMarkLineStatus()
+//    We use 'Conservative Strategy'
+int BoundaryScan :: stableAnalyseAndMarkLineStatus(BgResult & bgResult)
 {   
     // Focus on m_curFrontIdx's caching frame lines. It will be the output result.
     // Take use of all M_BOUNDARY_SCAN_CACHE_LINES=3 frames to do stable analyse.
@@ -306,36 +298,35 @@ int BoundaryScan :: stableAnalyseAndMarkLineStatus()
     assert(oldLiness.size() == middleLiness.size() && oldLiness.size() == curLiness.size());
     
     for (int bdNum = 0; bdNum < BORDER_NUM; bdNum++)
-    {
-        if (curLiness.size() > 0)
-        {
-            markPredecessorsRecursively(0, bdNum, curLiness[bdNum],
+        if (curLiness[bdNum].size() > 0)
+            markPredecessorsRecursively(0, bdNum, bgResult, curLiness[bdNum],
                                         middleLiness[bdNum], oldLiness[bdNum]);
-        }    
-    }
     return 0;
 }
 
 int BoundaryScan :: markPredecessorsRecursively(const int curIdx, const int bdNum,
+                                                BgResult & bgResult,
                                                 vector<TDLine> & curLines,
                                                 vector<TDLine> & middleLines,
-                                                const vector<TDLine> & oldLines)
+                                                vector<TDLine> & oldLines)
 {
     if (curIdx >= (int)curLines.size())
         return 0; // base: finish the process.    
-    goMarking(bdNum, curLines[curIdx], middleLines, oldLines);
+    goMarking(bdNum, bgResult, curLines[curIdx], middleLines, oldLines);
     mergeOverlapOfOnePositionLines(curLines, curIdx);
-    return markPredecessorsRecursively(curIdx+1, bdNum, curLines, middleLines, oldLines);
+    return markPredecessorsRecursively(curIdx+1, bdNum, bgResult,
+                                       curLines, middleLines, oldLines);
 }
     
-int BoundaryScan :: goMarking(const int bdNum, TDLine & curLine, vector<TDLine> & middleLines,
-                              const vector<TDLine> & oldLines)
+int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
+                              TDLine & curLine, vector<TDLine> & middleLines,
+                              vector<TDLine> & oldLines)
 {   // TODO: magic number 60: 70 ?
     // 1. check the middle ones' start point(left point)
     int middleMaxIdx = -1;
     double middleMaxScore = -1.0;
     for (int k = 0; k < (int)middleLines.size(); k++)
-    {   // one of the following score is 0.0;
+    {   // one of the following score is 0.0, the total score will be 100
         double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
         score += rightConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);        
         if (score > middleMaxScore)
@@ -345,7 +336,7 @@ int BoundaryScan :: goMarking(const int bdNum, TDLine & curLine, vector<TDLine> 
         }
     }
 
-    if (middleMaxScore < 60.0)
+    if (middleMaxScore <= 60.0)
         return -1; // doesn't need to mark any lines
 
     // 2. check the old ones' start point(left point)
@@ -363,20 +354,16 @@ int BoundaryScan :: goMarking(const int bdNum, TDLine & curLine, vector<TDLine> 
             oldMaxIdx = k;
         }
     }
+
     if (oldMaxScore < 60.0)
         return -1; // doesn't need to mark any lines
 
     // 3. NOW OK: find the start points of all three lines, lets do marking & extending.
     //    For old ones will be replaced by new coming frame soon, so we don't mark the olds, but
-    //    the middle lines' merging will refer to the olds.
+    //    olds ones will affect the middle lines' merging.
     if (middleLines[middleMaxIdx].b.x < oldLines[oldMaxIdx].b.x)
         middleLines[middleMaxIdx].b = oldLines[oldMaxIdx].b;
 
-    if (middleLines[middleMaxIdx].mayPreviousLineStart.x == -1)
-        // middle doesn't have previous one, so the curLine is the 'bNewObjectLine'
-        curLine.bNewObjectLine = true;
-    else
-        curLine.bNewObjectLine = false;
     // calc the new points of curLine
     if (curLine.b.x < middleLines[middleMaxIdx].b.x)
         curLine.b = middleLines[middleMaxIdx].b;
@@ -386,29 +373,34 @@ int BoundaryScan :: goMarking(const int bdNum, TDLine & curLine, vector<TDLine> 
     mergeOverlapOfOnePositionLines(middleLines, middleMaxIdx);
     curLine.mayPreviousLineStart = middleLines[middleMaxIdx].a;
     curLine.mayPreviousLineEnd = middleLines[middleMaxIdx].b;
+
+    const double averageAngle = (curLine.movingAngle +
+                                 middleLines[middleMaxIdx].movingAngle +
+                                 oldLines[oldMaxIdx].movingAngle) / 3.0;
     
-    const double newAngle = (curLine.movingAngle +
-                             middleLines[middleMaxIdx].movingAngle +
-                             oldLines[oldMaxIdx].movingAngle) / 3.0;
-    curLine.movingAngle = middleLines[middleMaxIdx].movingAngle = newAngle;
+    const vector<double> & xMvs = bgResult.xMvs[bdNum];
+    const vector<double> & yMvs = bgResult.yMvs[bdNum];
+    const double updateAngle = getLineMoveAngle(curLine, xMvs, yMvs);
+    
+    curLine.movingAngle =
+        middleLines[middleMaxIdx].movingAngle = (averageAngle + updateAngle) / 2;
     // update moving status by angle & bdNum
     calcLineMovingStatus(bdNum, curLine);
-    middleLines[middleMaxIdx].movingStatus = curLine.movingStatus;
-    if (curLine.bNewObjectLine == true)
-    {
-        if (curLine.movingStatus == MOVING_CROSS_IN)
-            LogD("New Object Line Appears: %d-%d, angle: %.2f\n",
-                 curLine.a.x, curLine.b.x, newAngle);
-        else
-            LogD("Object Start Disappear Line: %d-%d, angle: %.2f\n",
-                 curLine.a.x, curLine.b.x, newAngle);            
-    }
-    else
-    {
-        LogD("Attach Previous Line: cur: %d-%d, previous:  %d-%d. angle: %.2f\n",
-             curLine.a.x, curLine.b.x, middleLines[middleMaxIdx].a.x,
-             middleLines[middleMaxIdx].b.x, newAngle);
-    }
+    if (middleLines[middleMaxIdx].bValid == true)
+        if (middleLines[middleMaxIdx].movingStatus != curLine.movingStatus)
+            LogW("Predecessor But not the same moving status!!!. previous %s now %s.\n",
+                 getMovingStatusStr(middleLines[middleMaxIdx].movingStatus),
+                 getMovingStatusStr(curLine.movingStatus));
+    
+    // this is a valid line until now.
+    curLine.bValid = true;
+    
+    LogD("Valid Line: cur: %d-%d, previous: %d-%d. "
+         "angle: %.2f(old %.2f, average %.2f, update %.2f), status: %s.\n",
+         curLine.a.x, curLine.b.x,
+         middleLines[middleMaxIdx].a.x, middleLines[middleMaxIdx].b.x, 
+         curLine.movingAngle, oldLines[oldMaxIdx].movingAngle, averageAngle, updateAngle,
+         getMovingStatusStr(curLine.movingStatus));
     return 0;
 }
     
@@ -431,13 +423,9 @@ double BoundaryScan :: getLineMoveAngle(const TDLine & l1, const vector<double> 
 int BoundaryScan :: outputLineAnalyseResultAndUpdate(BgResult & bgResult)
 {   
     // Output curFrontIdx's frame lines as the output result.
-        
     for (int bdNum = 0; bdNum < (int)m_cacheLines[m_curFrontIdx].size(); bdNum++)
-    {
-        for (int k = 0; k < (int)m_cacheLines[m_curFrontIdx][bdNum].size(); k++)
-            calcLineMovingStatus(bdNum, m_cacheLines[m_curFrontIdx][bdNum][k]);
         bgResult.resultLines[bdNum] = m_cacheLines[m_curFrontIdx][bdNum];
-    }
+
     m_curFrontIdx = loopIndex(m_curFrontIdx, M_BOUNDARY_SCAN_CACHE_LINES);
     return 0;
 }
@@ -559,7 +547,7 @@ int BoundaryScan :: mergeOverlapOfOnePositionLines(vector<TDLine> & lines, const
         auto mergeIt = nextIt - 1;
         it->b = mergeIt->b;
         for (auto deleteIt = it + 1; deleteIt <= mergeIt && deleteIt != lines.end();
-             /*No Increament Here*/)
+                                                                     /*No Increament Here*/)
         {
             deleteIt = lines.erase(deleteIt);
         }

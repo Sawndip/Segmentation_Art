@@ -176,7 +176,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
         for (int k = 0; k < (int)bgResult.resultLines[bdNum].size(); k++)
         {   // 1. untraced ones & MOVING_CROSS_IN ones will be created.
             const TDLine & theLine = bgResult.resultLines[bdNum][k];
-            if (bgResult.resultLines[bdNum][k].bNewObjectLine == true && 
+            if (bgResult.resultLines[bdNum][k].bValid == true && 
                 bgResult.resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
             {
                 // 2. now we get the cross lines stand for new objects, so we just create them.

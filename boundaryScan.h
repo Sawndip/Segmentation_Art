@@ -73,6 +73,11 @@ private: // inner classes
     };
 
 private: // inner members
+    #define M_ARC_THRESHOLD (M_PI / 2.0)    
+    static const int M_BOUNDARY_SCAN_CACHE_LINES = 3;
+    static const int M_ELEMENT_WIDTH = 2; // for simple erode/dilate
+    static const int M_ELEMENT_HEIGHT = 2;
+
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
@@ -82,27 +87,21 @@ private: // inner members
     int m_scanSizeLR;
     // for cross boundary analyse
     BordersMem m_bordersMem;
-    static const int M_BOUNDARY_SCAN_CACHE_LINES = 3;
-    static const int M_BOUNDARY_MAX_VARIANCE = 32; // 32 pixels
-    #define M_ARC_THRESHOLD (M_PI * 1.0 / 180 * 90)
     int m_curFrontIdx;
-    vector<vector<TDLine> > m_cacheLines[M_BOUNDARY_SCAN_CACHE_LINES];
-    
-    // for simple erode/dilate
-    static const int M_ELEMENT_WIDTH = 2;    
-    static const int M_ELEMENT_HEIGHT = 2;
+    vector<vector<TDLine> > m_cacheLines[M_BOUNDARY_SCAN_CACHE_LINES];    
 
 private: // important inner helpers
     int scanBoundaryLines(const BgResult & bgResult);
     int premergeLines(const BgResult & bgResult);
     int canLinesBeMerged(const TDLine & l1, const TDLine & l2, const TDLine & l3);
-    int stableAnalyseAndMarkLineStatus();
+    int stableAnalyseAndMarkLineStatus(BgResult & bgResult);
     int outputLineAnalyseResultAndUpdate(BgResult & bgResult);
-    int markPredecessorsRecursively(const int curIdx, const int bdNum,
+    int markPredecessorsRecursively(const int curIdx, const int bdNum, BgResult & bgResult,
                                     vector<TDLine> & curLines, vector<TDLine> & middleLines,
-                                    const vector<TDLine> & oldLines);
-    int goMarking(const int bdNum, TDLine & curLine, vector<TDLine> & middleLines,
-                 const vector<TDLine> & oldLines);
+                                    vector<TDLine> & oldLines);
+    int goMarking(const int bdNum, BgResult & bgResult,
+                  TDLine & curLine, vector<TDLine> & middleLines, vector<TDLine> & oldLines);
+                  
 
 private: // trival inner helpers
     int doErode(const int times = 1);
@@ -122,16 +121,3 @@ private: // trival inner helpers
 } // namespace Seg_Three
 
 #endif // _BOUNDARY_SCAN_H_
-
-/************************************************************************
-BoundaryScan Model:
-
-line1.  ----- ---     -------
-line2.    ---------      --
-line3.       --------             ----
-
-so, line3 will be an output line with previousLine = NULL, but internally
-in cacheLines it will be marked previousLine = &line2 to indicate it is 
-traced hereafter.
-
-************************************************************************/
