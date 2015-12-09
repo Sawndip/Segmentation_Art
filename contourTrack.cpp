@@ -253,7 +253,6 @@ int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box
         }
     }
     newBox.height = k - newBox.y;
-
     // 3. enlarge left line
     loss = 0;    
     for (k = maxLeftX; k > minLeftX; k--) 
@@ -287,11 +286,7 @@ int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box
         }        
     }
     newBox.width = k - newBox.x;
-    
-    LogD("Befor Enlarge: \n");
-    dumpRect(box);
-    LogD("After Enlarge: \n");
-    dumpRect(newBox);
+    // final update    
     box = newBox;
     return 0;
 }
@@ -376,10 +371,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
             break;
     }
     newBox.width = k - newBox.x;
-    LogD("Before Shrink: \n");
-    dumpRect(box);
-    LogD("After Shrink: \n");
-    dumpRect(newBox);
+    // update
     box = newBox;
     return 0;
 }
@@ -414,7 +406,7 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
 {
     cv::Rect minBox;
     //const double averageAngle = (lastLine.movingAngle + updateLine.movingAngle) / 2;
-    const int dv = bCrossIn ? 4 : -4; // TODO: should using other info to infer this value.
+    const int dv = bCrossIn ? 4 : -32; // TODO: should using other info to infer this value.
     const int lineLen = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
     switch(bdNum)
     {
@@ -457,6 +449,7 @@ int ContourTrack :: getConsumeResult(const vector<CONSUME_LINE_RESULT> & results
 
 int ContourTrack :: doStatusChanging(const int statusResult)
 {
+    //LogD("statusResult: %d of tracker %d.\n", statusResult, m_idx);
     switch(statusResult)
     {
     case CONSUME_NOTHING:

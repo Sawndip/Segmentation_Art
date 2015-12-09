@@ -256,22 +256,24 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
              "xDis:%d, line1:%d, line2:%d.\n", xDistance, line1len, line2len);
         return 0;
     }
+
     // 2. check whether the line have the same angle of movement.
     LogD("TestMerge3: angle1 %.2f, angel2: %.2f.\n", l1.movingAngle, l2.movingAngle);
-    if (isLineCloseEnough(fabs(l1.movingAngle - l2.movingAngle)) == true)
+    if (isLineCloseEnough(fabs(fabs(l1.movingAngle - l2.movingAngle))) == true)
         return 1;
 
     // 3. for quit small lines & small gaps, we merge them
-    if (line1len <= 16 && xDistance <= 16) // one block
+    if ((line2len <= 16 || line1len <= 16) && xDistance <= 16) // one block
         return 1;
     
     // 4. disturbing short line merging: l3 is only used here
     if (l2.a.x == l3.a.x) // l2, l3 are the same, we hit the end.
         return 0;
-    bool bClose = isLineCloseEnough(fabs(l1.movingAngle - l3.movingAngle));
+    
     // TODO: magic number here: not matter, for we will use the merged one as the base line
     //       to do futher merging.
-    if (bClose && l2.b.x - l1.a.x <= 32) // 
+    bool bClose = isLineCloseEnough(fabs(l1.movingAngle - l3.movingAngle));
+    if (bClose && ((l2.b.x - l1.a.x <= 32) || line2len <= 32)) // 
         return 2; // l2 is a distrubing line
     return 0;
 }
@@ -328,7 +330,7 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     for (int k = 0; k < (int)middleLines.size(); k++)
     {   // one of the following score is 0.0, the total score will be 100
         double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
-        score += rightConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);        
+        score += rightConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
         if (score > middleMaxScore)
         {
             middleMaxScore = score;
@@ -395,8 +397,9 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     // this is a valid line until now.
     curLine.bValid = true;
     
-    LogD("Valid Line: cur: %d-%d, previous: %d-%d. "
+    LogD("Frame %d, Boundary %s: Valid Line: cur: %d-%d, previous: %d-%d. "
          "angle: %.2f(old %.2f, average %.2f, update %.2f), status: %s.\n",
+         m_inputFrames, getMovingDirectionStr((const MOVING_DIRECTION)bdNum),
          curLine.a.x, curLine.b.x,
          middleLines[middleMaxIdx].a.x, middleLines[middleMaxIdx].b.x, 
          curLine.movingAngle, oldLines[oldMaxIdx].movingAngle, averageAngle, updateAngle,

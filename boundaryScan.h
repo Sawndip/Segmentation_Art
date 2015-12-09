@@ -111,7 +111,8 @@ private: // trival inner helpers
                             const vector<double> & xMvs, const vector<double> & yMvs);
     int calcLineMovingStatus(const int bdBum, TDLine & line);
     inline bool isLineCloseEnough(const double diffAngle)
-    {   // TODO: between 0 to 90? degree is taken as the similar
+    {
+        assert(diffAngle >= 0);
         if (diffAngle < M_ARC_THRESHOLD || (fabs(2*M_PI - diffAngle) < M_ARC_THRESHOLD))
             return true;
         return false;

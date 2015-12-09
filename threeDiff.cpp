@@ -247,8 +247,9 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                             break; // NOTE: break out.
                         }
                     }
+
                     const double percent = percentContainedBy(tobeCreateRect, curBox);
-                    if (percent > 0.7) // TODO: magic number
+                    if (percent > 0.35) // TODO: magic number
                     {
                         bNeedCreateNew = false;
                         LogW("Won't create new: contained by track No.%d, %.2f percent:\n",
