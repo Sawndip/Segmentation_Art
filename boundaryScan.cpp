@@ -324,6 +324,7 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
                               TDLine & curLine, vector<TDLine> & middleLines,
                               vector<TDLine> & oldLines)
 {   // TODO: magic number 60: 70 ?
+    static const double FULLY_CONTAINED_SCORE = 200.0;
     // 1. check the middle ones' start point(left point)
     int middleMaxIdx = -1;
     double middleMaxScore = -1.0;
@@ -331,6 +332,8 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     {   // one of the following score is 0.0, the total score will be 100
         double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
         score += rightConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
+        if (middleMaxScore <= 60.0 && isXContainedBy(curLine, middleLines[k]) == true)
+            score = FULLY_CONTAINED_SCORE;
         if (score > middleMaxScore)
         {
             middleMaxScore = score;
@@ -368,8 +371,16 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
 
     // calc the new points of curLine
     if (curLine.b.x < middleLines[middleMaxIdx].b.x)
+    {
+        if (fabs(middleMaxScore - FULLY_CONTAINED_SCORE) < FLT_EPSILON)
+        {
+            //LogD("%d: Fully contained: cur:%d-%d, middle:%d-%d.\n",
+            //      m_inputFrames, curLine.a.x, curLine.b.x,
+            //      middleLines[middleMaxIdx].a.x, middleLines[middleMaxIdx].b.x);
+            curLine.a = middleLines[middleMaxIdx].a;
+        }
         curLine.b = middleLines[middleMaxIdx].b;
-        
+    }   
     // 4. do other update needed
      // curLines will be merge after this call.
     mergeOverlapOfOnePositionLines(middleLines, middleMaxIdx);

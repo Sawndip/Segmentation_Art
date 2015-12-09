@@ -93,6 +93,7 @@ private: // inner trival ones
         const TDLine & updateLine, const bool bCrossIn);
     int getConsumeResult(const vector<CONSUME_LINE_RESULT> & results);
     int doStatusChanging(const int statusResult);
+    int adjustCurBoxForCT(BgResult & bgResult);
 };
 
 }//namespace

@@ -35,10 +35,11 @@ string intToString(const int n)
     return formatedStr; 
 }
 
-void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgNames)
+void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgNames,
+    const int startFrame)
 {
     imgNames.clear();
-    for (int k = 75; k < SEQ_FILE_MAX_NUM; k++)
+    for (int k = startFrame; k < SEQ_FILE_MAX_NUM; k++)
     {
         string strNum = intToString(k);
         imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
@@ -62,9 +63,11 @@ int main(int argc, char * argv[])
     string imgFileFolder("./data");
     if (argv[1] != NULL)
         imgFileFolder = argv[1];
-    
+    int startFrame = 75;
+    if ((argv[2] != NULL))
+        startFrame = atoi(argv[1]);
     vector<string> imgFilePathes;    
-    collectImageSequenceFiles(imgFileFolder, imgFilePathes);
+    collectImageSequenceFiles(imgFileFolder, imgFilePathes, startFrame);
 
     bool bInitPosition = false;
     SegControl seg;

@@ -91,13 +91,20 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
             m_ctTracker = new CompressiveTracker();
             m_ctTracker->init(in, m_curBox);
         }
-        assert(m_ctTracker != NULL);
         if (m_ctTracker->processFrame(in, m_curBox) < 0)
         {
             LogW("Compressive Tracker do warning a failing track.\n.");
             // TODO: how to do update ? just terminate the tracking right now.
             return 1;
         }
+        // we update track every 10 frames.
+        //if (m_inputFrames % 10 == 0)
+        //{
+        //    delete m_ctTracker;
+        //    adjustCurBoxForCT(bgResult);
+        //    m_ctTracker = new CompressiveTracker();
+        //    m_ctTracker->init(in, m_curBox);
+        //}
     }
 
     // 4. do post-process of boundary line update (after we get new curBox)
@@ -174,13 +181,13 @@ CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum,
     if (bBoundaryConsume == false)
         return CONSUME_NOTHING;
 
-    // 2. Ok now, let's update curBox with this boundary line.
+    // 2. Ok now, let's update curBox with this boundary line.    
     // 1) first we get the minimal kernel, then calculate the enlarge & shrink range.
     static const int maxEnlargeDx = 32, maxEnlargeDy = 32;
     static const int maxShrinkDx = 32, maxShrinkDy = 32;
     cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine,
                                                       consumeLine, consumeLine.movingStatus);
-    // 2) then do enlarge / shrink / boundBox
+    // 2) then do enlarge / shrink / boundBox    
     // a). get the possible maxium box using 'diffOr', used for boundbox.
     cv::Rect maxBox = box;
     doEnlargeBoxUsingImage(diffOr, maxBox, maxEnlargeDx * 2, maxEnlargeDy * 2);
@@ -488,55 +495,19 @@ int ContourTrack :: doStatusChanging(const int statusResult)
     return 0;
 }
 
+int ContourTrack ::  adjustCurBoxForCT(BgResult & bgResult)
+{
+    cv::Rect box = calcOverlapRect(m_lastBox, m_curBox);
+    static const int maxEnlargeDx = 64, maxEnlargeDy = 64;
+    static const int maxShrinkDx = 64, maxShrinkDy = 64;
+    doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);
+    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);
+    //boundBoxByMaxBox(box, maxBox);
+    m_curBox = box;
+    return 0;    
+}
 
 } // namespace Seg_Three
 
 /////////////////////////// End of The File //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////    
-
-/*
-    switch(m_movingStatus)
-    {
-    case MOVING_CROSS_IN:
-        markAcrossIn(directions, bgResult, diffAnd, diffOr);
-        if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD) 
-        {   
-            for (int k = 0; k < BORDER_NUM; k++) // reset lastBoundaryLines
-                m_lastBoundaryLines[k] = TDLine();
-            m_movingStatus = MOVING_INSIDE; // mark we are inside!
-            m_allInCount = 0;
-            bCTTracking = true; // if all in, use normal tracking.
-        }
-        break;
-    // MOVING_INSIDE trackers just do untraced & MOVING_CROSS_OUT checking
-    // BE AWARE: 1) tracker has moving status(cross_in/cross_out/inside).
-    //           2) each boundary line also has moving status(cross_in/cross_out).            
-    case MOVING_INSIDE:
-        // line's movingDirection should be MOVING_CROSS_OUT
-        // update lastBoundaryLines inside this call if needed
-        markAcrossOut(directions, bgResult, diffAnd, diffOr);
-        if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-        {
-            m_crossOutCount = 0;
-            bCTTracking = false;
-            m_movingStatus = MOVING_CROSS_OUT;
-        }
-        else
-            bCTTracking = true;
-        
-        break;
-    case MOVING_CROSS_OUT:
-        //  use boundary info to track, won't use compressive tracker
-        markAcrossOut(directions, bgResult, diffAnd, diffOr);
-        if (m_allOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD)
-        {   // !! // 1 means terminal the tracking.
-            // NOTE: if all out, we tell the caller to terminal the whole tracking.
-            return 1; 
-        }
-        break;
-    // case MOVING_STOP: this is not a valid status for track's moving status.
-    default:
-        LogE("Not valid moving status.\n");
-        break;
-    }
-*/
+//////////////////////////////////////////////////////////////////////////////////////////
