@@ -38,7 +38,7 @@ string intToString(const int n)
 void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgNames)
 {
     imgNames.clear();
-    for (int k = 50; k < SEQ_FILE_MAX_NUM; k++)
+    for (int k = 75; k < SEQ_FILE_MAX_NUM; k++)
     {
         string strNum = intToString(k);
         imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");

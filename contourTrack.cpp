@@ -82,7 +82,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     doStatusChanging(getConsumeResult(boundaryResults));
     if (m_movingStatus == MOVING_FINISH)
         return 1;
-        
+    
     // 3. compressive tracking. some objects may never use this (always cross boundaries)
     if (m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) // STOP needed?
     {
@@ -325,7 +325,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
-        if (score >= 4 || score * 2.0 / box.width > 0.1)
+        if (score >= 5 || score * 2.0 / box.width > 0.1)
             break;
     }
     newBox.y = k;
@@ -340,7 +340,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
-        if (score >= 4 || score * 2.0 / box.width > 0.1)
+        if (score >= 5 || score * 2.0 / box.width > 0.1)
             break;
     }
     newBox.height = k - newBox.y;
@@ -355,7 +355,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
                 score++;
         }
-        if (score >= 4 || score * 2.0 / box.height > 0.1)
+        if (score >= 5 || score * 2.0 / box.height > 0.1)
             break;
     }
     newBox.x = k;
@@ -366,13 +366,13 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
         int score = 0;
         for (j = 0; j < box.height; j+=2) // note, j+2 here
         {   
-            if (image.at<uchar>(box.y + j, box.x + box.width - k)   &
-                image.at<uchar>(box.y + j, box.x + box.width - k-1) &
-                image.at<uchar>(box.y + j+1, box.x + box.width -k)  &
-                image.at<uchar>(box.y + j+1, box.x + box.width -k-1))
+            if (image.at<uchar>(j, k)   &
+                image.at<uchar>(j, k+1) &
+                image.at<uchar>(j+1, k)  &
+                image.at<uchar>(j+1, k+1))
                 score++; // find the boundary.
         }
-        if (score >= 4 || score * 2.0 / box.height > 0.1)
+        if (score >= 5 || score * 2.0 / box.height > 0.1)
             break;
     }
     newBox.width = k - newBox.x;
