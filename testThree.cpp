@@ -25,7 +25,7 @@ namespace
 {
 
 #define SEQ_FILE_DIR ("./data")
-#define SEQ_FILE_MAX_NUM (500)
+#define SEQ_FILE_MAX_NUM (490)
     
 string intToString(const int n)
 {
@@ -38,15 +38,16 @@ string intToString(const int n)
 void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgNames)
 {
     imgNames.clear();
-    for (int k = 75; k < SEQ_FILE_MAX_NUM; k++)
+    for (int k = 50; k < SEQ_FILE_MAX_NUM; k++)
     {
         string strNum = intToString(k);
-        if (k < 10)
-            imgNames.push_back(imgFileFolder + "/img00" + strNum + ".jpg");
-        else if (k < 100)
-            imgNames.push_back(imgFileFolder + "/img0" + strNum + ".jpg");
-        else
-            imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
+        imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
+        //if (k < 10)
+        //    imgNames.push_back(imgFileFolder + "/img00" + strNum + ".jpg");
+        //else if (k < 100)
+        //    imgNames.push_back(imgFileFolder + "/img0" + strNum + ".jpg");
+        //else
+        //    imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
     }
 
     return;
@@ -59,6 +60,9 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
 int main(int argc, char * argv[])
 {
     string imgFileFolder("./data");
+    if (argv[1] != NULL)
+        imgFileFolder = argv[1];
+    
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes);
 
@@ -67,7 +71,8 @@ int main(int argc, char * argv[])
     //   int init(const int width, const int height,
     //            const int skipTB, const int skipLR,
     //            const int scanBorderSizeTB, const int scanBorderSizeLR);
-    seg.init(640, 480, 32, 32, 2, 2);
+    Mat frame = imread(imgFilePathes[0]);
+    seg.init(frame.cols, frame.rows, 32, 32, 2, 2);
     vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare
