@@ -73,15 +73,15 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         if (it != directions.end())
         {   // we need process boundary lines, after process we marked it as used.
             for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
-                if (resultLines[bdNum][k].bValid == true) // For bothin CROSS_IN/OUT
-                    boundaryResults.push_back(
-                        processOneBoundaryLine(bdNum, resultLines[bdNum][k],
-                                               bgResult, diffAnd, diffOr));
+                boundaryResults.push_back(processOneBoundaryLine(bdNum,
+                                            resultLines[bdNum][k],bgResult, diffAnd, diffOr));
         }
     }
 
     // 2. do status changing update
     doStatusChanging(getConsumeResult(boundaryResults));
+    if (m_movingStatus == MOVING_FINISH)
+        return 1;
         
     // 3. compressive tracking. some objects may never use this (always cross boundaries)
     if (m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) // STOP needed?
@@ -91,7 +91,6 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
             m_ctTracker = new CompressiveTracker();
             m_ctTracker->init(in, m_curBox);
         }
-        
         assert(m_ctTracker != NULL);
         if (m_ctTracker->processFrame(in, m_curBox) < 0)
         {
@@ -145,15 +144,18 @@ int ContourTrack :: flushFrame()
 // 3. 
 // return values: >= 0, process ok
 //                 < 0, process error
-CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & theLine, 
-                    BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum,
+    TDLine & consumeLine, BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
+    // 0. some pre-check.
+    if (consumeLine.bValid == false)
+        return CONSUME_NOTHING;
+    
     // 1. check its previous line, all valid line(output by BoundaryScan) has previous line
-    // TODO: the timing to reset lastBoundary needs tuning.    
     bool bBoundaryConsume = false;
     TDLine lastLine = m_lastBoundaryLines[bdNum]; 
-    if (theLine.mayPreviousLineStart.x == lastLine.a.x &&
-        theLine.mayPreviousLineEnd.x == lastLine.b.x &&
+    if (consumeLine.mayPreviousLineStart.x == lastLine.a.x &&
+        consumeLine.mayPreviousLineEnd.x == lastLine.b.x &&
         lastLine.a.x != -1 && lastLine.b.x != -1)
         bBoundaryConsume = true;
     else
@@ -162,260 +164,47 @@ CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum, TDLi
         // just check its line overlap with curBox
         // NOTE: please make sure curBox never have width/height = 0.
         lastLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
-        const int overlapLen = overlapXLenOfTwolines(lastLine, theLine);
+        const int overlapLen = overlapXLenOfTwolines(lastLine, consumeLine);
         // TODO: magic number here!!!
         if (lastLine.b.x - lastLine.a.x > 0 &&
             overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.6)
             bBoundaryConsume = true;
     }
-    
+    // whether need boundary update
     if (bBoundaryConsume == false)
         return CONSUME_NOTHING;
 
-    // Ok now, let update curBox with this boundary line.
-    
-    switch(bdNum)
-    {
-    case 0:
-        break;
-    case 1:
-        break;
-    case 2:
-        break;
-    case 3:
-        break;
-    }
-
-    return CONSUME_NOTHING;
-}
-    
-int ContourTrack ::  markAcrossIn(const vector<MOVING_DIRECTION> & directions,
-                                  BgResult & bgResult,
-                                  const cv::Mat & diffAnd, const cv::Mat & diffOr)
-{
-    LogI("Across In frame: %d, directions size: %d.\n", m_inputFrames, (int)directions.size());
-    vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
-    bool bStillCrossing = false;
-    // how to make the object moving in & we update the rectBox gradully?    
-    for (int bdNum = 0; bdNum < BORDER_NUM; bdNum++)
-    {
-        auto it = std::find(directions.begin(), directions.end(), bdNum);
-        if (it != directions.end())
-        {
-            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
-            {
-                if (resultLines[bdNum][k].movingStatus == MOVING_CROSS_IN)
-                {   
-                    if (resultLines[bdNum][k].mayPreviousLineStart.x != -1 &&
-                        resultLines[bdNum][k].mayPreviousLineEnd.x != -1)
-                    {   // have previous line
-                        if (resultLines[bdNum][k].mayPreviousLineStart.x ==
-                                m_lastBoundaryLines[bdNum].a.x &&
-                            resultLines[bdNum][k].mayPreviousLineEnd.x ==
-                                m_lastBoundaryLines[bdNum].b.x)
-                        {   // the predecessor is found, so update curBox using the line
-                            bStillCrossing = true;
-                            updateCrossInBox(bdNum, resultLines[bdNum][k],
-                                             bgResult, diffAnd, diffOr);
-                            m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
-                            LogD("Get Previous Line & updateCrossInBox. "
-                                 "Last %d-%d-%d-%d,  %d-%d-%d-%d.\n",
-                                 m_lastBox.x, m_lastBox.y, m_lastBox.width, m_lastBox.height,
-                                 m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
-                        }
-                        else // for the 
-                        {
-                            LogD("=== IN: Realy here.\n");
-                        }
-                    }
-                    else
-                    {   // this untraced line may part of our object, let's check it.
-                        if (updateUntracedIfNeeded(bdNum, resultLines[bdNum][k]) > 0)
-                        {
-                            LogD("=== CrossingIn update untraced In.\n");
-                            bStillCrossing = true;
-                            updateCrossInBox(bdNum, resultLines[bdNum][k],
-                                             bgResult, diffAnd, diffOr);
-                            m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
-                        }
-                        else
-                            LogD("=== CrossingIN how to Deal ??.\n");
-                    }
-                }
-            }
-        }
-    }
-    // all in
-    if (bStillCrossing == false)
-        m_allInCount++;
-    else 
-        m_allInCount = 0;
-    
-    return 0;
-}
-
-// if cannot find the moving out lines, we return < 0 to indicate it is still moving inside
-// or the whole object is moving out.
-// Two consecutive frames are used to do the measure.
-int ContourTrack :: markAcrossOut(const vector<MOVING_DIRECTION> & directions,
-                        BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
-{
-    // for across out, it is relatively simple then in,
-    // for we don't need accurately change our box any more.
-    vector<vector<TDLine> > & resultLines = bgResult.resultLines;
-    bool bCrossing = false;
-    for (int bdNum = 0; bdNum < BORDER_NUM; bdNum++)
-    {
-        auto it = std::find(directions.begin(), directions.end(), bdNum);
-        if (it != directions.end())
-        {
-            for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
-            {
-                if (resultLines[bdNum][k].movingStatus == MOVING_CROSS_OUT)
-                {   
-                    if (resultLines[bdNum][k].mayPreviousLineStart.x != -1 &&
-                        resultLines[bdNum][k].mayPreviousLineEnd.x != -1)
-                    {   // have previous line
-                        if (resultLines[bdNum][k].mayPreviousLineStart.x ==
-                                m_lastBoundaryLines[bdNum].a.x &&
-                            resultLines[bdNum][k].mayPreviousLineEnd.x ==
-                                m_lastBoundaryLines[bdNum].b.x)
-                        {   // the predecessor is found, so update curBox using the line
-                            bCrossing = true;
-                            updateCrossOutBox(bdNum, resultLines[bdNum][k],
-                                              bgResult, diffAnd, diffOr);
-                            m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
-                        }
-                        else
-                            LogD("==== CrossOut : realy here.\n");
-                    }
-                    else 
-                    {   // this untraced line may part of our object, let's check it.
-                        if (updateUntracedIfNeeded(bdNum, resultLines[bdNum][k]) > 0)
-                        {
-                            bCrossing = true;
-                            updateCrossOutBox(bdNum, resultLines[bdNum][k],
-                                              bgResult, diffAnd, diffOr);
-                            m_lastBoundaryLines[bdNum] = resultLines[bdNum][k];
-                            LogD("==== CrossOut : update untraced.\n");
-                        }
-                        else
-                            LogD("==== CrossOut : how to deal.\n");
-
-                    }
-                }
-            }
-        }        
-    }
-
-    // change status.
-    if (bCrossing == true && m_movingStatus == MOVING_INSIDE)
-        m_crossOutCount++;
-    else
-        m_crossOutCount = 0;
-    
-    if (bCrossing == false && m_movingStatus == MOVING_CROSS_OUT)
-        m_allOutCount++;
-    else 
-        m_allOutCount = 0;
-    return 0;
-}
-    
-// 1. when do re-calc the curBox, we tend to get it a little bigger.
-// 2. then we use diffOrResult to limit the expand of the box size.
-int ContourTrack :: getMaxCrossBoxUsingDiff(const BgResult & bgResult,
-                                            const cv::Mat & diffAnd,
-                                            const cv::Mat & diffOr, cv::Rect & box)
-{ 
-    // we use this dx dy and diffOr to get the possible maxium box
+    // 2. Ok now, let's update curBox with this boundary line.
+    // 1) first we get the minimal kernel, then calculate the enlarge & shrink range.
     static const int maxEnlargeDx = 32, maxEnlargeDy = 32;
     static const int maxShrinkDx = 32, maxShrinkDy = 32;
-    // now we do enlarge & shrink.
-    // a). enlarge the max box using 'diffOr' to get the possible maxium box.
+    cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine,
+                                                      consumeLine, consumeLine.movingStatus);
+    // 2) then do enlarge / shrink / boundBox
+    // a). get the possible maxium box using 'diffOr', used for boundbox.
     cv::Rect maxBox = box;
     doEnlargeBoxUsingImage(diffOr, maxBox, maxEnlargeDx * 2, maxEnlargeDy * 2);
-    //// b). shrink the max box using new bgResult
-    doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);    
+    // b). normal enlarge using new bgResult
+    doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);
+    // c). normal shrink  using new bgResult
     doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);
+    // d). bound box
     boundBoxByMaxBox(box, maxBox);
 
-    return 0;
-}
-
-/*************************
-We have Three Steps to get a new proper cross in box(m_curBox).
-1. using DiffOr DiffAnd, m_lastBox to get the max & min box.
-2. using m_lastBoundaryLines[bdNum]'s angle to estimate the x, y shift.
-3. using current new boundary line(updateLine) to further update the estimated line.
-*************************/
-int ContourTrack :: updateCrossInBox(const int bdNum, TDLine & updateLine,
-                                     BgResult & bgResult,
-                                     const cv::Mat & diffAnd, const cv::Mat & diffOr)
-{
-    // 1. use boundary line to get the lease width or height.
-    TDLine lastLine = m_lastBoundaryLines[bdNum];
-    // if no last line, we using current one
-    if (lastLine.a.x == -1 || lastLine.b.x == -1) 
-        lastLine = updateLine;
-    cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine, updateLine);
-    LogD("Estimate Box: \n");
-    dumpRect(box);
-    // 2. use lastBox & diffResult to get the max box
-    getMaxCrossBoxUsingDiff(bgResult, diffAnd, diffOr, box);
-    
-    /* 3. Until Now, we get the next box */
+    // 3) finally, we do some internal update
     m_curBox = box;
+    m_lastBoundaryLines[bdNum] = consumeLine;
     if (m_largestWidth < m_curBox.width)
         m_largestWidth = m_curBox.width;
     if (m_largestHeight < m_curBox.height)
         m_largestHeight = m_curBox.height;
     
-    return 0;
-}    
-
-int ContourTrack :: updateCrossOutBox(const int bdNum, TDLine & updateLine,
-                                      BgResult & bgResult,
-                                      const cv::Mat & diffAnd, const cv::Mat & diffOr)
-{
-    const int maxShrinkDx = 32;
-    const int maxShrinkDy = 32;
-    cv::Rect box = m_lastBox;
-    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);    
-    m_curBox = box;
-    return 0;
+    return consumeLine.movingStatus == MOVING_CROSS_IN ? CONSUME_IN_LINE : CONSUME_OUT_LINE;
 }
-        
-// TODO: do we need this? return > 0: need update this line & mark this line's previousLine
-int ContourTrack :: updateUntracedIfNeeded(const int bdNum, TDLine & updateLine)
-{
-    TDLine boundaryLine = m_lastBoundaryLines[bdNum];
-    if (boundaryLine.a.x == -1 && boundaryLine.b.x == -1)
-        boundaryLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
-    TDLine newLine = boundaryLine;
-    int skip = 0;
-    if (bdNum < 2)
-        skip = m_skipLR;
-    else
-        skip = m_skipTB;
-    newLine.a.x += skip;
-    newLine.b.x += skip;
     
-    const double consecutivityScore = consecutivityOfTwoLines(newLine, boundaryLine, 50);
-    // TODO: magic number 70.0 here.
-    if (consecutivityScore > 70.0)
-    {
-        updateLine.mayPreviousLineStart = updateLine.a;
-        updateLine.mayPreviousLineEnd = updateLine.b;
-        m_lastBoundaryLines[bdNum] = updateLine;
-        return 1;
-    }
-    return 0;
-}
-
 int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                            const int maxEnlargeDx, const int maxEnlargeDy)
 {
-    // TODO : move to init()
     const int minTopY = box.y - maxEnlargeDy < 0 ? 0 : box.y - maxEnlargeDy;
     const int maxTopY = box.y;
     const int minBottomY = box.y + box.height;
@@ -426,7 +215,7 @@ int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box
     const int minRightX = box.x + box.width;
     const int maxRightX = box.x + box.width + maxEnlargeDx > m_imgWidth ?
                           m_imgWidth : box.x + box.width + maxEnlargeDx;
-
+    // TODO: magic number here
     const static int enlargeLossThreshold = 3;
     const static double enlargeScorePercentThreshold = 0.1;    
         
@@ -507,10 +296,10 @@ int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box
     return 0;
 }
 
-// box's width & height must be an even number.
+// the counterpart of the doEnlarge
 int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                           const int maxShrinkDx, const int maxShrinkDy)
-{   // using a 2x2 window do scaning the image from the border of the box
+{   
     const int minTopY = box.y;
     const int maxTopY = maxShrinkDy > box.height/2 ? box.y + box.height/2 : box.y + maxShrinkDy;
     const int maxBottomY = box.y + box.height; 
@@ -521,7 +310,8 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
     const int minRightX = maxShrinkDx > box.width/2 ?
                                       box.x + box.width/2 : box.x + box.width - maxShrinkDx;
     const int maxRightX = box.x + box.width;
-
+    
+    // using a 2x2 window do scaning the image from the border of the box
     cv::Rect newBox = box;
     int k = 0;
     // 1. top shrink
@@ -620,36 +410,37 @@ vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::R
 // used when cross in. the result will be used in enlarge/shrink operaion as the
 // minimal box.
 cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
-        const TDLine & lastLine, const TDLine & updateLine)
+    const TDLine & lastLine, const TDLine & updateLine, const bool bCrossIn = true)
 {
     cv::Rect minBox;
-    assert (lastLine.a.x != -1 && lastLine.b.x != -1);
     //const double averageAngle = (lastLine.movingAngle + updateLine.movingAngle) / 2;
+    const int dv = bCrossIn ? 4 : -4; // TODO: should using other info to infer this value.
+    const int lineLen = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
     switch(bdNum)
     {
     case 0: // Top
         minBox.x = std::min(lastLine.a.x, updateLine.a.x) + m_skipLR;
         minBox.y = m_skipTB;
-        minBox.width = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
-        minBox.height = m_lastBox.height; // because it is crossing in          
+        minBox.width = lineLen;
+        minBox.height = m_curBox.height + dv;
         break;
     case 1: // Bottom
         minBox.x = std::min(lastLine.a.x, updateLine.a.x) + m_skipLR;
-        minBox.y = m_imgHeight - m_lastBox.height;
-        minBox.width = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
-        minBox.height = m_lastBox.height; // because it is crossing in          
+        minBox.y = m_imgHeight - m_curBox.height - m_skipTB - dv;
+        minBox.width = lineLen;
+        minBox.height = m_curBox.height + dv;
         break;
     case 2: // Left
         minBox.x = m_skipLR;
         minBox.y = std::min(lastLine.a.x, updateLine.a.x) + m_skipTB;
-        minBox.width = m_lastBox.width;
-        minBox.height = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x); 
+        minBox.width = m_curBox.width + dv;
+        minBox.height = lineLen;
         break;
-    case 3:
-        minBox.x = m_imgWidth - m_lastBox.width;
+    case 3: // Right
+        minBox.x = m_imgWidth - m_curBox.width - m_skipLR - dv;
         minBox.y = std::min(lastLine.a.x, updateLine.a.x) + m_skipTB;
-        minBox.width = m_lastBox.width;
-        minBox.height = std::max(lastLine.b.x - lastLine.a.x, updateLine.b.x - updateLine.a.x);
+        minBox.width = m_curBox.width + dv;
+        minBox.height = lineLen;
         break;
     }
     

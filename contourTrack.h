@@ -24,12 +24,6 @@ namespace Seg_Three
 class ContourTrack
 {   
 public:
-    // three phrases of the contour tracker.
-    // 1. the cross in phrase: compressive tracker is not crated until bAllIn is set.
-    //                         using BoundaryCheck to track the objects.
-    // 2. the normal track phrase: using compressive tracker to track the object.
-    // 3. the cross out phrase: using BoundaryCheck to track the objects.
-    // 4. different phrases can be told by MOVING_STATUS: CrossIn, Inside, CrossOut
     ContourTrack(const int idx, const cv::Mat & in,
                  const int width, const int height, // image width/height
                  const int skipTB, const int skipLR,
@@ -38,8 +32,8 @@ public:
                  const int firstAppearFrameCount);
     
     ~ContourTrack();
-    // 1. important ones
-    int processFrame(const cv::Mat & in, BgResult & bgResult, // may be modified 
+    // 1. APIs
+    int processFrame(const cv::Mat & in, BgResult & bgResult,
                      const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int flushFrame();
     
@@ -58,8 +52,7 @@ public:
         m_lastBoundaryLines[bdNum] = line;
     }
     
-    
-private:
+private: // members
     const int m_idx;
     int m_imgWidth;
     int m_imgHeight;
@@ -86,34 +79,18 @@ private:
     TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
     static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
 
-private: // inner helpers
+private: // inner important helpers
     CONSUME_LINE_RESULT processOneBoundaryLine(const int bdNum, TDLine & theLine,
                         BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    int markAcrossIn(const vector<MOVING_DIRECTION> & directions,
-                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    int markAcrossOut(const vector<MOVING_DIRECTION> & directions,
-                     BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    int updateCrossInBox(const int bdNum, TDLine & updateLine, BgResult & bgResult,
-                         const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    int updateCrossOutBox(const int bdNum, TDLine & updateLine, BgResult & bgResult,
-                          const cv::Mat & diffAnd, const cv::Mat & diffOr);
-    // helper to kick out untraced line but actually belong to exist tracker
-    int updateUntracedIfNeeded(const int bdNum, TDLine & updateLine);
-
-    // important ones    
-    int getMaxCrossBoxUsingDiff(const BgResult & bgResult,
-                                const cv::Mat & diffAnd, const cv::Mat & diffOr,
-                                cv::Rect & box);
     int doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                const int maxEnlargeDx, const int maxEnlargeDy);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                               const int maxShrinkDx, const int maxShrinkDy);
     
-private:    
-    // trival ones
+private: // inner trival ones 
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     cv::Rect estimateMinBoxByTwoConsecutiveLine (const int bdNum, const TDLine & lastLine,
-                                                 const TDLine & updateLine);
+        const TDLine & updateLine, const bool bCrossIn);
     int getConsumeResult(const vector<CONSUME_LINE_RESULT> & results);
     int doStatusChanging(const int statusResult);
 };
