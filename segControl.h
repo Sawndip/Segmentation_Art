@@ -41,7 +41,7 @@ public:
     ~SegControl();
     int init(const int width, const int height,
              const int skipTB, const int skipLR,
-             const int scanSizeTB, const int scanSizeLR);
+             const int scanSizeTB, const int scanSizeLR, const int skipFrameInterval = 0);
     // read frame in, deliver to proper members, and get the result.
     int processFrame(const cv::Mat & in,
                      vector<SegResults> & segResults);

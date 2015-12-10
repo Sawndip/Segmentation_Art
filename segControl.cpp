@@ -17,7 +17,8 @@ SegControl :: ~SegControl()
 
 int SegControl :: init(const int width, const int height,
                        const int skipTB, const int skipLR,
-                       const int scanSizeTB, const int scanSizeLR)
+                       const int scanSizeTB, const int scanSizeLR,
+                       const int takeFrameInterval)
 {
     // 1. do all members' initialization
     int ret = -1;
@@ -29,13 +30,15 @@ int SegControl :: init(const int width, const int height,
     m_scanSizeTB = scanSizeTB;
     m_scanSizeLR = scanSizeLR;
     // 2. key members
-    ret = m_segBg.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
+    ret = m_segBg.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR, takeFrameInterval);
     assert(ret >= 0);
     // boundaryScan play an important role
-    ret = m_boundaryScan.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
+    ret = m_boundaryScan.init(width, height, skipTB, skipLR,
+                              scanSizeTB, scanSizeLR, takeFrameInterval);
     assert(ret >= 0);
     // put all complexities inside ThreeDiff
-    ret = m_threeDiff.init(width, height, skipTB, skipLR, scanSizeTB, scanSizeLR);
+    ret = m_threeDiff.init(width, height, skipTB, skipLR,
+                           scanSizeTB, scanSizeLR, takeFrameInterval);
     assert(ret >= 0);
     // 3. bgResults
     m_bgResult.binaryData.create(height, width, CV_8UC1);
@@ -69,16 +72,17 @@ int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResul
     //    cv::erode(m_bgResult.binaryData, dst, ker);
     //}
     //dst.copyTo(m_bgResult.binaryData);;
-    assert(ret >= 0);
+    // 3. if optical flow output frames, we further analyse them.
     if (ret > 0) // got a frame
-    {   // 3. Fill the m_bgResult's four lines info by do simple erode & dilate on binaryData.
+    {   // 4. Fill the m_bgResult's four lines info by do simple erode & dilate on binaryData.
         //    Do pre-merge short-lines that we are sure they are the same objects.
         m_boundaryScan.processFrame(m_bgResult);
-        // 4. all other stuff are doing by this call. Details are described in ThreeDiff class.
+        // 5. all other stuff are doing by this call. Details are described in ThreeDiff class.
         ret = m_threeDiff.processFrame(in, m_bgResult, segResults);
-        m_bgResult.reset(); // reset lines.
         LogI("Frame %d: SegResults size: %d.\n", m_inputFrames, (int)segResults.size());
     }
+    
+    m_bgResult.reset(); // reset lines.
     return ret;
 }
 

@@ -183,13 +183,17 @@ extern TDLine rectToBoundaryLine(const int bdNum, const cv::Rect & rect, const b
                                  const int skipTB, const int skipLR);
 // consecutivity
 extern double leftConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                          const int takeInterval,
                                           const int angleMaxScore, const bool bStart);
 extern double rightConsecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                           const int takeInterval,
                                            const int angleMaxScore, const bool bStart);
 extern double consecutivityOfTwoLines(const TDLine & l1, const TDLine & l2,
+                                      const int takeInterval,
                                       const int angleMaxScore);
 extern inline double diffAngleToScore(const double angle, const int maxScore);
-extern inline double vertexShiftToScore(const int shift, const int maxScore);
+extern inline double vertexShiftToScore(const int shift,
+                                        const int takeInterval, const int maxScore);
 
 // Rect Overlap Bound part
 extern void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);

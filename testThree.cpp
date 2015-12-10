@@ -78,12 +78,19 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
 
 int main(int argc, char * argv[])
 {
+    printf("Usage: dataFolder(./data) frameInterval(default=2) startFrame(default=0)");
     string imgFileFolder("./data");
+    int startFrame = 0;
+    int takeFrameInterval = 2;
     if (argv[1] != NULL)
         imgFileFolder = argv[1];
-    int startFrame = 0;
-    if ((argv[2] != NULL))
-        startFrame = atoi(argv[2]);
+    if (argv[2] != NULL)
+        takeFrameInterval = atoi(argv[2]);
+    if (argv[3] != NULL)
+        startFrame = atoi(argv[3]);
+
+    if (takeFrameInterval <= 0)
+        takeFrameInterval = 2;
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes, startFrame);
 
@@ -93,7 +100,7 @@ int main(int argc, char * argv[])
     //            const int skipTB, const int skipLR,
     //            const int scanBorderSizeTB, const int scanBorderSizeLR);
     cv::Size dsize (640, 480);
-    seg.init(640, 480, 32, 32, 2, 2);
+    seg.init(640, 480, 32, 32, 2, 2, takeFrameInterval);
     vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare

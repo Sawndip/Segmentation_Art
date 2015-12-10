@@ -39,7 +39,7 @@ public:
     ~ThreeDiff();    
     int init(const int width, const int height,
              const int skipTB, const int skipLR,
-             const int scanSizeTB, const int scanSizeLR);
+             const int scanSizeTB, const int scanSizeLR, const int takeFrameInterval);
 
     int processFrame(const cv::Mat & in, BgResult & bgResult,
                      vector<SegResults> & segResults);    
@@ -55,6 +55,7 @@ private:
     int m_skipLR;
     int m_scanSizeTB;
     int m_scanSizeLR;
+    int m_takeFrameInterval;
     
     // 2. cache related
     int m_curFrontIdx;

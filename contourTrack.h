@@ -27,6 +27,7 @@ public:
     ContourTrack(const int idx, const cv::Mat & in,
                  const int width, const int height, // image width/height
                  const int skipTB, const int skipLR,
+                 const int takeFrameInterval, 
                  const int directionIn, const TDLine & theLine, 
                  const cv::Rect & firstBox, 
                  const int firstAppearFrameCount);
@@ -54,11 +55,12 @@ public:
     
 private: // members
     const int m_idx;
-    int m_imgWidth;
-    int m_imgHeight;
-    int m_skipTB;
-    int m_skipLR;
-    int m_inputFrames;    
+    const int m_imgWidth;
+    const int m_imgHeight;
+    const int m_skipTB;
+    const int m_skipLR;
+    const int m_takeFrameInterval;    
+    int m_inputFrames;
     const int m_firstAppearFrameCount;
     bool m_bOutputRegion;
     
@@ -77,7 +79,8 @@ private: // members
     int m_allOutCount;
     int m_crossOutCount;    
     TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
-    static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
+    int m_movingInStatusChangingThreshold;
+    int m_movingOutStatusChangingThreshold;    
 
 private: // inner important helpers
     int processOneBoundaryLine(const int bdNum, TDLine & theLine,
@@ -85,6 +88,8 @@ private: // inner important helpers
     int doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                const int maxEnlargeDx, const int maxEnlargeDy);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
+                              const int maxShrinkDx, const int maxShrinkDy);
+    int doShrinkBoxUsingImage2(const cv::Mat & image, cv::Rect & box,
                               const int maxShrinkDx, const int maxShrinkDy);
     
 private: // inner trival ones 

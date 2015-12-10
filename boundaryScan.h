@@ -34,7 +34,8 @@ public:
     ~BoundaryScan();
     int init(const int width, const int height,
              const int skipTB, const int skipLR,
-             const int scanSizeTB, const int scanSizeLR);
+             const int scanSizeTB, const int scanSizeLR,
+             const int takeFrameInterval);
     int processFrame(BgResult & bgResult);
 
 private: // inner classes
@@ -85,6 +86,7 @@ private: // inner members
     int m_skipLR;
     int m_scanSizeTB;
     int m_scanSizeLR;
+    int m_takeFrameInterval;    
     // for cross boundary analyse
     BordersMem m_bordersMem;
     int m_curFrontIdx;

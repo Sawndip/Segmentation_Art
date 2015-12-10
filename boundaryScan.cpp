@@ -17,7 +17,8 @@ BoundaryScan :: ~BoundaryScan()
 
 int BoundaryScan :: init(const int width, const int height,
                          const int skipTB, const int skipLR,
-                         const int scanSizeTB, const int scanSizeLR)
+                         const int scanSizeTB, const int scanSizeLR,
+                         const int takeFrameInterval)
 {
     m_imgWidth = width;
     m_imgHeight = height;
@@ -26,6 +27,7 @@ int BoundaryScan :: init(const int width, const int height,
     m_skipLR = skipLR;
     m_scanSizeTB = scanSizeTB;
     m_scanSizeLR = scanSizeLR;
+    m_takeFrameInterval = takeFrameInterval;
     //normaly heightTB=heightLR=2, widthTB=imgWidth, widthLR=imgHeight
     m_bordersMem.init(m_imgWidth - 2 * skipTB, scanSizeTB,
                       m_imgHeight - 2 * skipLR, scanSizeLR);
@@ -331,8 +333,10 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     double middleMaxScore = -1.0;
     for (int k = 0; k < (int)middleLines.size(); k++)
     {   // one of the following score is 0.0, the total score will be 100
-        double score = leftConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
-        score += rightConsecutivityOfTwoLines(curLine, middleLines[k], 60, true);
+        double score = leftConsecutivityOfTwoLines(curLine, middleLines[k],
+                                                   m_takeFrameInterval, 60, true);
+        score += rightConsecutivityOfTwoLines(curLine, middleLines[k],
+                                              m_takeFrameInterval, 60, true);
         if (middleMaxScore <= 60.0 && isXContainedBy(curLine, middleLines[k]) == true)
             score = FULLY_CONTAINED_SCORE;
         if (score > middleMaxScore)
@@ -350,10 +354,10 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     double oldMaxScore = -1;
     for (int k = 0; k < (int)oldLines.size(); k++)
     {
-        double score = leftConsecutivityOfTwoLines(middleLines[middleMaxIdx],
-                                                         oldLines[k], 60, true);
-        score += rightConsecutivityOfTwoLines(middleLines[middleMaxIdx],
-                                                         oldLines[k], 60, true);
+        double score = leftConsecutivityOfTwoLines(middleLines[middleMaxIdx], oldLines[k],
+                                                   m_takeFrameInterval, 60, true);
+        score += rightConsecutivityOfTwoLines(middleLines[middleMaxIdx], oldLines[k],
+                                              m_takeFrameInterval, 60, true);
         if (score > oldMaxScore)
         {
             oldMaxScore = score;
