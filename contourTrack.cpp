@@ -62,9 +62,12 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     m_inputFrames++;
     m_lastBox = m_curBox;
     // the possible boundary lines that we may dealing with
+    dumpRect(m_curBox);
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
-   
+    LogD("Directions %d.\n", (int)directions.size());
+    for (int k=0; k < (int)directions.size(); k++)
+        LogD("%d: %s.\n", k, getMovingDirectionStr((MOVING_DIRECTION)directions[k]));
     // 1. consume lines interested by tracker(using curBox/lastBoundaryLine)
     vector<int> boundaryResults;
     for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
@@ -175,25 +178,28 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
         // another boundary.
         // just check its line overlap with curBox
         // NOTE: please make sure curBox never have width/height = 0.
-        lastLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
+        lastLine = rectToBoundaryLine(bdNum, m_curBox, false, m_skipTB, m_skipLR);
+        LogD("Consume Line: %s %d-%d %s, lastLine, %d-%d.\n",
+             getMovingDirectionStr((MOVING_DIRECTION)bdNum),
+             consumeLine.a.x, consumeLine.b.x, 
+             getMovingStatusStr(consumeLine.movingStatus),
+             lastLine.a.x, lastLine.b.x);
+
         if (isXContainedBy(consumeLine, lastLine) == true)
         {
             bBoundaryConsume = true;
-            consumeLine.bUsed = true;
-            LogD("Consume One Line: %s %d-%d %s.\n",
-                 getMovingDirectionStr((MOVING_DIRECTION)bdNum),
-                 consumeLine.a.x, consumeLine.b.x, 
-                 getMovingStatusStr(consumeLine.movingStatus));
-            
-            return consumeLine.movingStatus == MOVING_CROSS_IN ?
-                (int)CONSUME_IN_LINE : (int)CONSUME_OUT_LINE;
+            //consumeLine.bUsed = true;
+            //return consumeLine.movingStatus == MOVING_CROSS_IN ?
+            //    (int)CONSUME_IN_LINE : (int)CONSUME_OUT_LINE;
+            LogD("Fully Contained!\n");
         }
         else
         {   
             const int overlapLen = overlapXLenOfTwolines(lastLine, consumeLine);
             // TODO: magic number here!!!
+            LogD("Overlap Len %d.\n", overlapLen);
             if (lastLine.b.x - lastLine.a.x > 0 &&
-                overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.5)
+                overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.1)
                 bBoundaryConsume = true;
         }
     }
@@ -430,16 +436,23 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
 vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::Rect & rect)
 {
     vector<MOVING_DIRECTION> directions;
+    // TODO: magic number APPROCHING_DISTANCE should be eliminated    
     static const int APPROCHING_DISTANCE = 4;
-    // TODO: magic number 8 should be eliminated
     if (rect.x <= m_skipLR + APPROCHING_DISTANCE)
+    {
+        LogD("Should left: %d - %d.\n.", rect.x, LEFT);
         directions.push_back(LEFT);
+    }
     if (rect.x + rect.width >= m_imgWidth - m_skipLR - APPROCHING_DISTANCE)
-        directions.push_back(RIGHT);
+    {
+        LogD("Should left: %d - %d.\n", rect.x, RIGHT);
+        directions.push_back(RIGHT);        
+    }
+
     if (rect.y <= m_skipTB + APPROCHING_DISTANCE)
         directions.push_back(TOP);
     if (rect.y + rect.height >= m_imgHeight - m_skipTB - APPROCHING_DISTANCE)
-        directions.push_back(RIGHT);
+        directions.push_back(BOTTOM);
 
     // normally, the size of directions is 1 or 2, very rare it is 3 or 4.
     return directions;

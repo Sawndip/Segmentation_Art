@@ -230,7 +230,7 @@ namespace Seg_Three
         else if (b.a.x >= a.b.x)
             return a.b.x - b.a.x; // nagtive number
         else
-            return std::min(abs(a.b.x - b.a.x), (b.b.x - a.a.x));
+            return std::min(abs(a.b.x - b.a.x), abs(b.b.x - a.a.x));
     }
     
 } // namespace
