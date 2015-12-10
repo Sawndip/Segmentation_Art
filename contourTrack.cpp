@@ -65,9 +65,6 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     dumpRect(m_curBox);
     vector<MOVING_DIRECTION> directions = checkBoxApproachingBoundary(m_curBox);
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
-    LogD("Directions %d.\n", (int)directions.size());
-    for (int k=0; k < (int)directions.size(); k++)
-        LogD("%d: %s.\n", k, getMovingDirectionStr((MOVING_DIRECTION)directions[k]));
     // 1. consume lines interested by tracker(using curBox/lastBoundaryLine)
     vector<int> boundaryResults;
     for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
@@ -439,16 +436,9 @@ vector<MOVING_DIRECTION> ContourTrack :: checkBoxApproachingBoundary(const cv::R
     // TODO: magic number APPROCHING_DISTANCE should be eliminated    
     static const int APPROCHING_DISTANCE = 4;
     if (rect.x <= m_skipLR + APPROCHING_DISTANCE)
-    {
-        LogD("Should left: %d - %d.\n.", rect.x, LEFT);
         directions.push_back(LEFT);
-    }
     if (rect.x + rect.width >= m_imgWidth - m_skipLR - APPROCHING_DISTANCE)
-    {
-        LogD("Should left: %d - %d.\n", rect.x, RIGHT);
         directions.push_back(RIGHT);        
-    }
-
     if (rect.y <= m_skipTB + APPROCHING_DISTANCE)
         directions.push_back(TOP);
     if (rect.y + rect.height >= m_imgHeight - m_skipTB - APPROCHING_DISTANCE)
@@ -533,7 +523,9 @@ int ContourTrack :: doStatusChanging(const int statusResult)
         break;
     case CONSUME_OUT_LINE:
         m_allOutCount = 0;
-        if (m_movingStatus == MOVING_INSIDE)
+        if (m_movingStatus == MOVING_CROSS_IN)
+            m_allInCount++; // In/Out simultaneously
+        else if (m_movingStatus == MOVING_INSIDE)
             m_crossOutCount++;
         break;
     case ((int)CONSUME_IN_LINE | (int)CONSUME_OUT_LINE):
@@ -546,7 +538,7 @@ int ContourTrack :: doStatusChanging(const int statusResult)
     if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD &&
         m_movingStatus == MOVING_CROSS_IN)
     {
-        m_movingStatus = MOVING_INSIDE;
+        m_movingStatus = MOVING_INSIDE; // reset lastLines
         for (int k=0; k < (int)BORDER_NUM; k++)
             m_lastBoundaryLines[k] = TDLine();
     }
