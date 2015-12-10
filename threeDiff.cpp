@@ -184,6 +184,8 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
             {
                 // 2. now we get the cross lines stand for new objects, so we just create them.
                 // 1). we calculate the lux/luy, possible width/height
+                bool bTooSmall = false;
+                static const int TooSmallSize = 32;
                 const int fixedLen = theLine.b.x - theLine.a.x;
                 int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
                 // TODO: should make 2 & 8 param in future.
@@ -194,19 +196,25 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     luy = 0; // TODO?? what value should be taken?
                     possibleWidth = fixedLen + 2 > m_imgWidth ? m_imgWidth : fixedLen + 2;
                     // make it 8 pixels for all newly created Rect
-                    possibleHeight = m_skipTB + 8; 
+                    possibleHeight = m_skipTB + 8;
+                    if (possibleWidth < TooSmallSize)
+                        bTooSmall = true;
                     break;                    
                 case 1: // bottom
                     possibleHeight = m_skipTB + 8;
                     lux = theLine.a.x - 2 + m_skipLR < 0 ? 0 : theLine.a.x - 2 + m_skipLR;
                     luy = m_imgHeight - possibleHeight;
                     possibleWidth = fixedLen + 2 > m_imgWidth ? m_imgWidth : fixedLen + 2;
+                    if (possibleWidth < TooSmallSize)
+                        bTooSmall = true;                    
                     break;                    
                 case 2: // left
                     lux = 0;
                     luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB ;
                     possibleWidth = m_skipLR + 8;
                     possibleHeight = fixedLen + 2 > m_imgHeight ? m_imgHeight : fixedLen + 2;
+                    if (possibleHeight < TooSmallSize)
+                        bTooSmall = true;                    
                     break;                    
                 case 3: // right
                     possibleWidth = m_skipLR + 8;
@@ -214,6 +222,8 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     luy = theLine.a.x - 2 + m_skipTB < 0 ? 0 : theLine.a.x - 2 + m_skipTB;
                     possibleHeight = fixedLen + 2 + m_skipTB > m_imgHeight ?
                         m_imgHeight : fixedLen + 2 + m_skipTB;
+                    if (possibleHeight < TooSmallSize)
+                        bTooSmall = true;                    
                     break;
                 default:
                     LogE("impossible to happen, border direction: %d.\n", bdNum);
@@ -262,7 +272,7 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                 }
 
                 // 3). finally we create the new tracker.
-                if (bNeedCreateNew == true)
+                if (bNeedCreateNew == true && bTooSmall == false)
                 {
                     bgResult.resultLines[bdNum][k].bUsed = true;
                     assert((int)theLine.movingDirection == bdNum);

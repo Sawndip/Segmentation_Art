@@ -53,10 +53,9 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
     int fileNum = 0;
     while ((p_dirent = readdir(p_dir)))
     {  
-        printf("%s\n", p_dirent->d_name);
         fileNum++;
     }  
-    fileNum -= 2; // ".", ".." is not included.
+    fileNum -= 4; // ".", ".." is not included.
     LogD("Total Jpgs: %d.\n", fileNum);
     for (int k = startFrame; k < fileNum; k++)
     {
@@ -93,17 +92,19 @@ int main(int argc, char * argv[])
     //   int init(const int width, const int height,
     //            const int skipTB, const int skipLR,
     //            const int scanBorderSizeTB, const int scanBorderSizeLR);
-    Mat frame = imread(imgFilePathes[0]);
-    seg.init(frame.cols, frame.rows, 32, 32, 2, 2);
+    cv::Size dsize (640, 480);
+    seg.init(640, 480, 32, 32, 2, 2);
     vector<SegResults> segResults;
     for(int i = 0; i < (int)imgFilePathes.size(); i ++)
     {   // 0. prepare
         segResults.clear();
         Mat inFrame = imread(imgFilePathes[i]);
+        //const static double fx = dsize.width / inFrame.cols;
+        //const static double fy = dsize.height / inFrame.rows;
+        Mat inFrameResize;
+        cv::resize(inFrame, inFrameResize, dsize);
         Mat inFrameGray;
-        cvtColor(inFrame, inFrameGray, CV_RGB2GRAY);        
-        //printf ("read in frame: %d, path %s, frameColorSpaceType %d.\n", 
-        //        i, imgFilePathes[i].c_str(), inFrame.type());
+        cvtColor(inFrameResize, inFrameGray, CV_RGB2GRAY);
         
         // 1. start process:
         // NOTE: the release app won't care 'binaryFrame', it is only for debugging.
@@ -113,19 +114,24 @@ int main(int argc, char * argv[])
             cv::Mat & binaryFrame = seg.getBinaryFrame();
             for (int k = 0; k < (int)segResults.size(); k++)
             {
-                putText(inFrame, intToString(segResults[k].m_objIdx),
+                //const int x = round(segResults[k].m_curBox.x / fx);
+                //const int y = round(segResults[k].m_curBox.y / fy);
+                //const int width = round(segResults[k].m_curBox.width / fx);
+                //const int height = round(segResults[k].m_curBox.height / fx);
+                //cv::Rect rect(x, y, width, height);
+                putText(inFrameResize, intToString(segResults[k].m_objIdx),
                         cvPoint(segResults[k].m_curBox.x, segResults[k].m_curBox.y),
                         2, 2, CV_RGB(25,200,25));
-                rectangle(inFrame, segResults[k].m_curBox, Scalar(200,0,0), 1);
+                rectangle(inFrameResize, segResults[k].m_curBox, Scalar(200,0,0), 1);
                 putText(binaryFrame, intToString(segResults[k].m_objIdx),
                         cvPoint(segResults[k].m_curBox.x, segResults[k].m_curBox.y),
-                        1, 1, CV_RGB(25,200,25));
+                        2, 2, CV_RGB(25,200,25));
                 rectangle(binaryFrame, segResults[k].m_curBox, Scalar(200,0,0), 1);
             }
 
             //putText(inFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
             //putText(binaryFrame, intToString(i), cvPoint(0,20), 2, 1, CV_RGB(25,200,25));
-            imshow("In", inFrame);
+            imshow("In", inFrameResize);
             //imshow("InGray", inFrameGray);            
             imshow("Bg", binaryFrame);
             if (bInitPosition == false)
@@ -141,6 +147,7 @@ int main(int argc, char * argv[])
         //waitKey(0);
         waitKey(1);
         inFrame.release();
+        inFrameResize.release();        
         inFrameGray.release();
         //getchar();
     } 
