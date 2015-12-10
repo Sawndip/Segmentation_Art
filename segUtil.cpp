@@ -171,14 +171,16 @@ namespace Seg_Three
         return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
     }
     // percentage = (a&b's overlap area) / (a's area)
-    double percentContainedBy(const cv::Rect & a, const cv::Rect & b)
+    double overlapPercentContainedBySmall(const cv::Rect & a, const cv::Rect & b)
     {
         if (a.width == 0 || a.height == 0)
             return 1.0;
         if (b.width == 0 || b.height == 0)
             return 0.0;
         cv::Rect overlapBox = calcOverlapRect(a, b);
-        return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
+        return (overlapBox.width * overlapBox.height * 1.0 /
+                (a.width * a.height > b.width * b.height ? a.width * a.height :
+                 b.width * b.height));
     }
 
     cv::Rect calcOverlapRect(const cv::Rect & a, const cv::Rect & b)

@@ -66,7 +66,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
     vector<vector<TDLine> > & resultLines = bgResult.resultLines;    
    
     // 1. consume lines interested by tracker(using curBox/lastBoundaryLine)
-    vector<CONSUME_LINE_RESULT> boundaryResults;
+    vector<int> boundaryResults;
     for (int bdNum = 0; bdNum < (int)resultLines.size(); bdNum++)
     {
         auto it = std::find(directions.begin(), directions.end(), bdNum);
@@ -74,7 +74,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         {   // we need process boundary lines, after process we marked it as used.
             for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
                 boundaryResults.push_back(processOneBoundaryLine(bdNum,
-                                            resultLines[bdNum][k],bgResult, diffAnd, diffOr));
+                                            resultLines[bdNum][k], bgResult, diffAnd, diffOr));
         }
     }
 
@@ -122,13 +122,18 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                 {
                     TDLine boundaryLine = rectToBoundaryLine(bdNum, m_curBox,
                                                              false, m_skipTB, m_skipLR);
-                    const int overlapLen = overlapXLenOfTwolines(boundaryLine,
-                                                                 resultLines[bdNum][k]);
-                    // TODO: magic number here!!!
-                    if (boundaryLine.b.x - boundaryLine.a.x > 0 &&
-                        overlapLen * 1.0 / (boundaryLine.b.x - boundaryLine.a.x) > 0.6)
-                    {
+                    if (isXContainedBy(resultLines[bdNum][k], boundaryLine))
                         resultLines[bdNum][k].bUsed = true;
+                    else
+                    {
+                        const int overlapLen = overlapXLenOfTwolines(boundaryLine,
+                                                                     resultLines[bdNum][k]);
+                        // TODO: magic number here!!!
+                        if (boundaryLine.b.x - boundaryLine.a.x > 0 &&
+                            overlapLen * 1.0 / (boundaryLine.b.x - boundaryLine.a.x) > 0.6)
+                        {
+                            resultLines[bdNum][k].bUsed = true;
+                        }
                     }
                 }
             }
@@ -151,12 +156,12 @@ int ContourTrack :: flushFrame()
 // 3. 
 // return values: >= 0, process ok
 //                 < 0, process error
-CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum,
-    TDLine & consumeLine, BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine, 
+    BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
 {
     // 0. some pre-check.
     if (consumeLine.bValid == false)
-        return CONSUME_NOTHING;
+        return (int)CONSUME_NOTHING;
     
     // 1. check its previous line, all valid line(output by BoundaryScan) has previous line
     bool bBoundaryConsume = false;
@@ -179,25 +184,41 @@ CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum,
     }
     // whether need boundary update
     if (bBoundaryConsume == false)
-        return CONSUME_NOTHING;
+        return (int)CONSUME_NOTHING;
 
     // 2. Ok now, let's update curBox with this boundary line.    
     // 1) first we get the minimal kernel, then calculate the enlarge & shrink range.
-    static const int maxEnlargeDx = 32, maxEnlargeDy = 32;
-    static const int maxShrinkDx = 32, maxShrinkDy = 32;
-    cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine,
-                                                      consumeLine, consumeLine.movingStatus);
+    static const int maxEnlargeDx = 64, maxEnlargeDy = 64;
+    static const int maxShrinkDx = 64, maxShrinkDy = 64;
+    cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine, consumeLine,
+                                          consumeLine.movingStatus == MOVING_CROSS_IN);
     // 2) then do enlarge / shrink / boundBox    
     // a). get the possible maxium box using 'diffOr', used for boundbox.
     cv::Rect maxBox = box;
-    doEnlargeBoxUsingImage(diffOr, maxBox, maxEnlargeDx * 2, maxEnlargeDy * 2);
+    doEnlargeBoxUsingImage(diffOr, maxBox, maxEnlargeDx, maxEnlargeDy);
     // b). normal enlarge using new bgResult
     doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);
     // c). normal shrink  using new bgResult
     doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);
     // d). bound box
     boundBoxByMaxBox(box, maxBox);
-
+    // e). add protection: for CTTracker, too large area will cause core dump
+    // It seems CTTracker has max tracking height/width, WTF.
+    if (box.x < 0 || box.x > m_imgWidth - m_skipLR ||
+        box.y < 0 || box.y > m_imgHeight - m_skipTB ||
+        box.width < 0 || box.height < 0 ||
+        box.x + box.width > m_imgWidth - m_skipLR ||
+        box.y + box.height > m_imgHeight - m_skipTB)
+    {
+        LogW("Box overflow, using last box.\n");
+        dumpRect(box);
+        box = m_curBox;
+    }
+    if (box.width > m_imgWidth - m_imgWidth * 0.2)
+        box.width = m_imgWidth - m_imgWidth * 0.2;
+    if (box.height > m_imgHeight - m_imgHeight * 0.2)
+        box.height = m_imgHeight - m_imgHeight * 0.2;
+    
     // 3) finally, we do some internal update
     m_curBox = box;
     m_lastBoundaryLines[bdNum] = consumeLine;
@@ -205,8 +226,10 @@ CONSUME_LINE_RESULT ContourTrack :: processOneBoundaryLine(const int bdNum,
         m_largestWidth = m_curBox.width;
     if (m_largestHeight < m_curBox.height)
         m_largestHeight = m_curBox.height;
-    
-    return consumeLine.movingStatus == MOVING_CROSS_IN ? CONSUME_IN_LINE : CONSUME_OUT_LINE;
+
+    consumeLine.bUsed = true;
+    return consumeLine.movingStatus == MOVING_CROSS_IN ?
+        (int)CONSUME_IN_LINE : (int)CONSUME_OUT_LINE;
 }
     
 int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
@@ -446,17 +469,21 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
     return minBox;
 }
 
-int ContourTrack :: getConsumeResult(const vector<CONSUME_LINE_RESULT> & results)
+int ContourTrack :: getConsumeResult(const vector<int> & results)
 {
     int result = (int)CONSUME_NOTHING;
     for (int k=0; k < (int)results.size(); k++)
-        result |= (int)results[k];
+    {
+        result |= results[k];
+        //LogD("%d,\n", 0 | 2 | 4);
+        //LogD("result in/out: %d, %d.\n", result, CONSUME_IN_LINE | CONSUME_OUT_LINE);
+    }
     return result;
 }
 
 int ContourTrack :: doStatusChanging(const int statusResult)
 {
-    //LogD("statusResult: %d of tracker %d.\n", statusResult, m_idx);
+    //LogD("frame %d statusResult: %d of tracker %d.\n", m_inputFrames, statusResult, m_idx);
     switch(statusResult)
     {
     case CONSUME_NOTHING:
@@ -464,8 +491,8 @@ int ContourTrack :: doStatusChanging(const int statusResult)
             m_allInCount++;
         else if (m_movingStatus == MOVING_CROSS_OUT)
             m_allOutCount++;
-        else // MOVING_INSIDE/STOP: this is normal, moving inside should with no boundary lines.
-            m_crossOutCount = 0;
+        //else // MOVING_INSIDE/STOP: this is normal, moving inside should with no boundary lines.
+        //    m_crossOutCount = 0;
         break;
     case CONSUME_IN_LINE:
         m_allInCount = 0;
@@ -484,7 +511,11 @@ int ContourTrack :: doStatusChanging(const int statusResult)
 
     if (m_allInCount >= M_MOVING_STATUS_CHANGING_THRESHOLD &&
         m_movingStatus == MOVING_CROSS_IN)
+    {
         m_movingStatus = MOVING_INSIDE;
+        for (int k=0; k < (int)BORDER_NUM; k++)
+            m_lastBoundaryLines[k] = TDLine();
+    }
     else if (m_crossOutCount >= M_MOVING_STATUS_CHANGING_THRESHOLD &&
              m_movingStatus == MOVING_INSIDE)
         m_movingStatus = MOVING_CROSS_OUT;

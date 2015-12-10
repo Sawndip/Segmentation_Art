@@ -80,7 +80,7 @@ private: // members
     static const int M_MOVING_STATUS_CHANGING_THRESHOLD = 2;    
 
 private: // inner important helpers
-    CONSUME_LINE_RESULT processOneBoundaryLine(const int bdNum, TDLine & theLine,
+    int processOneBoundaryLine(const int bdNum, TDLine & theLine,
                         BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
     int doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                const int maxEnlargeDx, const int maxEnlargeDy);
@@ -91,7 +91,7 @@ private: // inner trival ones
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     cv::Rect estimateMinBoxByTwoConsecutiveLine (const int bdNum, const TDLine & lastLine,
         const TDLine & updateLine, const bool bCrossIn);
-    int getConsumeResult(const vector<CONSUME_LINE_RESULT> & results);
+    int getConsumeResult(const vector<int> & results);
     int doStatusChanging(const int statusResult);
     int adjustCurBoxForCT(BgResult & bgResult);
 };
