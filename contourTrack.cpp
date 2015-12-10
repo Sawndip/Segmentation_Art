@@ -176,11 +176,26 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
         // just check its line overlap with curBox
         // NOTE: please make sure curBox never have width/height = 0.
         lastLine = rectToBoundaryLine(bdNum, m_lastBox, false, m_skipTB, m_skipLR);
-        const int overlapLen = overlapXLenOfTwolines(lastLine, consumeLine);
-        // TODO: magic number here!!!
-        if (lastLine.b.x - lastLine.a.x > 0 &&
-            overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.6)
+        if (isXContainedBy(consumeLine, lastLine) == true)
+        {
             bBoundaryConsume = true;
+            consumeLine.bUsed = true;
+            LogD("Consume One Line: %s %d-%d %s.\n",
+                 getMovingDirectionStr((MOVING_DIRECTION)bdNum),
+                 consumeLine.a.x, consumeLine.b.x, 
+                 getMovingStatusStr(consumeLine.movingStatus));
+            
+            return consumeLine.movingStatus == MOVING_CROSS_IN ?
+                (int)CONSUME_IN_LINE : (int)CONSUME_OUT_LINE;
+        }
+        else
+        {   
+            const int overlapLen = overlapXLenOfTwolines(lastLine, consumeLine);
+            // TODO: magic number here!!!
+            if (lastLine.b.x - lastLine.a.x > 0 &&
+                overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.5)
+                bBoundaryConsume = true;
+        }
     }
     // whether need boundary update
     if (bBoundaryConsume == false)
@@ -228,6 +243,9 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
         m_largestHeight = m_curBox.height;
 
     consumeLine.bUsed = true;
+    LogD("Consume One Line: %s %d-%d %s.\n",
+         getMovingDirectionStr((MOVING_DIRECTION)bdNum),
+         consumeLine.a.x, consumeLine.b.x, getMovingStatusStr(consumeLine.movingStatus));
     return consumeLine.movingStatus == MOVING_CROSS_IN ?
         (int)CONSUME_IN_LINE : (int)CONSUME_OUT_LINE;
 }
@@ -483,7 +501,10 @@ int ContourTrack :: getConsumeResult(const vector<int> & results)
 
 int ContourTrack :: doStatusChanging(const int statusResult)
 {
-    //LogD("frame %d statusResult: %d of tracker %d.\n", m_inputFrames, statusResult, m_idx);
+    LogD("--><--- frame %d statusResult: %d of tracker %d, %s.\n",
+         m_inputFrames, statusResult, m_idx, getMovingStatusStr(m_movingStatus));
+    dumpRect(m_curBox);
+    
     switch(statusResult)
     {
     case CONSUME_NOTHING:
@@ -491,8 +512,8 @@ int ContourTrack :: doStatusChanging(const int statusResult)
             m_allInCount++;
         else if (m_movingStatus == MOVING_CROSS_OUT)
             m_allOutCount++;
-        //else // MOVING_INSIDE/STOP: this is normal, moving inside should with no boundary lines.
-        //    m_crossOutCount = 0;
+        else // MOVING_INSIDE/STOP: this is normal, moving inside should with no boundary lines.
+            m_crossOutCount = 0;
         break;
     case CONSUME_IN_LINE:
         m_allInCount = 0;
@@ -502,7 +523,7 @@ int ContourTrack :: doStatusChanging(const int statusResult)
         if (m_movingStatus == MOVING_INSIDE)
             m_crossOutCount++;
         break;
-    case (CONSUME_IN_LINE | CONSUME_OUT_LINE):
+    case ((int)CONSUME_IN_LINE | (int)CONSUME_OUT_LINE):
         if (m_movingStatus == MOVING_CROSS_IN)
             LogW("Object cross In & Out simultaneously.\n");
         //cross IN/OUT simultaneously

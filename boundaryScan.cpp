@@ -239,6 +239,7 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
     assert(l1.b.x < l2.a.x); // end's point < start's point.    
     // 1. gaps between two lines should be relatively small
     const int xDistance = l2.a.x - l1.b.x;
+    const int xDistance2 = l3.a.x - l2.b.x;    
     const int line1len = l1.b.x - l1.a.x;
     const int line2len = l2.b.x - l2.a.x;
     // TODO: magic number here
@@ -273,7 +274,7 @@ int BoundaryScan :: canLinesBeMerged(const TDLine & l1, const TDLine & l2, const
     // TODO: magic number here: not matter, for we will use the merged one as the base line
     //       to do futher merging.
     bool bClose = isLineCloseEnough(fabs(l1.movingAngle - l3.movingAngle));
-    if (bClose && ((l2.b.x - l1.a.x <= 32) || line2len <= 32)) // 
+    if (bClose && ((l2.b.x - l1.a.x <= 32) || line2len <= 32) && xDistance2 < 32 * 2) // 
         return 2; // l2 is a distrubing line
     return 0;
 }
