@@ -1,9 +1,15 @@
 // sys
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>  
+#include <sys/types.h>  
+#include <fcntl.h>  
+#include <dirent.h> 
+#include <string.h>
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <stdio.h>
-#include <string.h>
 #include <string>
 // tools
 #include <opencv2/core/core.hpp>
@@ -15,6 +21,7 @@
 
 // namespaces
 using std :: string;
+using std :: cin;
 using std :: cout;
 using std :: endl;
 using namespace cv;
@@ -23,10 +30,7 @@ using namespace Seg_Three;
 ///////////////////// Code ///////////////////////////////////////////////////////////////
 namespace
 {
-
-#define SEQ_FILE_DIR ("./data")
-#define SEQ_FILE_MAX_NUM (490)
-    
+   
 string intToString(const int n)
 {
     char nameStr[20] = {0};
@@ -36,10 +40,25 @@ string intToString(const int n)
 }
 
 void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgNames,
-    const int startFrame)
+                               const int startFrame)
 {
     imgNames.clear();
-    for (int k = startFrame; k < SEQ_FILE_MAX_NUM; k++)
+    DIR *p_dir;   
+    struct dirent *p_dirent;  
+    if ((p_dir = opendir(imgFileFolder.c_str())) == NULL)
+    {  
+        fprintf(stderr, "--> can't open %s\n",imgFileFolder.c_str());  
+        exit(0);  
+    }
+    int fileNum = 0;
+    while ((p_dirent = readdir(p_dir)))
+    {  
+        printf("%s\n", p_dirent->d_name);
+        fileNum++;
+    }  
+    fileNum -= 2; // ".", ".." is not included.
+    LogD("Total Jpgs: %d.\n", fileNum);
+    for (int k = startFrame; k < fileNum; k++)
     {
         string strNum = intToString(k);
         imgNames.push_back(imgFileFolder + "/img" + strNum + ".jpg");
@@ -63,9 +82,9 @@ int main(int argc, char * argv[])
     string imgFileFolder("./data");
     if (argv[1] != NULL)
         imgFileFolder = argv[1];
-    int startFrame = 75;
+    int startFrame = 0;
     if ((argv[2] != NULL))
-        startFrame = atoi(argv[1]);
+        startFrame = atoi(argv[2]);
     vector<string> imgFilePathes;    
     collectImageSequenceFiles(imgFileFolder, imgFilePathes, startFrame);
 
