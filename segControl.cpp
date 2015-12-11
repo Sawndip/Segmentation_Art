@@ -62,7 +62,7 @@ int SegControl :: processFrame(const cv::Mat & in, vector<SegResults> & segResul
     m_inputFrames++;
     // 1. fill the m_bgResult's binaryData/mvs by opticalFlow detection.
     ret = m_segBg.processFrame(in, m_bgResult.binaryData,
-                               m_bgResult.xMvs, m_bgResult.yMvs, 0.6);
+                               m_bgResult.xMvs, m_bgResult.yMvs, 0.8);
     //// 2. do erode/dilate on the whole image
     //const cv::Mat ker = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
     //cv::Mat dst;

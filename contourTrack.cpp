@@ -163,25 +163,30 @@ double ContourTrack :: doTrackUpdate(const cv::Mat & in, const cv::Mat & lastIn,
     if (m_ctTracker->processFrame(in, m_curBox) < 0)
     {
         LogW("Compressive Tracker do warning a failing track.\n.");
-        // TODO: how to do update ? just terminate the tracking right now.
-        // return 1;
+        // need reset ?
     }
 
     // because of CTTracker's bug.
     doBoxProtectionCalibrate(m_curBox);
 
     // check whether we need to adjust tracking area    
-    const double curFitness = getFitnessOfBox(bgResult.binaryData, m_curBox);
+    double curFitness = getFitnessOfBox(bgResult.binaryData, m_curBox);
     LogD("track %d: fiteness %.2f. isGoodTime ? %d -----====-----\n",
          m_idx, curFitness, (int)bGoodTimeToUpdate);
 
+    if (curFitness < 0.1) // do nothing, it may stopped or
+    {
+        
+    }
     if (curFitness < 0.25) // TODO: magic number
     {   // very bad, we should not do any update(may be covered by other objects)
         // should avoid this to happen.
         // using lastBox
         delete m_ctTracker;
+        cv::Rect box = m_lastBox;
+        adjustBoxByBgResult(bgResult, box, 0, 0, 32, 32); // adjust little by little
         m_ctTracker = new CompressiveTracker();
-        m_ctTracker->init(lastIn, m_lastBox); // we assume last in is good.
+        m_ctTracker->init(lastIn, box); // we assume last in is good.
     }
     else if (curFitness < 0.7) // TODO: magic number
     {   // we need adjust current area
@@ -192,17 +197,19 @@ double ContourTrack :: doTrackUpdate(const cv::Mat & in, const cv::Mat & lastIn,
             const double newFitness = getFitnessOfBox(bgResult.binaryData, box);
             LogD("New adjust box fitness %.2f \n", newFitness);
             // not a better result, we use current
-            //if (newEffictiveness > curFitness)
+            if (newFitness > curFitness)
             {
                 m_curBox = box;
+                curFitness = newFitness;
                 //doBoxProtectionCalibrate(box);
                 delete m_ctTracker;
                 m_ctTracker = new CompressiveTracker();
                 m_ctTracker->init(in, m_curBox);
             }
         }
-    } // else: good situation, we use it curBox(won't update) do tracking.
-    return 0.0; 
+    }
+    
+    return curFitness; 
 }
 
     
@@ -268,15 +275,8 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
                                           consumeLine.movingStatus == MOVING_CROSS_IN);
     LogD("tracker%d after estimate: \n", m_idx);
     // 2) then do enlarge / shrink / boundBox    
-    // a). normal enlarge using new bgResult
-    doEnlargeBoxUsingImage(bgResult.binaryData, box, m_maxEnlargeDx, m_maxEnlargeDy);
-    LogD("tracker%d after enlarge: \n", m_idx);
-    dumpRect(box);
-    // b). normal shrink  using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, box, m_maxShrinkDx, m_maxShrinkDy);
-    LogD("tracker%d after shrink: \n", m_idx);
-    dumpRect(box);
-    // c). add protection of the newly got box.
+    adjustBoxByBgResult(bgResult, box,
+                        m_maxEnlargeDx, m_maxEnlargeDy, m_maxShrinkDx, m_maxShrinkDy);
     doBoxProtectionCalibrate(box);
     
     // 3 finally, we do some internal update
@@ -688,7 +688,11 @@ int ContourTrack :: adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
                                         const int maxShrinkDx, const int maxShrinkDy)
 {
     doEnlargeBoxUsingImage(bgResult.binaryData, baseBox, maxEnlargeDx, maxEnlargeDy);
+    LogD("tracker%d after enlarge: \n", m_idx);
+    dumpRect(baseBox);    
     doShrinkBoxUsingImage(bgResult.binaryData, baseBox, maxShrinkDx, maxShrinkDy);
+    LogD("tracker%d after shrink: \n", m_idx);
+    dumpRect(baseBox);
     return 0;
 }
     
