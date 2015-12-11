@@ -79,6 +79,8 @@ private: // inner helpers
     // 2. trival ones
     int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);    
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);
+    int isGoodTimeToUpdateTrackerBoxes(vector<bool> & bGoodTime);
+    double calcDistanceOfTwoRect(cv::Rect & box1, cv::Rect & box2);
 };
 
 } // namespace Seg_Three

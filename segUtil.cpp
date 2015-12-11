@@ -164,15 +164,6 @@ namespace Seg_Three
         return score / 2; 
     }
 
-    // prerequisite: width/height of the two rects are the same.
-    double calcOverlapRate(const cv::Rect & a, const cv::Rect & b)
-    {
-        assert(a.width == b.width && a.height == b.height);
-        if (a.width == 0 || a.height == 0)
-            return 0.0;
-        cv::Rect overlapBox = calcOverlapRect(a, b);
-        return (overlapBox.width * overlapBox.height * 1.0 / (a.width * a.height));
-    }
     // percentage = (a&b's overlap area) / (a's area)
     double overlapPercentContainedBySmall(const cv::Rect & a, const cv::Rect & b)
     {

@@ -1,5 +1,5 @@
 #include <algorithm> // std::sort
-#include <tuple> 
+#include <limits> 
 #include "threeDiff.h"
 
 using namespace cv;
@@ -122,13 +122,16 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
     if (m_trackers.size() == 0)
         return 0;
 
-    // 1. first we check where there are leaving out objects and are crossing out the boundary.
+    // 1.check whether it is the good time to enlarge/shrink the box.
+    vector<bool> bGoodTime;
+    isGoodTimeToUpdateTrackerBoxes(bGoodTime);
+    
+    // do tracking: re-calc the curBox, calculate the boundary cross part.
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
-    {        
-        SegResults sr;
-        // re-calc the curBox, calculate the boundary cross part.
+    {
+        SegResults sr;        
         int ret = (*it)->processFrame(in, bgResult, m_diffAndResults[m_curFrontIdx],
-                                      m_diffOrResults[m_curFrontIdx]);
+                         m_diffOrResults[m_curFrontIdx], bGoodTime[it-m_trackers.begin()]);
         if (ret < 0)
         {
             LogW("Tracker %d Process failed.\n", (*it)->getIdx());
@@ -145,6 +148,8 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
             segResults.push_back(sr);            
             delete *it; // delete this ContourTrack
             m_trackers.erase(it); // erase it from the vector.
+            // re-calculate update timing
+            isGoodTimeToUpdateTrackerBoxes(bGoodTime);
         }
         else // ok, just do post update
         {   
@@ -327,6 +332,47 @@ int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & b
     return 0;
 }    
 
+int ThreeDiff :: isGoodTimeToUpdateTrackerBoxes(vector<bool> & bGoodTime)
+{
+    bGoodTime.clear();
+    const int trackerSize = (int)m_trackers.size();
+    if (trackerSize == 0)
+        return 0;
+    else if (trackerSize == 1)
+    {
+        bGoodTime.push_back(true);
+        return 0;
+    }
+    // init
+    for (int k = 0; k < trackerSize - 1; k++)
+        bGoodTime.push_back(true);
+    // check
+    for (int k = 0; k < trackerSize - 1; k++)
+    {
+        if (bGoodTime[k] == true)
+        {
+            for (int j = k + 1; j < trackerSize; j++)
+            {
+                cv::Rect & box1 = m_trackers[k]->getCurBox();                
+                cv::Rect & box2 = m_trackers[j]->getCurBox();
+                const double distance = calcDistanceOfTwoRect(box1, box2);
+                if (distance < 32.0) // TODO: magic number 32?
+                {
+                    bGoodTime[k] = false;
+                    bGoodTime[j] = false;
+                    break;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+double ThreeDiff :: calcDistanceOfTwoRect(cv::Rect & box1, cv::Rect & box2)
+{   // overlap
+    return std::max(abs(box1.x - box2.x) - 0.5*box1.width - 0.5*box2.width,
+                    abs(box1.y - box2.y) - 0.5*box1.height - 0.5*box2.height);
+}
     
 } // namespace Seg_Three    
 ////////////////////////////// End of File //////////////////////////////////////////

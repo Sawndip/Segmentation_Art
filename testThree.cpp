@@ -57,6 +57,7 @@ void collectImageSequenceFiles(string & imgFileFolder, vector <string> & imgName
     }  
     fileNum -= 4; // ".", ".." is not included.
     LogD("Total Jpgs: %d.\n", fileNum);
+
     for (int k = startFrame; k < fileNum; k++)
     {
         string strNum = intToString(k);
@@ -80,7 +81,7 @@ int main(int argc, char * argv[])
 {
     printf("Usage: dataFolder(./data) frameInterval(default=2) startFrame(default=0)");
     string imgFileFolder("./data");
-    int startFrame = 0;
+    int startFrame = 1;
     int takeFrameInterval = 2;
     if (argv[1] != NULL)
         imgFileFolder = argv[1];

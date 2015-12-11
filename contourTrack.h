@@ -32,7 +32,8 @@ public:
     ~ContourTrack();
     // 1. APIs
     int processFrame(const cv::Mat & in, BgResult & bgResult,
-                     const cv::Mat & diffAnd, const cv::Mat & diffOr);
+                     const cv::Mat & diffAnd, const cv::Mat & diffOr,
+                     const bool bGoodTimeToUpdate);
     int flushFrame();
     
     // 2. trival ones

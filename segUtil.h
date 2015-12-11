@@ -199,7 +199,6 @@ extern inline double vertexShiftToScore(const int shift,
 extern void boundBoxByMaxBox(cv::Rect & box, const cv::Rect & maxBox);
 extern void enlargeBoxByMinBox(cv::Rect & box, const cv::Rect & minBox);
 extern cv::Rect calcOverlapRect(const cv::Rect & a, const cv::Rect & b);
-extern double calcOverlapRate(const cv::Rect & a, const cv::Rect & b);
 extern double overlapPercentContainedBySmall(const cv::Rect & a, const cv::Rect & b);
 extern int overlapXLenOfTwolines(const TDLine & a, const TDLine & b);
 
