@@ -102,6 +102,8 @@ private: // inner trival ones
     int adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
                             const int maxEnlargeDx = 48, const int maxEnlargeDy = 48,
                             const int maxShrinkDx = 48, const int maxShrinkDy = 48);
+    double getEffectivenessOfBox(const cv::Mat & image, const cv::Rect & box);
+    int doBoxProtectionCalibrate(cv::Rect & box);    
 };
 
 }//namespace

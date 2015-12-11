@@ -38,21 +38,23 @@ ContourTrack :: ContourTrack(const int idx, const int width, const int height,
     assert(theLine.movingDirection < 4);
     m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;
     
-    m_movingInStatusChangingThreshold = takeFrameInterval > 1 ? 3 : 2;
-    m_movingOutStatusChangingThreshold = takeFrameInterval > 1 ? 1 : 2;    
+    m_movingInStatusChangingThreshold = 2; //takeFrameInterval > 1 ? 3 : 2;
+    m_movingOutStatusChangingThreshold = 2; //takeFrameInterval > 1 ? 1 : 2;    
     m_maxEnlargeDx = 48 * m_takeFrameInterval; 
     m_maxEnlargeDy = 48 * m_takeFrameInterval; 
     m_maxShrinkDx = 48 * m_takeFrameInterval; 
     m_maxShrinkDy = 48 * m_takeFrameInterval; 
-    
+
+    // make a better initial state.
     adjustBoxByBgResult(bgResult, m_curBox);
-    // compressive tracker part, create it when needed.    
-    //m_ctTracker = new CompressiveTracker();
-    //assert(m_ctTracker);
-    //m_ctTracker->init(in, m_curBox);       
-    LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, initWidth:%d, "
-         "initHeight:%d. \n", m_idx,
-         directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
+    // compressive tracker part, create it & re-init when needed(no need delete it).    
+    m_ctTracker = new CompressiveTracker();
+    assert(m_ctTracker);
+    m_ctTracker->init(in, m_curBox);       
+    LogD("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, initWidth:%d, "
+         "initHeight:%d. BeforeAdjust: %d-%d-%d-%d.\n", m_idx,
+         directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height,
+         m_lastBox.x, m_lastBox.y, m_lastBox.width, m_lastBox.height);
     return;
 }
 
@@ -82,38 +84,60 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         if (it != directions.end())
         {   // we need process boundary lines, after process we marked it as used.
             for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
-                boundaryResults.push_back(processOneBoundaryLine(bdNum,
-                                            resultLines[bdNum][k], bgResult, diffAnd, diffOr));
+                boundaryResults.push_back(processOneBoundaryLine(bdNum, resultLines[bdNum][k],
+                                                                 bgResult, diffAnd, diffOr));
         }
     }
 
     // 2. do status changing update
-    doStatusChanging(getConsumeResult(boundaryResults));
+    const int resultStatus = getConsumeResult(boundaryResults);
+    doStatusChanging(resultStatus);
     if (m_movingStatus == MOVING_FINISH)
         return 1;
     
     // 3. compressive tracking. some objects may never use this (always cross boundaries)
-    if (m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) // STOP needed?
+    //    1) if consume nothing, we use CT
+    //    2) update CT's tracking effective area when it is less than 70%.
+    if ((m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) ||// STOP needed?
+        resultStatus == (int)CONSUME_NOTHING)
     {
-        if (m_ctTracker == NULL)
-        {
-            m_ctTracker = new CompressiveTracker();
-            m_ctTracker->init(in, m_curBox);
+        bool bDoTrack = true;
+        bool bNeedReset = false;
+        // 1) update the tracking effective area.
+        const double lastEffectiveness = getEffectivenessOfBox(bgResult.binaryData, m_curBox);
+        if (lastEffectiveness < 0.3)
+        {   // very bad, we should not do any update(may be covered by other objects)
+            // should avoid this to happen.
+            bDoTrack = false;
         }
-        if (m_ctTracker->processFrame(in, m_curBox) < 0)
-        {
-            LogW("Compressive Tracker do warning a failing track.\n.");
-            // TODO: how to do update ? just terminate the tracking right now.
-            return 1;
+        else if (lastEffectiveness < 0.7)
+        {   // we need adjust current area
+            cv::Rect box = m_curBox;
+            adjustBoxByBgResult(bgResult, box); // adjust little by little
+            // not a better result, we use current
+            if (getEffectivenessOfBox(bgResult.binaryData, box) > lastEffectiveness)
+            {
+                m_curBox = box;
+                bNeedReset = true;
+            }
+        } // else: good situation, we use it curBox(won't update) do tracking.
+
+        if (bDoTrack == true)
+        {   // across boundary but consume nothing, we need CTTracking (reset first)
+            if (m_movingStatus != MOVING_INSIDE && m_movingStatus != MOVING_STOP)
+                bNeedReset = true;
+            if (bNeedReset == true) // re-init
+                m_ctTracker->init(in, m_curBox);
+            // because of CTTracker's bug.
+            doBoxProtectionCalibrate(m_curBox);
+            
+            if (m_ctTracker->processFrame(in, m_curBox) < 0)
+            {
+                LogW("Compressive Tracker do warning a failing track.\n.");
+                // TODO: how to do update ? just terminate the tracking right now.
+                return 1;
+            }
         }
-        // we update track every 10 frames.
-        //if (m_inputFrames % 10 == 0)
-        //{
-        //    delete m_ctTracker;
-        //    adjustCurBoxForCT(bgResult);
-        //    m_ctTracker = new CompressiveTracker();
-        //    m_ctTracker->init(in, m_curBox);
-        //}
     }
 
     // 4. do post-process of boundary line update (after we get new curBox)
@@ -185,11 +209,11 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
         // just check its line overlap with curBox
         // NOTE: please make sure curBox never have width/height = 0.
         lastLine = rectToBoundaryLine(bdNum, m_curBox, false, m_skipTB, m_skipLR);
-        LogD("Consume Line: %s %d-%d %s, lastLine, %d-%d.\n",
-             getMovingDirectionStr((MOVING_DIRECTION)bdNum),
-             consumeLine.a.x, consumeLine.b.x, 
-             getMovingStatusStr(consumeLine.movingStatus),
-             lastLine.a.x, lastLine.b.x);
+        //LogD("Consume Line: %s %d-%d %s, lastLine, %d-%d.\n",
+        //     getMovingDirectionStr((MOVING_DIRECTION)bdNum),
+        //     consumeLine.a.x, consumeLine.b.x, 
+        //     getMovingStatusStr(consumeLine.movingStatus),
+        //     lastLine.a.x, lastLine.b.x);
 
         if (isXContainedBy(consumeLine, lastLine) == true)
         {
@@ -209,6 +233,7 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
                 bBoundaryConsume = true;
         }
     }
+    
     // whether need boundary update
     if (bBoundaryConsume == false)
         return (int)CONSUME_NOTHING;
@@ -234,29 +259,11 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
     dumpRect(box);
     // d). bound box
     boundBoxByMaxBox(box, maxBox);
+
+    // e). add protection of the newly got box.
+    doBoxProtectionCalibrate(box);
     
-    // e). add protection: for CTTracker, too large area will cause core dump
-    // It seems CTTracker has max tracking height/width, WTF.
-    if (box.width < 32)
-        box.width = 32;
-    if (box.height < 32)
-        box.height = 32;
-    if (box.x < 0 || box.x > m_imgWidth  ||
-        box.y < 0 || box.y > m_imgHeight ||
-        box.width < 0 || box.height < 0  ||
-        box.x + box.width > m_imgWidth   ||
-        box.y + box.height > m_imgHeight)
-    {
-        LogW("Box overflow, using last box.\n");
-        dumpRect(box);
-        box = m_curBox;
-    }
-    if (box.width > m_imgWidth - m_imgWidth * 0.2)
-        box.width = m_imgWidth - m_imgWidth * 0.2;
-    if (box.height > m_imgHeight - m_imgHeight * 0.2)
-        box.height = m_imgHeight - m_imgHeight * 0.2;
-    
-    // 3) finally, we do some internal update
+    // 3 finally, we do some internal update
     m_curBox = box;
     m_lastBoundaryLines[bdNum] = consumeLine;
     if (m_largestWidth < m_curBox.width)
@@ -581,7 +588,7 @@ cv::Rect ContourTrack :: estimateMinBoxByTwoConsecutiveLine (const int bdNum,
     
     return minBox;
 }
-
+    
 int ContourTrack :: getConsumeResult(const vector<int> & results)
 {
     int result = (int)CONSUME_NOTHING;
@@ -644,6 +651,19 @@ int ContourTrack :: doStatusChanging(const int statusResult)
     return 0;
 }
 
+// For using of Updating CTTracker & Retain An Accurate CurBox
+double ContourTrack :: getEffectivenessOfBox(const cv::Mat & image, const cv::Rect & box)
+{
+    int actives = 0;
+    for (int k=box.y; k < box.y + box.height; k++)
+    {
+        for (int j=box.x; j < box.x + box.width; j++)
+            if (image.at<uchar>(k, j))
+                actives++;
+    }
+    return actives * 1.0 / (m_curBox.width * m_curBox.height);
+}
+    
 int ContourTrack :: adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
                                         const int maxEnlargeDx, const int maxEnlargeDy,
                                         const int maxShrinkDx, const int maxShrinkDy)
@@ -652,7 +672,26 @@ int ContourTrack :: adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
     doShrinkBoxUsingImage(bgResult.binaryData, baseBox, maxShrinkDx, maxShrinkDy);
     return 0;
 }
+    
+int ContourTrack :: doBoxProtectionCalibrate(cv::Rect & box)
+{
+    if (box.width < 32)
+        box.width = 32;
+    if (box.height < 32)
+        box.height = 32;
 
+    // TODO: Seems CTTracker has max tracking height/width, WTF. Fix it later.
+    // -16 is because of CTTracker's bug
+    boundBoxByMaxBox(box, cv::Rect(0, 0, m_imgWidth - 16, m_imgHeight - 16));    
+    // TODO: this is for CTTracker's bug, I would fix it later.
+    if (box.width > m_imgWidth - m_imgWidth * 0.2)
+        box.width = m_imgWidth - m_imgWidth * 0.2;
+    if (box.height > m_imgHeight - m_imgHeight * 0.2)
+        box.height = m_imgHeight - m_imgHeight * 0.2;
+    
+    return 0;
+}
+    
 } // namespace Seg_Three
 
 /////////////////////////// End of The File //////////////////////////////////////////////
