@@ -7,13 +7,11 @@ namespace Seg_Three
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 //// constructor / destructor / init
-ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
-                             const int width, const int height,
-                             const int skipTB, const int skipLR,
-                             const int takeFrameInterval,
+ContourTrack :: ContourTrack(const int idx, const int width, const int height,
+                             const int skipTB, const int skipLR, const int takeFrameInterval,
                              const int directionIn, const TDLine & theLine,
-                             const cv::Rect & firstBox, 
-                             const int firstAppearFrameCount)
+                             const cv::Rect & firstBox, const int firstAppearFrameCount,
+                             const cv::Mat & in, BgResult & bgResult)
     : m_idx(idx)
     , m_imgWidth(width)
     , m_imgHeight(height)
@@ -39,12 +37,19 @@ ContourTrack :: ContourTrack(const int idx, const cv::Mat & in,
     // line's direction is not quit the same as the tracker's moving direction
     assert(theLine.movingDirection < 4);
     m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;
+    
     m_movingInStatusChangingThreshold = takeFrameInterval > 1 ? 3 : 2;
     m_movingOutStatusChangingThreshold = takeFrameInterval > 1 ? 1 : 2;    
-    // compressive tracker part.
-    // won't init until bAllIn is set, namely MOVING_STATUS changes from CROSS_IN to INSIDE.
-    // m_ctTracker = new CompressiveTracker();
-    // m_ctTracker->init(in, m_curBox); //ct.init(grayImg, box);        
+    m_maxEnlargeDx = 48 * m_takeFrameInterval; 
+    m_maxEnlargeDy = 48 * m_takeFrameInterval; 
+    m_maxShrinkDx = 48 * m_takeFrameInterval; 
+    m_maxShrinkDy = 48 * m_takeFrameInterval; 
+    
+    adjustBoxByBgResult(bgResult, m_curBox);
+    // compressive tracker part, create it when needed.    
+    //m_ctTracker = new CompressiveTracker();
+    //assert(m_ctTracker);
+    //m_ctTracker->init(in, m_curBox);       
     LogI("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, initWidth:%d, "
          "initHeight:%d. \n", m_idx,
          directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height);
@@ -211,24 +216,20 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
     // 2. Ok now, let's update curBox with this boundary line.    
     // 1) TODO: magic number, use takeFrameInterval make it less magic.
     //    first we get the minimal kernel, then calculate the enlarge & shrink range.
-    static const int maxEnlargeDx = 48 * m_takeFrameInterval; 
-    static const int maxEnlargeDy = 48 * m_takeFrameInterval; 
-    static const int maxShrinkDx = 48 * m_takeFrameInterval; 
-    static const int maxShrinkDy = 48 * m_takeFrameInterval; 
     cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine, consumeLine,
                                           consumeLine.movingStatus == MOVING_CROSS_IN);
     LogD("%d after estimate: \n", m_idx);    
     // 2) then do enlarge / shrink / boundBox    
     // a). get the possible maxium box using 'diffOr', used for boundbox.
     cv::Rect maxBox = box;
-    doEnlargeBoxUsingImage(diffOr, maxBox, maxEnlargeDx, maxEnlargeDy);
+    doEnlargeBoxUsingImage(diffOr, maxBox, m_maxEnlargeDx, m_maxEnlargeDy);
     // b). normal enlarge using new bgResult
     dumpRect(box);
-    doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);
+    doEnlargeBoxUsingImage(bgResult.binaryData, box, m_maxEnlargeDx, m_maxEnlargeDy);
     LogD("%d after enlarge: \n", m_idx);
     dumpRect(box);
     // c). normal shrink  using new bgResult
-    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);
+    doShrinkBoxUsingImage(bgResult.binaryData, box, m_maxShrinkDx, m_maxShrinkDy);
     LogD("%d after shrink: \n", m_idx);
     dumpRect(box);
     // d). bound box
@@ -643,16 +644,13 @@ int ContourTrack :: doStatusChanging(const int statusResult)
     return 0;
 }
 
-int ContourTrack ::  adjustCurBoxForCT(BgResult & bgResult)
+int ContourTrack :: adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
+                                        const int maxEnlargeDx, const int maxEnlargeDy,
+                                        const int maxShrinkDx, const int maxShrinkDy)
 {
-    cv::Rect box = calcOverlapRect(m_lastBox, m_curBox);
-    static const int maxEnlargeDx = 64, maxEnlargeDy = 64;
-    static const int maxShrinkDx = 64, maxShrinkDy = 64;
-    doEnlargeBoxUsingImage(bgResult.binaryData, box, maxEnlargeDx, maxEnlargeDy);
-    doShrinkBoxUsingImage(bgResult.binaryData, box, maxShrinkDx, maxShrinkDy);
-    //boundBoxByMaxBox(box, maxBox);
-    m_curBox = box;
-    return 0;    
+    doEnlargeBoxUsingImage(bgResult.binaryData, baseBox, maxEnlargeDx, maxEnlargeDy);
+    doShrinkBoxUsingImage(bgResult.binaryData, baseBox, maxShrinkDx, maxShrinkDy);
+    return 0;
 }
 
 } // namespace Seg_Three

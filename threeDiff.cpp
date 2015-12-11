@@ -189,13 +189,14 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                 static const int TooSmallSize = 32;
                 const int fixedLen = theLine.b.x - theLine.a.x;
                 int lux = 0, luy = 0, possibleWidth = 0, possibleHeight = 0;
-                // TODO: should make 2 & 8 param in future.
+                // TODO: magic number 8, seems not that matter,
+                //       for we will enlarge/shrink when crate.
                 switch(bdNum)
                 {
-                case 0: // top: enlarge width 4 pixels, each side with 2.
-                    lux = theLine.a.x - 4 + m_skipLR < 0 ? 0 : theLine.a.x - 4 + m_skipLR;
-                    luy = 0; // TODO?? what value should be taken?
-                    possibleWidth = fixedLen + 4 > m_imgWidth ? m_imgWidth : fixedLen + 4;
+                case 0:
+                    lux = theLine.a.x + m_skipLR;
+                    luy = 0;
+                    possibleWidth = fixedLen;
                     // make it 8 pixels for all newly created Rect
                     possibleHeight = m_skipTB + 8;
                     if (possibleWidth < TooSmallSize)
@@ -203,26 +204,25 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     break;                    
                 case 1: // bottom
                     possibleHeight = m_skipTB + 8;
-                    lux = theLine.a.x - 4 + m_skipLR < 0 ? 0 : theLine.a.x - 4 + m_skipLR;
+                    lux = theLine.a.x + m_skipLR;
                     luy = m_imgHeight - possibleHeight;
-                    possibleWidth = fixedLen + 4 > m_imgWidth ? m_imgWidth : fixedLen + 4;
+                    possibleWidth = fixedLen;
                     if (possibleWidth < TooSmallSize)
                         bTooSmall = true;                    
                     break;                    
                 case 2: // left
                     lux = 0;
-                    luy = theLine.a.x - 4 + m_skipTB < 0 ? 0 : theLine.a.x - 4 + m_skipTB ;
+                    luy = theLine.a.x + m_skipTB;
                     possibleWidth = m_skipLR + 8;
-                    possibleHeight = fixedLen + 4 > m_imgHeight ? m_imgHeight : fixedLen + 4;
+                    possibleHeight = fixedLen;
                     if (possibleHeight < TooSmallSize)
                         bTooSmall = true;                    
                     break;                    
                 case 3: // right
                     possibleWidth = m_skipLR + 8;
                     lux = m_imgWidth - possibleWidth;
-                    luy = theLine.a.x - 4 + m_skipTB < 0 ? 0 : theLine.a.x - 4 + m_skipTB;
-                    possibleHeight = fixedLen + 4 + m_skipTB > m_imgHeight ?
-                        m_imgHeight : fixedLen + 4 + m_skipTB;
+                    luy = theLine.a.x + m_skipTB;
+                    possibleHeight = fixedLen;
                     if (possibleHeight < TooSmallSize)
                         bTooSmall = true;                    
                     break;
@@ -282,12 +282,11 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
                     MOVING_DIRECTION md =
                         getPossibleMovingInDirection(lux, luy, possibleWidth, possibleHeight,
                                                      m_imgWidth, m_imgHeight);
-                    ContourTrack *pTrack = new ContourTrack(m_objIdx, in,
-                                                            m_imgWidth, m_imgHeight,
+                    ContourTrack *pTrack = new ContourTrack(m_objIdx, m_imgWidth, m_imgHeight,
                                                             m_skipTB, m_skipLR,
-                                                            m_takeFrameInterval,
-                                                            md, theLine, tobeCreateRect,
-                                                            m_inputFrames);
+                                                            m_takeFrameInterval, md, theLine,
+                                                            tobeCreateRect, m_inputFrames,
+                                                            in, bgResult);
                     m_trackers.push_back(pTrack);
                     // 3). we ouptput the newly created Segmentation. 
                     SegResults sr;

@@ -24,13 +24,10 @@ namespace Seg_Three
 class ContourTrack
 {   
 public:
-    ContourTrack(const int idx, const cv::Mat & in,
-                 const int width, const int height, // image width/height
-                 const int skipTB, const int skipLR,
-                 const int takeFrameInterval, 
-                 const int directionIn, const TDLine & theLine, 
-                 const cv::Rect & firstBox, 
-                 const int firstAppearFrameCount);
+    ContourTrack(const int idx, const int width, const int height, // image width/height
+                 const int skipTB, const int skipLR, const int takeFrameInterval, 
+                 const int directionIn, const TDLine & theLine, const cv::Rect & firstBox, 
+                 const int firstAppearFrameCount, const cv::Mat & in, BgResult & bgResult);
     
     ~ContourTrack();
     // 1. APIs
@@ -63,6 +60,10 @@ private: // members
     int m_inputFrames;
     const int m_firstAppearFrameCount;
     bool m_bOutputRegion;
+    int m_maxEnlargeDx;
+    int m_maxEnlargeDy;
+    int m_maxShrinkDx;
+    int m_maxShrinkDy;
     
     // 1. using CompressiveTrack as tracker
     cv::Rect m_lastBox;
@@ -98,7 +99,9 @@ private: // inner trival ones
         const TDLine & updateLine, const bool bCrossIn);
     int getConsumeResult(const vector<int> & results);
     int doStatusChanging(const int statusResult);
-    int adjustCurBoxForCT(BgResult & bgResult);
+    int adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
+                            const int maxEnlargeDx = 48, const int maxEnlargeDy = 48,
+                            const int maxShrinkDx = 48, const int maxShrinkDy = 48);
 };
 
 }//namespace
