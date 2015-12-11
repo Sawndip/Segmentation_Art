@@ -24,33 +24,38 @@ ContourTrack :: ContourTrack(const int idx, const int width, const int height,
     , m_lastBox(firstBox)
     , m_curBox(firstBox)
     , m_ctTracker(NULL)
-    , m_largestWidth(m_curBox.width) // may not be used
-    , m_largestHeight(m_curBox.height) // may not be used
     , m_inDirection((MOVING_DIRECTION)directionIn)
     , m_outDirection(DIRECTION_UNKNOWN)
     , m_movingStatus(MOVING_CROSS_IN)
     , m_bMovingStop(false) // may not be used
-    , m_allInCount(0)
-    , m_allOutCount(0)
-    , m_crossOutCount(0)  
 {
     // line's direction is not quit the same as the tracker's moving direction
     assert(theLine.movingDirection < (int)BORDER_NUM);
-    m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;
-    
+    // 1. trival member init.
+    m_lastBoundaryLines[(int)theLine.movingDirection] = theLine;        
     m_movingInStatusChangingThreshold = 2; //takeFrameInterval > 1 ? 3 : 2;
     m_movingOutStatusChangingThreshold = 2; //takeFrameInterval > 1 ? 1 : 2;    
     m_maxEnlargeDx = 48 * m_takeFrameInterval; 
     m_maxEnlargeDy = 48 * m_takeFrameInterval; 
     m_maxShrinkDx = 48 * m_takeFrameInterval; 
     m_maxShrinkDy = 48 * m_takeFrameInterval; 
+    
+    // 2. make a better initial state.
+    adjustBoxByBgResult(bgResult, m_curBox,
+                        m_maxEnlargeDx, m_maxEnlargeDy, m_maxShrinkDx, m_maxShrinkDy);
+    // 3. put the first result.
+    queue<int> empty;
+    std::swap(m_lastConsumeLinesResults, empty);
+    queue<double> dEmpty;
+    std::swap(m_lastBoxesFitness, dEmpty);
+    m_lastConsumeLinesResults.push((int)CONSUME_IN_LINE);
+    m_lastBoxesFitness.push(getFitnessOfBox(bgResult.binaryData, m_curBox));
 
-    // make a better initial state.
-    adjustBoxByBgResult(bgResult, m_curBox);
-    // compressive tracker part, create it & re-init when needed(no need delete it).    
-    m_ctTracker = new CompressiveTracker();
-    assert(m_ctTracker);
-    m_ctTracker->init(in, m_curBox);       
+    // 4. compressive tracker part, create it & re-init when needed(no need delete it).    
+    //m_ctTracker = new CompressiveTracker();
+    //assert(m_ctTracker);
+    //m_ctTracker->init(in, m_curBox);
+    
     LogD("Create New ContourTrack %d: InDirection: %d, lux:%d, luy:%d, initWidth:%d, "
          "initHeight:%d. BeforeAdjust: %d-%d-%d-%d.\n", m_idx,
          directionIn, m_curBox.x, m_curBox.y, m_curBox.width, m_curBox.height,
@@ -67,9 +72,8 @@ ContourTrack :: ~ContourTrack()
 //// APIs
     
 //// Process frame using compressive tracker or Boundary Info
-int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
-                                 const cv::Mat & diffAnd, const cv::Mat & diffOr,
-                                 const bool bGoodTimeToUpdate)
+int ContourTrack :: processFrame(const cv::Mat & in, const cv::Mat & lastIn,
+                                 BgResult & bgResult, const bool bGoodTimeToUpdate)
 {   
     m_inputFrames++;
     m_lastBox = m_curBox;
@@ -86,68 +90,24 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
         {   // we need process boundary lines, after process we marked it as used.
             for (int k = 0; k < (int)resultLines[bdNum].size(); k++)
                 boundaryResults.push_back(processOneBoundaryLine(bdNum, resultLines[bdNum][k],
-                                                                 bgResult, diffAnd, diffOr));
+                                                                 bgResult));
         }
     }
 
     // 2. do status changing update
-    const int resultStatus = getConsumeResult(boundaryResults);
-    doStatusChanging(resultStatus);
+    const int statusResult = getConsumeResult(boundaryResults);
+
+    // 3. do CT Track & get the fitness
+    double fitness = -1.0;
+    if (statusResult == (int)CONSUME_NOTHING)
+        // evry important process
+        fitness = doTrackUpdate(in, lastIn, bgResult, bGoodTimeToUpdate);
+    else
+        fitness = getFitnessOfBox(bgResult.binaryData, m_curBox);
+
+    doStatusChanging(statusResult, fitness);
     if (m_movingStatus == MOVING_FINISH)
         return 1;
-    
-    // 3. compressive tracking. some objects may never use this (always cross boundaries)
-    //    1) if consume nothing, we use CT
-    //    2) update CT's tracking effective area when it is less than 70%.
-    if ( (m_movingStatus == MOVING_INSIDE || m_movingStatus == MOVING_STOP) ||// STOP needed?
-         resultStatus == (int)CONSUME_NOTHING )
-    {
-        bool bCTTrack = true;
-        bool bNeedReset = false;
-        // 1) update the tracking effective area.
-        const double lastEffectiveness = getEffectivenessOfBox(bgResult.binaryData, m_curBox);
-        if (lastEffectiveness < 0.25) // TODO: magic number
-        {   // very bad, we should not do any update(may be covered by other objects)
-            // should avoid this to happen.
-            m_curBox = m_lastBox; // ??
-            bCTTrack = false;
-        }
-        else if (lastEffectiveness < 0.6) // TODO: magic number
-        {   // we need adjust current area
-            if (bGoodTimeToUpdate == true)
-            {
-                cv::Rect box = m_curBox;
-                adjustBoxByBgResult(bgResult, box); // adjust little by little
-                // not a better result, we use current
-                if (getEffectivenessOfBox(bgResult.binaryData, box) > lastEffectiveness)
-                {
-                    m_curBox = box;
-                    bNeedReset = true;
-                }
-            }
-        } // else: good situation, we use it curBox(won't update) do tracking.
-
-        if (bCTTrack == true)
-        {   // across boundary but consume nothing, we need CTTracking (reset first)
-            if (m_movingStatus != MOVING_INSIDE && m_movingStatus != MOVING_STOP)
-                bNeedReset = true;
-            if (bNeedReset == true) // re-init
-            {
-                //delete m_ctTracker;
-                delete m_ctTracker;
-                m_ctTracker = new CompressiveTracker();
-                m_ctTracker->init(in, m_curBox);
-            }
-            // because of CTTracker's bug.
-            doBoxProtectionCalibrate(m_curBox);
-            if (m_ctTracker->processFrame(in, m_curBox) < 0)
-            {
-                LogW("Compressive Tracker do warning a failing track.\n.");
-                // TODO: how to do update ? just terminate the tracking right now.
-                return 1;
-            }
-        }
-    }
 
     // 4. do post-process of boundary line update (after we get new curBox)
     directions.clear();
@@ -173,8 +133,7 @@ int ContourTrack :: processFrame(const cv::Mat & in, BgResult & bgResult,
                         // TODO? XT: 0.5 magic number here!
                         // use takeFrameInterval make it less magic.
                         if (boundaryLine.b.x - boundaryLine.a.x > 0 &&
-                            m_takeFrameInterval * overlapLen * 1.0 /
-                                  (boundaryLine.b.x - boundaryLine.a.x) > 0.5)
+                            overlapLen * 1.0 / (boundaryLine.b.x - boundaryLine.a.x) > 0.5)
                             resultLines[bdNum][k].bUsed = true;
                     }
                 }
@@ -192,6 +151,61 @@ int ContourTrack :: flushFrame()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //// Internal Helpers: important ones
+double ContourTrack :: doTrackUpdate(const cv::Mat & in, const cv::Mat & lastIn,
+                                     BgResult & bgResult, const bool bGoodTimeToUpdate)
+{
+    if (m_ctTracker == NULL)
+    {
+        m_ctTracker = new CompressiveTracker();
+        m_ctTracker->init(lastIn, m_lastBox);
+    }
+    // new position
+    if (m_ctTracker->processFrame(in, m_curBox) < 0)
+    {
+        LogW("Compressive Tracker do warning a failing track.\n.");
+        // TODO: how to do update ? just terminate the tracking right now.
+        // return 1;
+    }
+
+    // because of CTTracker's bug.
+    doBoxProtectionCalibrate(m_curBox);
+
+    // check whether we need to adjust tracking area    
+    const double curFitness = getFitnessOfBox(bgResult.binaryData, m_curBox);
+    LogD("track %d: fiteness %.2f. isGoodTime ? %d -----====-----\n",
+         m_idx, curFitness, (int)bGoodTimeToUpdate);
+
+    if (curFitness < 0.25) // TODO: magic number
+    {   // very bad, we should not do any update(may be covered by other objects)
+        // should avoid this to happen.
+        // using lastBox
+        delete m_ctTracker;
+        m_ctTracker = new CompressiveTracker();
+        m_ctTracker->init(lastIn, m_lastBox); // we assume last in is good.
+    }
+    else if (curFitness < 0.7) // TODO: magic number
+    {   // we need adjust current area
+        if (bGoodTimeToUpdate == true)
+        {
+            cv::Rect box = m_curBox;
+            adjustBoxByBgResult(bgResult, box, 32, 32, 32, 32); // adjust little by little
+            const double newFitness = getFitnessOfBox(bgResult.binaryData, box);
+            LogD("New adjust box fitness %.2f \n", newFitness);
+            // not a better result, we use current
+            //if (newEffictiveness > curFitness)
+            {
+                m_curBox = box;
+                //doBoxProtectionCalibrate(box);
+                delete m_ctTracker;
+                m_ctTracker = new CompressiveTracker();
+                m_ctTracker->init(in, m_curBox);
+            }
+        }
+    } // else: good situation, we use it curBox(won't update) do tracking.
+    return 0.0; 
+}
+
+    
 // the most important one, all complexities are implemented by this function.
 // 1. update curBox using boundary lines
 // 2. update moving status using boundary lines
@@ -199,7 +213,7 @@ int ContourTrack :: flushFrame()
 // return values: >= 0, process ok
 //                 < 0, process error
 int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine, 
-    BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr)
+                                           BgResult & bgResult)
 {
     // 0. some pre-check.
     if (consumeLine.bValid == false)
@@ -226,19 +240,19 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
 
         if (isXContainedBy(consumeLine, lastLine) == true)
         {
+            LogD("Fully Contained!\n");
             bBoundaryConsume = true;
             //consumeLine.bUsed = true;
             //return consumeLine.movingStatus == MOVING_CROSS_IN ?
             //    (int)CONSUME_IN_LINE : (int)CONSUME_OUT_LINE;
-            LogD("Fully Contained!\n");
         }
         else
         {   
             const int overlapLen = overlapXLenOfTwolines(lastLine, consumeLine);
-            // TODO: magic number here!!! use takeFrameInterval make it less magic
+            // TODO: magic number here!
             LogD("Overlap Len %d.\n", overlapLen);
             if (lastLine.b.x - lastLine.a.x > 0 &&
-                m_takeFrameInterval * overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.1)
+                overlapLen * 1.0 / (lastLine.b.x - lastLine.a.x) > 0.1)
                 bBoundaryConsume = true;
         }
     }
@@ -252,36 +266,25 @@ int ContourTrack :: processOneBoundaryLine(const int bdNum, TDLine & consumeLine
     //    first we get the minimal kernel, then calculate the enlarge & shrink range.
     cv::Rect box = estimateMinBoxByTwoConsecutiveLine(bdNum, lastLine, consumeLine,
                                           consumeLine.movingStatus == MOVING_CROSS_IN);
-    LogD("%d after estimate: \n", m_idx);    
+    LogD("tracker%d after estimate: \n", m_idx);
     // 2) then do enlarge / shrink / boundBox    
-    // a). get the possible maxium box using 'diffOr', used for boundbox.
-    cv::Rect maxBox = box;
-    doEnlargeBoxUsingImage(diffOr, maxBox, m_maxEnlargeDx, m_maxEnlargeDy);
-    // b). normal enlarge using new bgResult
-    dumpRect(box);
+    // a). normal enlarge using new bgResult
     doEnlargeBoxUsingImage(bgResult.binaryData, box, m_maxEnlargeDx, m_maxEnlargeDy);
-    LogD("%d after enlarge: \n", m_idx);
+    LogD("tracker%d after enlarge: \n", m_idx);
     dumpRect(box);
-    // c). normal shrink  using new bgResult
+    // b). normal shrink  using new bgResult
     doShrinkBoxUsingImage(bgResult.binaryData, box, m_maxShrinkDx, m_maxShrinkDy);
-    LogD("%d after shrink: \n", m_idx);
+    LogD("tracker%d after shrink: \n", m_idx);
     dumpRect(box);
-    // d). bound box
-    boundBoxByMaxBox(box, maxBox);
-
-    // e). add protection of the newly got box.
+    // c). add protection of the newly got box.
     doBoxProtectionCalibrate(box);
     
     // 3 finally, we do some internal update
     m_curBox = box;
     m_lastBoundaryLines[bdNum] = consumeLine;
-    if (m_largestWidth < m_curBox.width)
-        m_largestWidth = m_curBox.width;
-    if (m_largestHeight < m_curBox.height)
-        m_largestHeight = m_curBox.height;
-
     consumeLine.bUsed = true;
-    LogD("%d Consume One Line: %s %d-%d %s.\n",
+    
+    LogD("tracker%d Consume One Line: %s %d-%d %s.\n",
          m_idx, getMovingDirectionStr((MOVING_DIRECTION)bdNum),
          consumeLine.a.x, consumeLine.b.x, getMovingStatusStr(consumeLine.movingStatus));
     return consumeLine.movingStatus == MOVING_CROSS_IN ?
@@ -302,7 +305,7 @@ int ContourTrack :: doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box
     const int maxRightX = box.x + box.width + maxEnlargeDx > m_imgWidth ?
                           m_imgWidth : box.x + box.width + maxEnlargeDx;
     // TODO: magic number here
-    const static int EnlargeLossThreshold = 3;
+    const static int EnlargeLossThreshold = 2;
     const static double EnlargeScorePercentThreshold = 0.1;    
         
     cv::Rect newBox = box;
@@ -406,7 +409,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
-        if (score * 2.0 * m_takeFrameInterval / box.width > 0.1)
+        if (score * 2.0 / box.width > 0.1)
             break;
     }
     newBox.y = k;
@@ -421,7 +424,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(k+1, j) & image.at<uchar>(k+1, j+1))
                 score++;
         }
-        if (score * 2.0 * m_takeFrameInterval / box.width > 0.1)
+        if (score * 2.0 / box.width > 0.1)
             break;
     }
     newBox.height = k - newBox.y;
@@ -436,7 +439,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(j+1, k) & image.at<uchar>(j+1, k+1))
                 score++;
         }
-        if (score * 2.0 * m_takeFrameInterval / box.height > 0.1)
+        if (score * 2.0 / box.height > 0.1)
             break;
     }
     newBox.x = k;
@@ -453,7 +456,7 @@ int ContourTrack :: doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                 image.at<uchar>(j+1, k+1))
                 score++; // find the boundary.
         }
-        if (score * 2.0 * m_takeFrameInterval / box.height > 0.1)
+        if (score * 2.0 / box.height > 0.1)
             break;
     }
     newBox.width = k - newBox.x;
@@ -610,12 +613,19 @@ int ContourTrack :: getConsumeResult(const vector<int> & results)
     return result;
 }
 
-int ContourTrack :: doStatusChanging(const int statusResult)
+int ContourTrack :: doStatusChanging(const int statusResult, const double fitness)
 {
-    LogD("--><--- frame %d statusResult: %d of tracker %d, %s.\n",
-         m_inputFrames, statusResult, m_idx, getMovingStatusStr(m_movingStatus));
-    dumpRect(m_curBox);
+    //LogD("--><--- frame %d statusResult: %d of tracker %d, %s.\n",
+    //     m_inputFrames, statusResult, m_idx, getMovingStatusStr(m_movingStatus));
+    //dumpRect(m_curBox);
+    if ((int)m_lastConsumeLinesResults.size() >= 16 * m_takeFrameInterval)
+        m_lastConsumeLinesResults.pop();
+    if ((int)m_lastBoxesFitness.size() >= 16 * m_takeFrameInterval)
+        m_lastBoxesFitness.pop();
     
+    m_lastConsumeLinesResults.push(statusResult);
+    m_lastBoxesFitness.push(fitness);
+
     switch(statusResult)
     {
     case CONSUME_NOTHING:
@@ -661,7 +671,7 @@ int ContourTrack :: doStatusChanging(const int statusResult)
 }
 
 // For using of Updating CTTracker & Retain An Accurate CurBox
-double ContourTrack :: getEffectivenessOfBox(const cv::Mat & image, const cv::Rect & box)
+double ContourTrack :: getFitnessOfBox(const cv::Mat & image, const cv::Rect & box)
 {
     int actives = 0;
     for (int k=box.y; k < box.y + box.height; k++)

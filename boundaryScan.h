@@ -78,7 +78,6 @@ private: // inner members
     static const int M_BOUNDARY_SCAN_CACHE_LINES = 3;
     static const int M_ELEMENT_WIDTH = 2; // for simple erode/dilate
     static const int M_ELEMENT_HEIGHT = 2;
-
     int m_imgWidth;
     int m_imgHeight;
     int m_inputFrames;
@@ -86,7 +85,7 @@ private: // inner members
     int m_skipLR;
     int m_scanSizeTB;
     int m_scanSizeLR;
-    int m_takeFrameInterval;    
+    int m_takeFrameInterval;
     // for cross boundary analyse
     BordersMem m_bordersMem;
     int m_curFrontIdx;

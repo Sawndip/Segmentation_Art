@@ -41,10 +41,7 @@ int ThreeDiff :: init(const int width, const int height,
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
             m_bgResults[k].binaryData.create(height, width, CV_8UC1); // gray
         for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_diffAndResults[k].create(height, width, CV_8UC1); // gray
-        for (int k = 0; k < M_THREE_DIFF_CACHE_FRAMES; k++)
-            m_diffOrResults[k].create(height, width, CV_8UC1); // gray
-        // crossLines won't be init here.
+            m_cacheIn[k].create(height, width, CV_8UC1); // gray
         // ContourTrack
         m_objIdx = 0;        
         m_bInit = true;
@@ -77,20 +74,15 @@ int ThreeDiff :: processFrame(const cv::Mat & in,
     if (m_inputFrames <= M_THREE_DIFF_CACHE_FRAMES)
     {
         m_bgResults[m_curFrontIdx] = bgResult;
-        if (m_inputFrames > 1) // M_THREE_DIFF_CACHE_FRAMES may not be 2 in future.
-        {   
-            doBgDiff(m_bgResults[m_inputFrames-1].binaryData,
-                     m_bgResults[m_inputFrames-2].binaryData);
-            m_curFrontIdx = loopIndex(m_curFrontIdx, M_THREE_DIFF_CACHE_FRAMES);
-        }
+        in.copyTo(m_cacheIn[m_curFrontIdx]);
+        m_curFrontIdx = loopIndex(m_curFrontIdx, M_THREE_DIFF_CACHE_FRAMES);
         return 0;
     }
-    
-    // 1. do diff in RGB for Contour's using.
-    doBgDiff(bgResult.binaryData, m_bgResults[m_curFrontIdx].binaryData);
-    // 2. update the trackers status, also dealing with MOVING_CROSS_OUT part.
-    contourTrackingProcessFrame(in, bgResult, segResults);   
-    // 3. do boundary check for creating new Contour.
+
+    const int lastInIdx = loopIndex(m_curFrontIdx, M_THREE_DIFF_CACHE_FRAMES);
+    // 1. track process frame, fill SegResult
+    contourTrackingProcessFrame(in, m_cacheIn[lastInIdx], bgResult, segResults);   
+    // 2. do boundary check for creating new Contour.
     doCreateNewContourTrack(in, bgResult, segResults);
     // 4. do update internal cache/status
     updateAfterOneFrameProcess(in, bgResult);
@@ -116,8 +108,8 @@ int ThreeDiff :: flushFrame(vector<SegResults> & segResults)
 //     >= 0, process ok;
 //     < 0, process error;
 // ***************************************************************************************
-int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResult,
-                                             vector<SegResults> & segResults)
+int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat & in, const cv::Mat & lastIn,
+                                   BgResult & bgResult, vector<SegResults> & segResults)
 {
     if (m_trackers.size() == 0)
         return 0;
@@ -130,8 +122,7 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
     for (auto it = m_trackers.begin(); it != m_trackers.end(); /*No it++, do it inside loop*/)
     {
         SegResults sr;        
-        int ret = (*it)->processFrame(in, bgResult, m_diffAndResults[m_curFrontIdx],
-                         m_diffOrResults[m_curFrontIdx], bGoodTime[it-m_trackers.begin()]);
+        int ret = (*it)->processFrame(in, lastIn, bgResult, bGoodTime[it-m_trackers.begin()]);
         if (ret < 0)
         {
             LogW("Tracker %d Process failed.\n", (*it)->getIdx());
@@ -160,8 +151,6 @@ int ThreeDiff :: contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResu
             segResults.push_back(sr);
             it++; // increse here.
         }
-        // PXT: TODO: merge tracker that with the same tracking area (status == moving_inside)
-        
     }
     return 0;
 }
@@ -310,21 +299,6 @@ int ThreeDiff :: doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult
 //////////////////////////////////////////////////////////////////////////////////////////    
 //////////////////////////////////////////////////////////////////////////////////////////
 //// 4. trival helpers
-int ThreeDiff :: doBgDiff(const cv::Mat & first, const cv::Mat & second)
-{
-    for (int k = 0; k < m_imgHeight; k++)
-    {
-        for (int j = 0; j < m_imgWidth; j++)
-        {
-            m_diffAndResults[m_curFrontIdx].at<uchar>(k, j) =
-                first.at<uchar>(k, j) & second.at<uchar>(k, j);
-            m_diffOrResults[m_curFrontIdx].at<uchar>(k, j) =
-                first.at<uchar>(k, j) | second.at<uchar>(k, j);
-        }
-    }    
-    return 0;
-}
-
 int ThreeDiff :: updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult)
 { 
     m_curFrontIdx = loopIndex(m_curFrontIdx, M_THREE_DIFF_CACHE_FRAMES);
@@ -356,7 +330,7 @@ int ThreeDiff :: isGoodTimeToUpdateTrackerBoxes(vector<bool> & bGoodTime)
                 cv::Rect & box1 = m_trackers[k]->getCurBox();                
                 cv::Rect & box2 = m_trackers[j]->getCurBox();
                 const double distance = calcDistanceOfTwoRect(box1, box2);
-                if (distance < 32.0) // TODO: magic number 32?
+                if (distance < 64.0) // TODO: magic number 64?
                 {
                     bGoodTime[k] = false;
                     bGoodTime[j] = false;
@@ -370,8 +344,10 @@ int ThreeDiff :: isGoodTimeToUpdateTrackerBoxes(vector<bool> & bGoodTime)
 
 double ThreeDiff :: calcDistanceOfTwoRect(cv::Rect & box1, cv::Rect & box2)
 {   // overlap
-    return std::max(abs(box1.x - box2.x) - 0.5*box1.width - 0.5*box2.width,
-                    abs(box1.y - box2.y) - 0.5*box1.height - 0.5*box2.height);
+    return std::max(fabs(box1.x + 0.5*box1.width - box2.x - 0.5*box2.width)
+                      - 0.5*box1.width - 0.5*box2.width,
+                    fabs(box1.y + 0.5*box1.height - box2.y - 0.5*box2.height)
+                      - 0.5*box1.height - 0.5*box2.height);
 }
     
 } // namespace Seg_Three    

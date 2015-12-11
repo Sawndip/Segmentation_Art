@@ -60,22 +60,20 @@ private:
     // 2. cache related
     int m_curFrontIdx;
     static const int M_THREE_DIFF_CACHE_FRAMES = 2;
-    cv::Mat m_diffAndResults[M_THREE_DIFF_CACHE_FRAMES];
-    cv::Mat m_diffOrResults[M_THREE_DIFF_CACHE_FRAMES];
+    cv::Mat m_cacheIn[M_THREE_DIFF_CACHE_FRAMES];
     // background binary data & border mv angle
     BgResult m_bgResults[M_THREE_DIFF_CACHE_FRAMES];
-
+    
     // 3. contourTrack part (using compressiveTracker, then do postprocess with diffResults)
     int m_objIdx;
     vector<ContourTrack *> m_trackers;
 
 private: // inner helpers
     // 1. important ones
-    int contourTrackingProcessFrame(const cv::Mat in, BgResult & bgResult,
-                                    vector<SegResults> & segResults);
+    int contourTrackingProcessFrame(const cv::Mat & in, const cv::Mat & lastIn,
+                                    BgResult & bgResult, vector<SegResults> & segResults);
     int doCreateNewContourTrack(const cv::Mat & in, BgResult & bgResult,
                                 vector<SegResults> & segResults);
-    int kickOverlapPoints(const cv::Rect & box, const MOVING_DIRECTION direction);    
     // 2. trival ones
     int updateAfterOneFrameProcess(const cv::Mat in, const BgResult & bgResult);    
     int doBgDiff(const cv::Mat & first, const cv::Mat & second);

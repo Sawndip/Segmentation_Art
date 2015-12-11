@@ -4,6 +4,7 @@
 // sys
 #include <string>
 #include <vector>
+#include <queue>
 // tools
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -15,6 +16,7 @@
 // namespace
 using :: std :: string;
 using :: std :: vector;
+using :: std :: queue;
 using namespace Vector_Space;
 using namespace Compressive_Tracker;
 
@@ -31,8 +33,7 @@ public:
     
     ~ContourTrack();
     // 1. APIs
-    int processFrame(const cv::Mat & in, BgResult & bgResult,
-                     const cv::Mat & diffAnd, const cv::Mat & diffOr,
+    int processFrame(const cv::Mat & in, const cv::Mat & lastIn, BgResult & bgResult,
                      const bool bGoodTimeToUpdate);
     int flushFrame();
     
@@ -68,25 +69,27 @@ private: // members
     
     // 1. using CompressiveTrack as tracker
     cv::Rect m_lastBox;
-    cv::Rect m_curBox; // changing every time with diffResults' influence
+    cv::Rect m_curBox;
     CompressiveTracker *m_ctTracker;    
     // some internal status
-    int m_largestWidth;
-    int m_largestHeight;    
     MOVING_DIRECTION m_inDirection;
     MOVING_DIRECTION m_outDirection;
     MOVING_STATUS m_movingStatus;
     bool m_bMovingStop; // MOVING_STOP is an assist status, along with other three.
     int m_allInCount;
     int m_allOutCount;
-    int m_crossOutCount;    
+    int m_crossOutCount;
+    queue<int> m_lastConsumeLinesResults; // (CONSUME_LINE_RESULT)
+    queue<double> m_lastBoxesFitness; // the fitness of the last boxes
     TDLine m_lastBoundaryLines[BORDER_NUM]; // may have one or two boundary lines simultaneously
     int m_movingInStatusChangingThreshold;
     int m_movingOutStatusChangingThreshold;    
 
 private: // inner important helpers
-    int processOneBoundaryLine(const int bdNum, TDLine & theLine,
-                        BgResult & bgResult, const cv::Mat & diffAnd, const cv::Mat & diffOr);
+    int processOneBoundaryLine(const int bdNum, TDLine & theLine, BgResult & bgResult);
+    double doTrackUpdate(const cv::Mat & in, const cv::Mat & lastIn,
+                         BgResult & bgResult, const bool bGoodTimeToUpdate);    
+    int doStatusChanging(const int statusResult, const double fitness);
     int doEnlargeBoxUsingImage(const cv::Mat & image, cv::Rect & box,
                                const int maxEnlargeDx, const int maxEnlargeDy);
     int doShrinkBoxUsingImage(const cv::Mat & image, cv::Rect & box,
@@ -94,27 +97,18 @@ private: // inner important helpers
     int doShrinkBoxUsingImage2(const cv::Mat & image, cv::Rect & box,
                               const int maxShrinkDx, const int maxShrinkDy);
     
-private: // inner trival ones 
+private: // inner trival ones
     vector<MOVING_DIRECTION> checkBoxApproachingBoundary(const cv::Rect & rect);
     cv::Rect estimateMinBoxByTwoConsecutiveLine (const int bdNum, const TDLine & lastLine,
         const TDLine & updateLine, const bool bCrossIn);
     int getConsumeResult(const vector<int> & results);
-    int doStatusChanging(const int statusResult);
     int adjustBoxByBgResult(BgResult & bgResult, cv::Rect & baseBox,
                             const int maxEnlargeDx = 48, const int maxEnlargeDy = 48,
                             const int maxShrinkDx = 48, const int maxShrinkDy = 48);
-    double getEffectivenessOfBox(const cv::Mat & image, const cv::Rect & box);
+    double getFitnessOfBox(const cv::Mat & image, const cv::Rect & box);
     int doBoxProtectionCalibrate(cv::Rect & box);    
 };
 
 }//namespace
 
 #endif // _CONTOUR_TRACK_H_
-
-/*
-  Cross In Box Size Calculate
-  1. When create, make it realy nice.
-  2. When do cross in update, using diffOr do enlarge, then using BgResult do shrink.
-     Both the above operations are with restrictions, namely each time can at most changing
-     32 * tan(theta)
-*/

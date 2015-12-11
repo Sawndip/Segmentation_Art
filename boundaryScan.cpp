@@ -31,6 +31,7 @@ int BoundaryScan :: init(const int width, const int height,
     //normaly heightTB=heightLR=2, widthTB=imgWidth, widthLR=imgHeight
     m_bordersMem.init(m_imgWidth - 2 * skipTB, scanSizeTB,
                       m_imgHeight - 2 * skipLR, scanSizeLR);
+
     // for caching part
     m_curFrontIdx = 0;
     for (int k=0; k < M_BOUNDARY_SCAN_CACHE_LINES; k++)
@@ -348,31 +349,35 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
 
     if (middleMaxScore <= 60.0)
         return -1; // doesn't need to mark any lines
-
+    
     // 2. check the old ones' start point(left point)
     int oldMaxIdx = -1;
     double oldMaxScore = -1;
-    for (int k = 0; k < (int)oldLines.size(); k++)
+    if (m_takeFrameInterval <= 2)
     {
-        double score = leftConsecutivityOfTwoLines(middleLines[middleMaxIdx], oldLines[k],
-                                                   m_takeFrameInterval, 60, true);
-        score += rightConsecutivityOfTwoLines(middleLines[middleMaxIdx], oldLines[k],
-                                              m_takeFrameInterval, 60, true);
-        if (score > oldMaxScore)
+        for (int k = 0; k < (int)oldLines.size(); k++)
         {
-            oldMaxScore = score;
-            oldMaxIdx = k;
+            double score = leftConsecutivityOfTwoLines(middleLines[middleMaxIdx], oldLines[k],
+                                                       m_takeFrameInterval, 60, true);
+            score += rightConsecutivityOfTwoLines(middleLines[middleMaxIdx], oldLines[k],
+                                                  m_takeFrameInterval, 60, true);
+            if (score > oldMaxScore)
+            {
+                oldMaxScore = score;
+                oldMaxIdx = k;
+            }
         }
+         
+        if (oldMaxScore < 60.0)
+            return -1; // doesn't need to mark any lines
     }
-
-    if (oldMaxScore < 60.0)
-        return -1; // doesn't need to mark any lines
-
+    
     // 3. NOW OK: find the start points of all three lines, lets do marking & extending.
     //    For old ones will be replaced by new coming frame soon, so we don't mark the olds, but
     //    olds ones will affect the middle lines' merging.
-    if (middleLines[middleMaxIdx].b.x < oldLines[oldMaxIdx].b.x)
-        middleLines[middleMaxIdx].b = oldLines[oldMaxIdx].b;
+    if (m_takeFrameInterval <= 2)
+        if (middleLines[middleMaxIdx].b.x < oldLines[oldMaxIdx].b.x)
+            middleLines[middleMaxIdx].b = oldLines[oldMaxIdx].b;
 
     // calc the new points of curLine
     if (curLine.b.x < middleLines[middleMaxIdx].b.x)
@@ -393,15 +398,17 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     curLine.mayPreviousLineEnd = middleLines[middleMaxIdx].b;
 
     const double averageAngle = (curLine.movingAngle +
-                                 middleLines[middleMaxIdx].movingAngle +
-                                 oldLines[oldMaxIdx].movingAngle) / 3.0;
+                                 middleLines[middleMaxIdx].movingAngle) / 2.0;
     
     const vector<double> & xMvs = bgResult.xMvs[bdNum];
     const vector<double> & yMvs = bgResult.yMvs[bdNum];
     const double updateAngle = getLineMoveAngle(curLine, xMvs, yMvs);
+    if (curLine.b.x - curLine.a.x >=
+        middleLines[middleMaxIdx].b.x - middleLines[middleMaxIdx].a.x)
+        curLine.movingAngle = updateAngle;
+    else
+        curLine.movingAngle = (averageAngle + updateAngle) / 2;
     
-    curLine.movingAngle =
-        middleLines[middleMaxIdx].movingAngle = (averageAngle + updateAngle) / 2;
     // update moving status by angle & bdNum
     calcLineMovingStatus(bdNum, curLine);
     if (middleLines[middleMaxIdx].bValid == true)
@@ -414,11 +421,11 @@ int BoundaryScan :: goMarking(const int bdNum, BgResult & bgResult,
     curLine.bValid = true;
     
     LogD("Frame %d, Boundary %s: Valid Line: cur: %d-%d, previous: %d-%d. "
-         "angle: %.2f(old %.2f, average %.2f, update %.2f), status: %s.\n",
+         "angle: %.2f(average %.2f, update %.2f), status: %s.\n",
          m_inputFrames, getMovingDirectionStr((const MOVING_DIRECTION)bdNum),
          curLine.a.x, curLine.b.x,
          middleLines[middleMaxIdx].a.x, middleLines[middleMaxIdx].b.x, 
-         curLine.movingAngle, oldLines[oldMaxIdx].movingAngle, averageAngle, updateAngle,
+         curLine.movingAngle, averageAngle, updateAngle,
          getMovingStatusStr(curLine.movingStatus));
     return 0;
 }
